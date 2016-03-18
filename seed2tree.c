@@ -6,9 +6,16 @@
 #include <fcntl.h>
 #include <sys/stat.h>  
 #include <sys/types.h> 
+
+
+
+
+//
 static int dest=-1;
 static int src=-1;
-char* wantedfuncname="main";
+//
+char* wantedname=0;
+int   wantedlength=0;
 
 
 
@@ -197,7 +204,7 @@ void seed2tree(char* inininin)
 	//process
 	depth=0;
 	namestack[0]=0;
-	nodeorleaf( buf , statbuf.st_size , wantedfuncname , strlen(wantedfuncname) );
+	nodeorleaf( buf , statbuf.st_size , wantedname , wantedlength );
 /*
 	for( temp=0;temp<statbuf.st_size;temp++ )
 	{
@@ -225,11 +232,13 @@ int main(int argc,char *argv[])
 	char* out="func.tree";
 	if(argc==1)
 	{
-		wantedfuncname="main";
+		wantedname="main";
+		wantedlength=strlen(wantedname);
 	}
 	if(argc==2)
 	{
-		wantedfuncname=argv[1];
+		wantedname=argv[1];
+		wantedlength=strlen(wantedname);
 	}
 
 	//open,process,close

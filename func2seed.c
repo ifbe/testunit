@@ -27,9 +27,6 @@ static volatile unsigned int inmarco=0;	//在宏内
 static volatile unsigned int innote=0;	//在注释内
 static volatile unsigned int instr=0;	//在字符串内
 
-//
-char* wantedsuffix=".c";	//".c",".cpp",".java"
-int wantedlength=2;
 
 
 
@@ -573,13 +570,13 @@ void fileordir(char* thisname)
 		if(j==0)return;
 
 		//长度不够不对
-		if(i-j<wantedlength)return;
+		if(i-j<2)return;
 
 		//长度超过也不对
-		if( thisname[ j+wantedlength ] > 0x20 )return;
+		if( thisname[ j+2 ] > 0x20 )return;
 
 		//名字不一样不对
-		if( strcmp( thisname+j , wantedsuffix ) != 0 )return;
+		if( strcmp( thisname+j , ".c" ) != 0 )return;
 
 		//文件空的也不对
 		i=statbuf.st_size;
@@ -605,11 +602,6 @@ int main(int argc,char *argv[])
 	else if(argc==2)
 	{
 		in=argv[1];
-	}
-	if(argc==3)
-	{
-		wantedsuffix=argv[2];
-		wantedlength=strlen(argv[2]);
 	}
 
 	//open,process,close
