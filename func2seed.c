@@ -13,19 +13,19 @@
 //destination,source,datahome
 static int dest=-1;
 static int src=-1;
-char datahome[0x2000];	//4k+4k
+unsigned char datahome[0x2000];	//4k+4k
 
 //the prophets who guide me
-char* prophet=0;	//后面可能要用的函数名字
-char* prophetinsist=0;	//在函数外面碰到了左括号:
+unsigned char* prophet=0;	//后面可能要用的函数名字
+unsigned char* prophetinsist=0;	//在函数外面碰到了左括号:
 int doubt=0;		//"疑虑"(想更细致就出错):	else myfunc ()
 
 //status
-int chance=0;
-int infunc=0;	//在函数内
-int inmarco=0;	//在宏内
-int innote=0;	//在注释内
-int instr=0;	//在字符串内
+static volatile unsigned int chance=0;
+static volatile unsigned int infunc=0;	//在函数内
+static volatile unsigned int inmarco=0;	//在宏内
+static volatile unsigned int innote=0;	//在注释内
+static volatile unsigned int instr=0;	//在字符串内
 
 //
 char* wantedsuffix=".c";	//".c",".cpp",".java"
@@ -138,26 +138,26 @@ problem4:
 */
 int process(int start,int end)
 {
-	char temp=0;
-	int i=0;
+	int i=0,j=0;
+	unsigned char ch=0;
 
 	//不用i<end防止交界麻烦,给足了整整0x800个机会自己决定滚不滚
 	for(i=start;i<0x1800;i++)
 	{
-		temp=datahome[i];
-		if(temp==0)break;
+		ch=datahome[i];
+		if(ch==0)break;
 
-		//printf("%c",temp);
+		//printf("%c",ch);
 		if( (i>end) && (prophet==0) && (prophetinsist==0))
 		{
-			if(temp==' ')break;
-			else if(temp==0x9)break;
-			else if(temp==0xa)break;
-			else if(temp==0xd)break;
+			if(ch==' ')break;
+			else if(ch==0x9)break;
+			else if(ch==0xa)break;
+			else if(ch==0xd)break;
 		}
 
 		//........
-		if(temp=='\\')
+		if(ch=='\\')
 		{
 			i++;
 			continue;
@@ -165,10 +165,10 @@ int process(int start,int end)
 
 		//prophets' guess
 		else if(
-			( temp>='a' && temp<='z') |
-			(temp>='A' && temp<='Z') |
-			(temp>='0' && temp<='9') |
-			temp=='_' )
+			( ch>='a' && ch<='z') |
+			(ch>='A' && ch<='Z') |
+			(ch>='0' && ch<='9') |
+			ch=='_' )
 		{
 			if(inmarco>0|innote>0|instr>0)continue;
 			if(prophet==0)prophet=datahome+i;
@@ -180,22 +180,21 @@ int process(int start,int end)
 		}
 
 		//prophets' doubt
-		else if( (temp==' ')|(temp==0x9) )
+		else if( (ch==' ')|(ch==0x9) )
 		{
 			if(inmarco>0|innote>0|instr>0)continue;
 			if(prophet != 0)doubt=1;
 		}
 
-		else if( (temp==0xa)|(temp==0xd) )
+		else if( (ch==0xa)|(ch==0xd) )
 		{
 			//普通宏的处理方法扔掉这一行,要注意'\\'这个恶心的符号
 			if(prophet != 0)doubt=1;
-			if(inmarco==1)inmarco=0;
 			if(innote==1)innote=0;
 		}
 
 		//prophets' fable right or wrong
-		else if(temp=='(')
+		else if(ch=='(')
 		{
 			if(inmarco>0|innote>0|instr>0)continue;
 			if(prophet!=0)
@@ -216,7 +215,7 @@ int process(int start,int end)
 				doubt=0;
 			}
 		}
-		else if(temp==')')
+		else if(ch==')')
 		{
 			if(inmarco>0|innote>0|instr>0)continue;
 			prophet=0;
@@ -224,7 +223,7 @@ int process(int start,int end)
 
 			if(infunc==0)chance=1;
 		}
-		else if(temp=='{')
+		else if(ch=='{')
 		{
 			if(inmarco>0|innote>0|instr>0)continue;
 			if(infunc==0)
@@ -252,7 +251,7 @@ int process(int start,int end)
 				infunc++;
 			}
 		}
-		else if(temp=='}')
+		else if(ch=='}')
 		{
 			if(inmarco>0|innote>0|instr>0)continue;
 			chance=0;
@@ -276,38 +275,66 @@ problem1:	#ifdef xxxx
 			if() {
 		#endif
 */
-		else if(temp=='#')
+		else if(ch=='#')
 		{
-			//不在宏里面的时候,也不在字符串里的时候
+			//不在注释里面,也不在字符串里的时候
 			if(innote>0|instr>0)continue;
 
-			if(inmarco==0)
+			//吃掉所有空格和tab
+			while(1)
 			{
-				//dangerous,don't use loop
-				while(1)	//找#号后面第一个字符
-				{
-					if( (datahome[i+1]==' ') | (datahome[i+1]==0x9) )i++;
-					else break;
-				}
-
-				//那个宏是#else的话
-				if( (*(unsigned int*)(datahome+i) )==0x65736c65 )
-				{
-					inmarco=10000;
-				}
-
-				//其他普通宏
-				else inmarco=1;
+				if( (datahome[i+1]==' ') | (datahome[i+1]==0x9) )i++;
+				else break;
 			}
 
-			//陷在#else里面的时候,幸运得等到了#号就降级成普通宏
-			else if(inmarco==10000)inmarco=1;
+			//宏里又碰到了#号
+			if(inmarco!=0)
+			{
+				//#else -> 升级
+				if( (*(unsigned int*)(datahome+i+1) )==0x65736c65 )
+				{
+
+					inmarco=9;
+				}
+
+				//#???? -> 降级
+				else
+				{
+					inmarco=0;
+				}
+			}
+
+			//宏外面碰到#号
+			else if(inmarco==0)
+			{
+				//#if
+				if( (*(unsigned short*)(datahome+i+1) )==0x6669 )
+				{
+					inmarco=1;
+				}
+			}
+
+/*
+			//debug!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+			printf("#");
+			for(j=1;j<64;j++)
+			{
+				if(datahome[i+j]<=0xd)break;
+				printf("%c",datahome[i+j]);
+			}
+			printf("\t->(%d,%d,%d,%d)\n",
+				infunc,
+				inmarco,
+				innote,
+				instr
+			);
+*/
 		}
 /*
 problem2:	"{},(),in this......"
 problem3:	'{},(),in this......'
 */
-		else if(temp=='\"')
+		else if(ch=='\"')
 		{
 			if(innote>0)continue;
 			if( instr==0 )
@@ -319,7 +346,7 @@ problem3:	'{},(),in this......'
 				instr=0;
 			}
 		}
-		else if(temp=='\'')
+		else if(ch=='\'')
 		{
 			if(innote>0|instr>0)continue;
 
@@ -333,7 +360,7 @@ problem3:	'{},(),in this......'
 		}
 
 		/*
-		else if( (temp=='+') | (temp=='-') )
+		else if( (ch=='+') | (ch=='-') )
 		{
 			prophet=0;
 		}
@@ -371,14 +398,14 @@ problem3:	'{},(),in this......'
 		}
 
 		//prophets' abandon
-		else if(temp==',')
+		else if(ch==',')
 		{
 			if(inmarco>0|innote>0|instr>0)continue;
 			chance=0;
 			doubt=0;
 			prophet=0;
 		}
-		else if( (temp=='=') | (temp==';') | (temp=='&') | (temp=='|') )
+		else if( (ch=='=') | (ch==';') | (ch=='&') | (ch=='|') )
 		{
 			if(inmarco>0|innote>0|instr>0)continue;
 
