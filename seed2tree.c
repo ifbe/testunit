@@ -221,11 +221,20 @@ statfailed:
 int main(int argc,char *argv[])  
 {
 	//
-	if(argc==2)wantedfuncname=argv[1];
+	char* in="func.seed";
+	char* out="func.tree";
+	if(argc==1)
+	{
+		wantedfuncname="main";
+	}
+	if(argc==2)
+	{
+		wantedfuncname=argv[1];
+	}
 
 	//open,process,close
-	dest=open("func.tree",O_CREAT|O_RDWR|O_TRUNC,S_IRWXU|S_IRWXG|S_IRWXO);
-	seed2tree( "func.seed" );
+	dest=open(out,O_CREAT|O_RDWR|O_TRUNC,S_IRWXU|S_IRWXG|S_IRWXO);
+	seed2tree(in);
 	close(dest);
 
 }

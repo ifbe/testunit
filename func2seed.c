@@ -596,6 +596,16 @@ void fileordir(char* thisname)
 
 int main(int argc,char *argv[])  
 {
+	char* in=0;
+	char* out="func.seed";
+	if(argc==1)
+	{
+		in=".";
+	}
+	else if(argc==2)
+	{
+		in=argv[1];
+	}
 	if(argc==3)
 	{
 		wantedsuffix=argv[2];
@@ -603,7 +613,7 @@ int main(int argc,char *argv[])
 	}
 
 	//open,process,close
-	dest=open("func.seed",O_CREAT|O_RDWR|O_TRUNC,S_IRWXU|S_IRWXG|S_IRWXO);
-	fileordir( argv[1] );
+	dest=open(out,O_CREAT|O_RDWR|O_TRUNC,S_IRWXU|S_IRWXG|S_IRWXO);
+	fileordir( in );
 	close(dest);
 }
