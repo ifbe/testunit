@@ -11,27 +11,212 @@
 
 
 //
-int dest=-1;
+static unsigned char datahome[0x2000];	//4k+4k
+static unsigned char strbuf[256];
+static int dest=-1;
+static int src=-1;
+
 //
-char* wantedsuffix=".h";
-int wantedlength=2;
+static int countbyte=0;		//统计字节数
+static int countline=0;		//统计行数
+
+//
+static int instruct=0;    //在函数内
+static int inmarco=0;   //在宏内
+static int innote=0;    //在注释内
+static int instr=0;     //在字符串内
 
 
 
 
+int explainheader(int start,int end)
+{
+	int i=0;
+	unsigned ch=0;
+	printf(
+		"@%x:%d -> %d,%d,%d,%d\n",
+		countbyte+start,
+		countline,
+		instruct,
+		inmarco,
+		innote,
+		instr
+	);
+
+	//
+	for(i=start;i<0x1800;i++)
+	{
+		//拿一个
+		ch=datahome[i];
+		//printf("%c",ch);
+
+		//强退(代码里绝不会有真正的0，都是ascii的0x30)
+		if(ch==0)
+		{
+                        //printf("@%x\n",i);
+                        break;
+                }
+
+		//软退
+		if( (i>end) )
+		{
+			if(ch==' ')break;
+			else if(ch==0x9)break;
+			else if(ch==0xa)break;
+			else if(ch==0xd)break;
+		}
+
+		//在这里记录行数？
+		if( (ch==0xa)|(ch==0xd) )
+		{
+			//
+			countline++;
+
+			//单行注释，换行清零
+			if(innote==1)innote=0;
+		}
+
+		//.....................
+		else if(ch=='\\')
+		{
+			//吃掉一个
+			i++;
+			if( (datahome[i]==0xa)|(datahome[i]==0xd) )
+			{
+				countline++;
+			}
+			continue;
+		}
+	}//for
+
+	return i-end;
+}
 void explainfile(char* thisfile,unsigned long long size)
 {
-	char buf[256];
-	int ret=0,temp=0;
+	int start=0;
+	int end=0;
+	int ret=0;
+
+	//init
+	countbyte=countline=0;
+	instruct=inmarco=innote=instr=0;
+
+	//open
+	src=open(thisfile , O_RDONLY);
+	if(src<0){printf("open fail\n");exit(-1);}
 
 	//infomation
-	temp=snprintf(buf,256,"#name:	%s\n",thisfile);
-	printf("%s",buf);
-	write(dest,buf,temp);
+	ret=snprintf(strbuf,256,"#name:	%s\n",thisfile);
+	printf("%s",strbuf);
+	write(dest,strbuf,ret);
 
-	temp=snprintf(buf,256,"#size:	%lld(0x%llx)\n",size,size);
-	printf("%s",buf);
-	write(dest,buf,temp);
+	ret=snprintf(strbuf,256,"#size:	%lld(0x%llx)\n",size,size);
+	printf("%s",strbuf);
+	write(dest,strbuf,ret);
+
+	//<=4k
+	if(size<=0x1000)
+	{
+		//printf("@[%x,%llx):\n",0,size);
+		ret=read(src,datahome,size);
+		if(ret<0)
+		{
+			printf("readfail1\n");
+			exit(-1);
+		}
+
+		//size=0x0 -> datahome[0x0]=0
+		//size=0x1 -> datahome[0x1]=0
+		//size=0xfff -> datahome[0xfff]=0
+		//size=0x1000 -> datahome[0x1000]=0
+		datahome[size]=0;
+		explainheader(0,size);
+
+		goto theend;
+	}
+
+	//>4k
+	while(1)
+	{
+		//如果首次进来，那么读8k
+		if(countbyte==0)
+		{
+			ret=read(src,datahome,0x2000);
+			if(ret<0)
+			{
+				printf("readfail2\n");
+				exit(-1);
+			}
+
+			//补0
+			if(ret<0x2000)datahome[ret]=0;
+		}
+
+		//如果不是首次，先挪，再看要不要读入4k
+		else
+		{
+			//move
+			for(ret=0;ret<0x1000;ret++)
+			{
+				datahome[ ret ] = datahome[ ret+0x1000 ];
+			}
+			end=size-countbyte;
+
+			//文件还剩很多没读
+			if( end > 0x2000 )
+			{
+				ret=read(src,datahome+0x1000,0x1000);
+				if(ret<0)
+				{
+					printf("readfail3\n");
+					exit(-1);
+				}
+			}
+
+			//文件还剩最后一点没读
+			else if( end > 0x1000 )
+			{
+				ret=read(src,datahome+0x1000,end-0x1000);
+				if(ret<0)
+				{
+					printf("readfail4\n");
+					exit(-1);
+				}
+
+				//补0
+				if(ret<0x1000)datahome[0x1000+ret]=0;
+			}
+
+			//文件上一波就读完了，内存里还残留一点
+			else if( end > 0 )
+			{
+				//补个0
+				datahome[end]=0;
+			}
+		}
+
+		//do it
+		start=explainheader(start,0x1000);
+
+		//next or not
+		countbyte += 0x1000;
+		if( countbyte > size )break;
+
+	}//while(1)
+
+theend:
+	printf(
+		"@%x:%d -> %d,%d,%d,%d\n\n\n\n",
+		countbyte+start,
+		countline,
+		instruct,
+		inmarco,
+		innote,
+		instr
+	);
+	write(dest,"\n\n\n\n",4);
+	close(src);
+	return;
 }
 void fileordir(char* thisname)
 {
@@ -81,19 +266,19 @@ void fileordir(char* thisname)
 		if(j==0)return;
 
 		//长度不够不对
-		if(i-j<wantedlength)return;
+		if(i-j<2)return;
 
 		//长度超过也不对
-		if( thisname[ j+wantedlength ] > 0x20 )return;
+		if( thisname[ j+2 ] > 0x20 )return;
 
 		//名字不一样不对
-		if( strcmp( thisname+j , wantedsuffix ) != 0 )return;
+		if( strcmp( thisname+j , ".h" ) != 0 )return;
 
 		//文件空的也不对
 		i=statbuf.st_size;
 		if(i<=0)return;
 
-		//是源代码就进去翻译
+		//是头文件就进去干
 		explainfile(thisname,i);
 		return;
 	}
@@ -104,14 +289,21 @@ void fileordir(char* thisname)
 
 int main(int argc,char *argv[])  
 {
-	if(argc==3)
+	char* out="struct.seed";
+	char* in=0;
+
+	//
+	if(argc==1)
 	{
-		wantedsuffix=argv[2];
-		wantedlength=strlen(argv[2]);
+		in=".";
+	}
+	if(argc==2)
+	{
+		in=argv[1];
 	}
 
 	//open,process,close
-	dest=open("struct.seed",O_CREAT|O_RDWR|O_TRUNC,S_IRWXU|S_IRWXG|S_IRWXO);
-	fileordir( argv[1] );
+	dest=open(out,O_CREAT|O_RDWR|O_TRUNC,S_IRWXU|S_IRWXG|S_IRWXO);
+	fileordir( in );
 	close(dest);
 }

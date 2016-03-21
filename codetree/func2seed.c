@@ -11,21 +11,26 @@
 
 
 //destination,source,datahome
+static unsigned char datahome[0x2000];	//4k+4k
+static unsigned char strbuf[256];
 static int dest=-1;
 static int src=-1;
-unsigned char datahome[0x2000];	//4k+4k
 
 //the prophets who guide me
-unsigned char* prophet=0;	//后面可能要用的函数名字
-unsigned char* prophetinsist=0;	//在函数外面碰到了左括号:
-int doubt=0;		//"疑虑"(想更细致就出错):	else myfunc ()
+static unsigned char* prophet=0;	//后面可能要用的函数名字
+static unsigned char* prophetinsist=0;	//在函数外面碰到了左括号:
+static int doubt=0;		//"疑虑"(想更细致就出错):	else myfunc ()
+static int chance=0;
+
+//count
+static int countbyte=0;		//统计字节数
+static int countline=0;		//统计行数
 
 //status
-static volatile unsigned int chance=0;
-static volatile unsigned int infunc=0;	//在函数内
-static volatile unsigned int inmarco=0;	//在宏内
-static volatile unsigned int innote=0;	//在注释内
-static volatile unsigned int instr=0;	//在字符串内
+static int infunc=0;	//1:在函数内		?:被包在第几个括号里
+static int inmarco=0;	//1:在普通宏内		9:在"#else"内
+static int innote=0;	//1:在单行注释内	9:在多行注释内
+static int instr=0;	//1:在字符串内
 
 
 
@@ -119,32 +124,35 @@ void printprophet()
 	out++;
 	write(dest,tempbuf,out);
 }
-/*
-problem4:
-		func()
-		{
-
-		}
-		struct xxxx {
-			int (*what)();
-		}
-		anotherfunc()
-		{
-
-		}
-*/
-int process(int start,int end)
+int explainpurec(int start,int end)
 {
 	int i=0,j=0;
 	unsigned char ch=0;
+	printf(
+		"@%x:%d -> %d,%d,%d,%d\n",
+		countbyte+start,
+		countline,
+		infunc,
+		inmarco,
+		innote,
+		instr
+	);
 
 	//不用i<end防止交界麻烦,给足了整整0x800个机会自己决定滚不滚
 	for(i=start;i<0x1800;i++)
 	{
+		//拿一个
 		ch=datahome[i];
-		if(ch==0)break;
-
 		//printf("%c",ch);
+
+		//强退(代码里绝不会有真正的0，都是ascii的0x30)
+		if(ch==0)
+		{
+			//printf("@%x\n",i);
+			break;
+		}
+
+		//软退
 		if( (i>end) && (prophet==0) && (prophetinsist==0))
 		{
 			if(ch==' ')break;
@@ -153,10 +161,29 @@ int process(int start,int end)
 			else if(ch==0xd)break;
 		}
 
-		//........
-		if(ch=='\\')
+		//在这里记录行数？
+		if( (ch==0xa)|(ch==0xd) )
 		{
+			//
+			countline++;
+
+			//换行了，可能函数名不对了
+			if(prophet != 0)doubt=1;
+
+			//单行注释，换行清零
+			if(innote==1)innote=0;
+		}
+
+		//........
+		else if(ch=='\\')
+		{
+			//吃掉一个
 			i++;
+			if( (datahome[i]==0xa)|(datahome[i]==0xd) )
+			{
+				countline++;
+			}
+
 			continue;
 		}
 
@@ -167,7 +194,7 @@ int process(int start,int end)
 			(ch>='0' && ch<='9') |
 			ch=='_' )
 		{
-			if(inmarco>0|innote>0|instr>0)continue;
+			if(inmarco==9|innote>0|instr>0)continue;
 			if(prophet==0)prophet=datahome+i;
 			else if(doubt==1)
 			{
@@ -179,21 +206,14 @@ int process(int start,int end)
 		//prophets' doubt
 		else if( (ch==' ')|(ch==0x9) )
 		{
-			if(inmarco>0|innote>0|instr>0)continue;
+			if(inmarco==9|innote>0|instr>0)continue;
 			if(prophet != 0)doubt=1;
-		}
-
-		else if( (ch==0xa)|(ch==0xd) )
-		{
-			//普通宏的处理方法扔掉这一行,要注意'\\'这个恶心的符号
-			if(prophet != 0)doubt=1;
-			if(innote==1)innote=0;
 		}
 
 		//prophets' fable right or wrong
 		else if(ch=='(')
 		{
-			if(inmarco>0|innote>0|instr>0)continue;
+			if(inmarco==9|innote>0|instr>0)continue;
 			if(prophet!=0)
 			{
 				//somthing like:    what=func();
@@ -214,7 +234,7 @@ int process(int start,int end)
 		}
 		else if(ch==')')
 		{
-			if(inmarco>0|innote>0|instr>0)continue;
+			if(inmarco==9|innote>0|instr>0)continue;
 			prophet=0;
 			doubt=0;
 
@@ -222,7 +242,7 @@ int process(int start,int end)
 		}
 		else if(ch=='{')
 		{
-			if(inmarco>0|innote>0|instr>0)continue;
+			if(inmarco==9|innote>0|instr>0)continue;
 			if(infunc==0)
 			{
 				if( chance > 0 )
@@ -250,7 +270,7 @@ int process(int start,int end)
 		}
 		else if(ch=='}')
 		{
-			if(inmarco>0|innote>0|instr>0)continue;
+			if(inmarco==9|innote>0|instr>0)continue;
 			chance=0;
 
 			if(infunc>0)
@@ -264,14 +284,6 @@ int process(int start,int end)
 				}
 			}
 		}
-
-/*
-problem1:	#ifdef xxxx
-			if() {
-		#else
-			if() {
-		#endif
-*/
 		else if(ch=='#')
 		{
 			//不在注释里面,也不在字符串里的时候
@@ -310,7 +322,6 @@ problem1:	#ifdef xxxx
 					inmarco=1;
 				}
 			}
-
 /*
 			//debug!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 			printf("#");
@@ -327,10 +338,6 @@ problem1:	#ifdef xxxx
 			);
 */
 		}
-/*
-problem2:	"{},(),in this......"
-problem3:	'{},(),in this......'
-*/
 		else if(ch=='\"')
 		{
 			if(innote>0)continue;
@@ -347,7 +354,6 @@ problem3:	'{},(),in this......'
 		{
 			if(innote>0|instr>0)continue;
 
-			//very very very dangerous,don't use loop
 			while(1)
 			{
 				i++;
@@ -355,13 +361,6 @@ problem3:	'{},(),in this......'
 				if(datahome[i]=='\\')i++;
 			}
 		}
-
-		/*
-		else if( (ch=='+') | (ch=='-') )
-		{
-			prophet=0;
-		}
-		*/
 		else if(datahome[i]=='/')
 		{
 			//在这三种情况下什么都不能干
@@ -376,7 +375,7 @@ problem3:	'{},(),in this......'
 			//多行注释
 			else if(datahome[i+1]=='*')	//    /*
 			{
-				innote=100;
+				innote=9;
 			}
 		}
 		else if(datahome[i]=='*')
@@ -385,7 +384,7 @@ problem3:	'{},(),in this......'
 
 			if(datahome[i+1]=='/')
 			{
-				if(innote==100)
+				if(innote==9)
 				{
 					innote=0;
 				}
@@ -397,14 +396,14 @@ problem3:	'{},(),in this......'
 		//prophets' abandon
 		else if(ch==',')
 		{
-			if(inmarco>0|innote>0|instr>0)continue;
+			if(inmarco==9|innote>0|instr>0)continue;
 			chance=0;
 			doubt=0;
 			prophet=0;
 		}
 		else if( (ch=='=') | (ch==';') | (ch=='&') | (ch=='|') )
 		{
-			if(inmarco>0|innote>0|instr>0)continue;
+			if(inmarco==9|innote>0|instr>0)continue;
 
 			chance=0;
 			doubt=0;
@@ -423,105 +422,132 @@ problem3:	'{},(),in this......'
 }
 void explainfile(char* thisfile,unsigned long long size)
 {
-	char buf[256];
-	int ret=0,temp=0;
+	int start=0;
+	int end=0;
+	int ret=0;
 
-	//prepare the world
+	//init
 	prophet=prophetinsist=0;
 	doubt = chance=0;
+	countbyte=countline=0;
 	infunc = inmarco = innote = instr = 0;
+
+	//open
 	src=open(thisfile , O_RDONLY);
 	if(src<0){printf("open fail\n");exit(-1);}
 
 	//infomation
-	temp=snprintf(buf,256,"#name:	%s\n",thisfile);
-	printf("%s",buf);
-	write(dest,buf,temp);
+	ret=snprintf(strbuf,256,"#name:	%s\n",thisfile);
+	printf("%s",strbuf);
+	write(dest,strbuf,ret);
 
-	temp=snprintf(buf,256,"#size:	%lld(0x%llx)\n",size,size);
-	printf("%s",buf);
-	write(dest,buf,temp);
+	ret=snprintf(strbuf,256,"#size:	%lld(0x%llx)\n",size,size);
+	printf("%s",strbuf);
+	write(dest,strbuf,ret);
 
 	//<=4k
 	if(size<=0x1000)
 	{
 		//printf("@[%x,%llx):\n",0,size);
 		ret=read(src,datahome,size);
-		if(ret<0){printf("readfail0\n");exit(-1);}
+		if(ret<0)
+		{
+			printf("readfail1\n");
+			exit(-1);
+		}
 
-		datahome[size]=0;	//unknown problem
-		process(0,size);
+		//size=0x0 -> datahome[0x0]=0
+		//size=0x1 -> datahome[0x1]=0
+		//size=0xfff -> datahome[0xfff]=0
+		//size=0x1000 -> datahome[0x1000]=0
+		datahome[size]=0;
+		explainpurec(0,size);
 
 		goto theend;
 	}
 
 	//>4k
-	int over=0;
-	int here=0x1000;
-	read(src,datahome+0x1000,0x1000);
-	if(ret<0){printf("readfail1\n");exit(-1);}
 	while(1)
 	{
-		//move
-		for(temp=0;temp<0x1000;temp++)
+		//如果首次进来，那么读8k
+		if(countbyte==0)
 		{
-			datahome[ temp ] = datahome[ temp+0x1000 ];
+			ret=read(src,datahome,0x2000);
+			if(ret<0)
+			{
+				printf("readfail2\n");
+				exit(-1);
+			}
+
+			//补0
+			if(ret<0x2000)datahome[ret]=0;
 		}
 
-		//read or not
-		if( here + 0x1000 <= size ) temp=0x1000;	//文件位置+0x1000<总大小
-		else temp=size-here;				//马上就结束，或者已经结束一次
-		if(temp > 0)
+		//如果不是首次，先挪，再看要不要读入4k
+		else
 		{
-			ret=read(src,datahome+0x1000,temp);
-			if(ret<0){printf("readfail2");exit(-1);}
+			//move
+			for(ret=0;ret<0x1000;ret++)
+			{
+				datahome[ ret ] = datahome[ ret+0x1000 ];
+			}
+			end=size-countbyte;
+
+			//文件还剩很多没读
+			if( end > 0x2000 )
+			{
+				ret=read(src,datahome+0x1000,0x1000);
+				if(ret<0)
+				{
+					printf("readfail3\n");
+					exit(-1);
+				}
+			}
+
+			//文件还剩最后一点没读
+			else if( end > 0x1000 )
+			{
+				ret=read(src,datahome+0x1000,end-0x1000);
+				if(ret<0)
+				{
+					printf("readfail4\n");
+					exit(-1);
+				}
+
+				//补0
+				if(ret<0x1000)datahome[0x1000+ret]=0;
+			}
+
+			//文件上一波就读完了，内存里还残留一点
+			else if( end > 0 )
+			{
+				//补个0
+				datahome[end]=0;
+			}
 		}
 
-		//处理
-		//printf("temp=%x\n",temp);
-		if(temp<0)
-		{
-			temp+=0x1000;		//最后一次
-			datahome[temp]=0;		//防止往后走
-		}
-		else if(temp<0x1000)
-		{
-			temp=0x1000;	//读已经完了，但是处理的是上一次的!!!!
-		}
-		//printf("temp=%x\n",temp);
-
-		printf(
-			"//start@%x	%d,%d,%d,%d\n",
-			here-0x1000+over,
-			infunc,
-			inmarco,
-			innote,
-			instr
-		);
-		over=process(over,temp);
-		printf(
-			"//end@%x	%d,%d,%d,%d\n",
-			here-0x1000+temp+over,
-			infunc,
-			inmarco,
-			innote,
-			instr
-		);
+		//do it
+		start=explainpurec(start,0x1000);
 
 		//next or not
-		here+=0x1000;
-		if( here > size+0x1000 )break;
+		countbyte += 0x1000;
+		if( countbyte > size )break;
 
 	}//while(1)
 
 theend:
-	printf("\n#finish status:%d,%d,%d,%d\n\n\n\n",infunc,inmarco,innote,instr);
+	printf("@%x:%d -> %d,%d,%d,%d\n\n\n\n",
+		countbyte+start,
+		countline,
+		infunc,
+		inmarco,
+		innote,
+		instr
+	);
 	write(dest,"\n\n\n\n",4);
 	close(src);
         return;
 }
-//这里有问题,刚好在[1000,2000]这一半
-//但是退出了process函数,于是函数名丢掉了!!!!!!!
 void fileordir(char* thisname)
 {
         DIR*		thisfolder;
