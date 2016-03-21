@@ -36,7 +36,7 @@ int explainheader(int start,int end)
 	printf(
 		"@%x:%d -> %d,%d,%d,%d\n",
 		countbyte+start,
-		countline,
+		countline+1,
 		instruct,
 		inmarco,
 		innote,
@@ -50,13 +50,6 @@ int explainheader(int start,int end)
 		ch=datahome[i];
 		//printf("%c",ch);
 
-		//强退(代码里绝不会有真正的0，都是ascii的0x30)
-		if(ch==0)
-		{
-                        //printf("@%x\n",i);
-                        break;
-                }
-
 		//软退
 		if( (i>end) )
 		{
@@ -66,8 +59,15 @@ int explainheader(int start,int end)
 			else if(ch==0xd)break;
 		}
 
+		//强退(代码里绝不会有真正的0，都是ascii的0x30)
+		if(ch==0)
+		{
+                        //printf("@%x\n",i);
+                        break;
+                }
+
 		//在这里记录行数？
-		if( (ch==0xa)|(ch==0xd) )
+		else if( (ch==0xa)|(ch==0xd) )
 		{
 			//
 			countline++;
@@ -86,6 +86,73 @@ int explainheader(int start,int end)
 				countline++;
 			}
 			continue;
+		}
+                else if(ch=='\"')
+                {
+                        if(innote>0)continue;
+                        if( instr==0 )
+                        {
+                                instr=1;
+                        }
+                        else if(instr==1)
+                        {
+                                instr=0;
+                        }
+                }
+                else if(ch=='\'')
+                {
+                        if(innote>0|instr>0)continue;
+
+                        while(1)
+                        {
+                                i++;
+                                if(datahome[i]=='\'')break;
+                                if(datahome[i]=='\\')i++;
+                        }
+                }
+                else if(datahome[i]=='/')
+                {
+                        //在这三种情况下什么都不能干
+                        if(innote>0|instr>0)continue;
+
+                        //单行注释很好解决
+                        if(datahome[i+1]=='/')  //    //
+                        {
+                                innote=1;
+                        }
+
+                        //多行注释
+                        else if(datahome[i+1]=='*')     //    /*
+                        {
+                                innote=9;
+                        }
+                }
+                else if(datahome[i]=='*')
+                {
+                        if(instr>0)continue;
+
+                        if(datahome[i+1]=='/')
+                        {
+                                if(innote==9)
+                                {
+                                        innote=0;
+                                }
+                        }
+                }
+		else if(ch=='s')
+		{
+			if(innote>0|instr>0)continue;
+
+			if( (datahome[i+1]=='t') &&
+			    (datahome[i+2]=='r') &&
+			    (datahome[i+3]=='u') &&
+			    (datahome[i+4]=='c') &&
+			    (datahome[i+5]=='t') )
+			{
+				if( (datahome[i+6]==' ') | 
+				    (datahome[i+6]=='	') )
+				printf("struct@%d\n",countline+1);
+			}
 		}
 	}//for
 

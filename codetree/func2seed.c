@@ -131,7 +131,7 @@ int explainpurec(int start,int end)
 	printf(
 		"@%x:%d -> %d,%d,%d,%d\n",
 		countbyte+start,
-		countline,
+		countline+1,
 		infunc,
 		inmarco,
 		innote,
@@ -145,13 +145,6 @@ int explainpurec(int start,int end)
 		ch=datahome[i];
 		//printf("%c",ch);
 
-		//强退(代码里绝不会有真正的0，都是ascii的0x30)
-		if(ch==0)
-		{
-			//printf("@%x\n",i);
-			break;
-		}
-
 		//软退
 		if( (i>end) && (prophet==0) && (prophetinsist==0))
 		{
@@ -161,8 +154,15 @@ int explainpurec(int start,int end)
 			else if(ch==0xd)break;
 		}
 
+		//强退(代码里绝不会有真正的0，都是ascii的0x30)
+		if(ch==0)
+		{
+			//printf("@%x\n",i);
+			break;
+		}
+
 		//在这里记录行数？
-		if( (ch==0xa)|(ch==0xd) )
+		else if( (ch==0xa)|(ch==0xd) )
 		{
 			//
 			countline++;
