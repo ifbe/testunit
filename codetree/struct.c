@@ -29,6 +29,166 @@ static int instr=0;     //在字符串内
 
 
 
+int explainstruct(char* p)
+{
+	int i;
+	int ret;
+	int namestart;
+	int nameend;
+
+	//struct
+	if( p[1] != 't' )return 0;
+	if( p[2] != 'r' )return 0;
+	if( p[3] != 'u' )return 0;
+	if( p[4] != 'c' )return 0;
+	if( p[5] != 't' )return 0;
+
+	//blank or tab or '{':	解决"nameisstructisname"的问题
+	if( p[6]!=' ' )
+	{
+		if(p[6]!='	')
+		{
+			if(p[6]!='{')
+			{
+				return 0;
+			}
+		}
+	}
+
+	//'{'必须在';'之前:	可能只是定义一个变量
+	//'{'必须在')'之前:	可能是在传参
+	namestart=0;
+	nameend=0;
+	for(ret=6;ret<0xff;ret++)
+	{
+		if(p[ret]=='{')break;
+		else if(p[ret]==';')return 0;
+		else if(p[ret]==')')return 0;
+
+		if(namestart==0)
+		{
+			if(
+			(p[ret]>='a' && p[ret]<='z') |
+			(p[ret]>='A' && p[ret]<='Z') |
+			(p[ret]>='0' && p[ret]<='9') |
+			p[ret]=='_' )
+			{
+				namestart=ret;
+			}
+		}//if
+
+		if( (namestart!=0) && (nameend==0) )
+		{
+			if( (p[ret]==' ') | (p[ret]=='	') | (p[ret]=='{') )
+			{
+				nameend=ret;
+			}
+		}
+	}
+
+	//better name
+	if( (namestart != 0) && (namestart<nameend) )
+	{
+		//move
+		for(i=0;i<nameend-namestart;i++)
+		{
+			strbuf[i]=p[i+namestart];
+		}
+		ret=nameend-namestart+snprintf(
+			strbuf+nameend-namestart,0x80,
+			"	@%d\n{\n}\n",countline+1
+		);
+	}
+	else
+	{
+		ret=snprintf(strbuf,0x80,"struct	@%d\n{\n}\n",countline+1);
+	}
+
+	//print
+	write(dest,strbuf,ret);
+	printf("%s",strbuf);
+
+	return 6-1;
+}
+int explainunion(char* p)
+{
+	int i;
+	int ret;
+	int namestart;
+	int nameend;
+
+	//union
+	if( p[1] != 'n' )return 0;
+	if( p[2] != 'i' )return 0;
+	if( p[3] != 'o' )return 0;
+	if( p[4] != 'n' )return 0;
+
+	//blank or tab or '{'
+	if( p[5]!=' ' )
+	{
+		if(p[5]!='	')
+		{
+			if(p[5]!='{')
+			{
+				return 0;
+			}
+		}
+	}
+
+	//
+	namestart=0;
+	nameend=0;
+	for(ret=6;ret<0xff;ret++)
+	{
+		if(p[ret]=='{')break;
+		else if(p[ret]==';')return 0;
+		else if(p[ret]==')')return 0;
+
+		if(namestart==0)
+		{
+			if(
+			(p[ret]>='a' && p[ret]<='z') |
+			(p[ret]>='A' && p[ret]<='Z') |
+			(p[ret]>='0' && p[ret]<='9') |
+			p[ret]=='_' )
+			{
+				namestart=ret;
+			}
+		}//if
+
+		if( (namestart!=0) && (nameend==0) )
+		{
+			if( (p[ret]==' ') | (p[ret]=='	') | (p[ret]=='{') )
+			{
+				nameend=ret;
+			}
+		}
+	}
+
+	//better name
+	if( (namestart != 0) && (namestart<nameend) )
+	{
+		//move
+		for(i=0;i<nameend-namestart;i++)
+		{
+			strbuf[i]=p[i+namestart];
+		}
+		ret=nameend-namestart+snprintf(
+			strbuf+nameend-namestart,0x80,
+			"	@%d\n{\n}\n",countline+1
+		);
+	}
+	else
+	{
+		ret=snprintf(strbuf,0x80,"union	@%d\n{\n}\n",countline+1);
+	}
+
+	//print
+	write(dest,strbuf,ret);
+	printf("%s",strbuf);
+
+	return 5-1;
+}
 int explainheader(int start,int end)
 {
 	int i=0;
@@ -71,6 +231,9 @@ int explainheader(int start,int end)
 		{
 			//
 			countline++;
+
+			//宏，暂时换行清零
+			inmarco=0;
 
 			//单行注释，换行清零
 			if(innote==1)innote=0;
@@ -139,20 +302,19 @@ int explainheader(int start,int end)
                                 }
                         }
                 }
+		else if(ch=='#')
+		{
+			inmarco=1;
+		}
 		else if(ch=='s')
 		{
-			if(innote>0|instr>0)continue;
-
-			if( (datahome[i+1]=='t') &&
-			    (datahome[i+2]=='r') &&
-			    (datahome[i+3]=='u') &&
-			    (datahome[i+4]=='c') &&
-			    (datahome[i+5]=='t') )
-			{
-				if( (datahome[i+6]==' ') | 
-				    (datahome[i+6]=='	') )
-				printf("struct@%d\n",countline+1);
-			}
+			if(inmarco>0|innote>0|instr>0)continue;
+			i += explainstruct( datahome+i );
+		}
+		else if(ch=='u')
+		{
+			if(inmarco>0|innote>0|instr>0)continue;
+			i += explainunion( datahome+i );
 		}
 	}//for
 

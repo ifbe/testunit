@@ -10,11 +10,15 @@
 
 
 
+//fp
+static int dest=-1;
+static int src=-1;
+
 //destination,source,datahome
 static unsigned char datahome[0x2000];	//4k+4k
 static unsigned char strbuf[256];
-static int dest=-1;
-static int src=-1;
+static unsigned char backup1[256];
+static unsigned char backup2[256];
 
 //the prophets who guide me
 static unsigned char* prophet=0;	//后面可能要用的函数名字
@@ -35,101 +39,162 @@ static int instr=0;	//1:在字符串内
 
 
 
-void printprophet()
+int copyname(unsigned char* p,unsigned char* q)
 {
+	int i=0;
 	unsigned long long temp;
 
-	//if
-	temp=*(unsigned short*)prophet;
+	//2byte:	if
+	temp=*(unsigned short*)p;
 	if(temp==0x6669)
 	{
-		if(prophet[2]==' ' | prophet[2]=='(' | prophet[2]==0x9)
-		{return;}
+		if(p[2]==' ' | p[2]=='(' | p[2]==0x9)
+		{
+			i=2;
+			goto decide;
+		}
 	}
 
-	//4ch
-	//else
-	temp=*(unsigned int*)prophet;
-	if(temp==0x65736c65)
-	{
-		if(prophet[4]==' ' | prophet[4]=='(' | prophet[4]==0x9)
-		{return;}
-	}
-
-	//3ch
-	//for
-	temp=0xffffff & (*(unsigned int*)prophet);
+	//3byte:	for
+	temp=0xffffff & (*(unsigned int*)p);
 	if(temp==0x726f66)
 	{
-		if(prophet[3]==' ' | prophet[3]=='(' | prophet[3]==0x9)
-		{return;}
+		if(p[3]==' ' | p[3]=='(' | p[3]==0x9)
+		{
+			i=3;
+			goto decide;
+		}
 	}
 
-	//5ch
-	//while
-	temp=0xffffffffff & (*(unsigned long long*)prophet);
+	//4byte:	else
+	temp=*(unsigned int*)p;
+	if(temp==0x65736c65)
+	{
+		if(p[4]==' ' | p[4]=='(' | p[4]==0x9)
+		{
+			i=4;
+			goto decide;
+		}
+	}
+
+	//5byte:	while
+	temp=0xffffffffff & (*(unsigned long long*)p);
 	if(temp==0x656c696877)
 	{
-		if(prophet[5]==' ' | prophet[5]=='(' | prophet[5]==0x9)
-		{return;}
+		if(p[5]==' ' | p[5]=='(' | p[5]==0x9)
+		{
+			i=5;
+			goto decide;
+		}
 	}
 
-	//6 ch
-	//switch , sizeof , printf
-	temp=0xffffffffffff & (*(unsigned long long*)prophet);
+	//6byte:	switch , sizeof , printf
+	temp=0xffffffffffff & (*(unsigned long long*)p);
 	if(temp==0x686374697773)
 	{
-		if(prophet[6]==' ' | prophet[6]=='(' | prophet[6]==0x9)
-		{return;}
+		if(p[6]==' ' | p[6]=='(' | p[6]==0x9)
+		{
+			i=6;
+			goto decide;
+		}
 	}
 	else if(temp==0x666f657a6973)
 	{
-		if(prophet[6]==' ' | prophet[6]=='(' | prophet[6]==0x9)
-		{return;}
+		if(p[6]==' ' | p[6]=='(' | p[6]==0x9)
+		{
+			i=6;
+			goto decide;
+		}
 	}
-	//else if(temp==0x66746e697270)
-	//{
-	//	if(prophet[6]==' ' | prophet[6]=='(' | prophet[6]==0x9)
-	//	{return;}
-	//}
-
-
-
-
-	//start printing now
-	int in=0,out=0;
-	char tempbuf[0x80];
-	if(infunc > 0)
+/*
+	else if(temp==0x66746e697270)
 	{
-		tempbuf[0]=0x9;
-		out++;
+		if(p[6]==' ' | p[6]=='(' | p[6]==0x9)
+		{
+			i=6;
+			goto decide;
+		}
 	}
-	for(;in<80;in++)
+*/
+decide:
+	if(i!=0)
 	{
-		if(prophet[in]=='(')break;
-		if(prophet[in]==' ')break;
-		if(prophet[in]==0x9)break;
-		if(prophet[in]==0xa)break;
-		tempbuf[out]=prophet[in];
-		out++;
+		if(infunc != 0)return 0;
+
+		*(unsigned long long*)q=temp;
+		*(unsigned int*)(q+i)=0x3f3f3f3f;
+		return i+4;
 	}
 
-	//printf(these 6 lines can be deleted)
-	tempbuf[out]=0;
-	//printf("%s	//%d,%d,%d,%d\n",tempbuf,infunc,inmarco,innote,instr);
+forcecopy:
+	for(i=0;i<80;i++)
+	{
+		if(	((p[i]>='a')&&(p[i]<='z')) |
+			((p[i]>='A')&&(p[i]<='Z')) |
+			((p[i]>='0')&&(p[i]<='9')) |
+			(p[i]=='_') |
+			(p[i]=='.') |
+			(p[i]=='-') |
+			(p[i]=='>') )
+		{
+			q[i]=p[i];
+		}
+		else break;
+	}
 
-	//write
-	tempbuf[out]='\n';
-	tempbuf[out+1]=0;
-	out++;
-	write(dest,tempbuf,out);
+	//0
+	q[i]=0;
+	return i;
+
+}
+void printprophet(unsigned char* p)
+{
+	int count=0;
+
+	//函数结束
+	if(p==0)
+	{
+		strbuf[0]='}';
+		strbuf[1]='\n';
+		strbuf[2]=0;
+		count=2;
+		goto finalprint;
+	}
+
+	//在函数外
+	if(infunc==0)
+	{
+		count=copyname(p , strbuf);
+		count+=snprintf(
+			strbuf+count,
+			0x80,
+			"	@%d\n{\n",
+			countline
+		);
+	}
+	else
+	{
+		strbuf[0]=0x9;
+		count++;
+
+		count += copyname(p , strbuf+1);
+		if(count==1)return;
+
+		strbuf[count]='\n';
+		strbuf[count+1]=0;
+		count++;
+	}
+
+finalprint:
+	write(dest,strbuf,count);
+	//printf("%s",dest);
 }
 int explainpurec(int start,int end)
 {
-	int i=0,j=0;
+	int i=0;
 	unsigned char ch=0;
 	printf(
-		"@%x:%d -> %d,%d,%d,%d\n",
+		"@%x@%d -> %d,%d,%d,%d\n",
 		countbyte+start,
 		countline+1,
 		infunc,
@@ -157,6 +222,18 @@ int explainpurec(int start,int end)
 		//强退(代码里绝不会有真正的0，都是ascii的0x30)
 		if(ch==0)
 		{
+			//保存一下上次的名字
+			if(prophet!=0)
+			{
+				copyname(prophet,backup1);
+				prophet=backup1;
+			}
+			if(prophetinsist!=0)
+			{
+				copyname(prophetinsist,backup2);
+				prophetinsist=backup2;
+			}
+
 			//printf("@%x\n",i);
 			break;
 		}
@@ -189,17 +266,23 @@ int explainpurec(int start,int end)
 
 		//prophets' guess
 		else if(
-			( ch>='a' && ch<='z') |
+			(ch>='a' && ch<='z') |
 			(ch>='A' && ch<='Z') |
 			(ch>='0' && ch<='9') |
 			ch=='_' )
 		{
 			if(inmarco==9|innote>0|instr>0)continue;
+			chance=0;
+
+			//
 			if(prophet==0)prophet=datahome+i;
-			else if(doubt==1)
+			else
 			{
-				doubt=0;
-				prophet=datahome+i;
+				if(doubt==1)
+				{
+					doubt=0;
+					prophet=datahome+i;
+				}
 			}
 		}
 
@@ -219,7 +302,7 @@ int explainpurec(int start,int end)
 				//somthing like:    what=func();
 				if(infunc > 0)
 				{
-					printprophet();
+					printprophet(prophet);
 				}
 
 				//在函数外面碰到了左括号
@@ -243,30 +326,23 @@ int explainpurec(int start,int end)
 		else if(ch=='{')
 		{
 			if(inmarco==9|innote>0|instr>0)continue;
-			if(infunc==0)
-			{
-				if( chance > 0 )
-				{
-					if(prophetinsist!=0)	//消灭aaa=(struct){int a,int b}这种
-					{
-						prophet=prophetinsist;
-						printprophet();
-						write(dest,"{\n",2);
-						//printf("{//+%x\n",i);
 
-						prophet=0;
-						prophetinsist=0;
-						doubt=0;
+			//已经在函数里
+			if(infunc!=0)infunc++;
 
-						infunc++;
-						chance=0;
-					}//insist!=0
-				}//chance
-			}//infunc
+			//确认这即将是个函数
 			else
 			{
-				infunc++;
-			}
+				//消灭aaa=(struct){int a,int b}这种
+				if( (chance>0) && (prophetinsist!=0) )
+				{
+					printprophet(prophetinsist);
+
+					infunc++;
+					prophet=prophetinsist=0;
+					doubt=chance=0;
+				}//chance && insist!=0
+			}//infunc
 		}
 		else if(ch=='}')
 		{
@@ -276,12 +352,7 @@ int explainpurec(int start,int end)
 			if(infunc>0)
 			{
 				infunc--;
-
-				if(infunc==0)
-				{
-					write(dest,"}\n",2);
-					//printf("}//+%x\n",i);
-				}
+				if(infunc==0)printprophet(0);
 			}
 		}
 		else if(ch=='#')
@@ -324,6 +395,7 @@ int explainpurec(int start,int end)
 			}
 /*
 			//debug!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+			int j;
 			printf("#");
 			for(j=1;j<64;j++)
 			{
@@ -536,7 +608,7 @@ void explainfile(char* thisfile,unsigned long long size)
 	}//while(1)
 
 theend:
-	printf("@%x:%d -> %d,%d,%d,%d\n\n\n\n",
+	printf("@%x@%d -> %d,%d,%d,%d\n\n\n\n",
 		countbyte+start,
 		countline,
 		infunc,

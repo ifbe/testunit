@@ -32,7 +32,6 @@ void nodeorleaf
 	char* wantname,int namesize	//name addr , name count
 )
 {
-	char ch1=0;
 	int new=1;	//isnewline
 	int this=0,run=0;
 
@@ -50,12 +49,10 @@ void nodeorleaf
 			//没有提前跳出来说明找到了那就跳出while(1)
 			if( run==namesize )
 			{
-				ch1=start[this+run];
 				//必须再确认一个东西,防止printf找到printfxxxx
-				if( (ch1=='\n' ) | (ch1==0x9) | (ch1==0x20) )
-				{
-					break;
-				}
+				if(start[this+run]=='\n')break;
+				if(start[this+run]==0x9)break;
+				if(start[this+run]==0x20)break;
 			}
 
 			//继续往下搜索
@@ -97,7 +94,7 @@ void nodeorleaf
 	}
 
 	//2.第3种：栈太深不敢进
-	if(depth>=16)
+	if(depth>=8)
 	{
 		printf("	#too deep!\n");
 		write(dest,"	#too deep!\n",12);
@@ -137,20 +134,27 @@ void nodeorleaf
 	while(1)
 	{
 		if( start[run] == '}' )break;
-		if(start[run]==0x9)
+		if( start[run] != 0xa )
 		{
-			new=0;
-			while(start[1+run+new]!='\n')new++;
-
-			namestack[depth]=this;
-			depth++;
-			nodeorleaf(start,count,start+run+1,new);
-			depth--;
-
-			run+=new;
+			run++;
+			continue;
+		}
+		if( start[run+1] !=0x9 )
+		{
+			run++;
+			continue;
 		}
 
-		run++;
+		run+=2;
+		new=0;
+		while(start[run+new]!='\n')new++;
+
+		namestack[depth]=this;
+		depth++;
+		nodeorleaf(start,count,start+run,new);
+		depth--;
+
+		run+=new;
 	}
 
 	//右括号
@@ -240,10 +244,14 @@ int main(int argc,char *argv[])
 		wantedname=argv[1];
 		wantedlength=strlen(wantedname);
 	}
-
+/*
+	inname=
+	outname=
+	type=
+	depth=
+*/
 	//open,process,close
 	dest=open(out,O_CREAT|O_RDWR|O_TRUNC,S_IRWXU|S_IRWXG|S_IRWXO);
 	seed2tree(in);
 	close(dest);
-
 }
