@@ -11,10 +11,12 @@
 
 
 //
-static unsigned char datahome[0x2000];	//4k+4k
-static unsigned char strbuf[256];
 static int dest=-1;
 static int src=-1;
+
+//
+static unsigned char datahome[0x2000];	//4k+4k
+static unsigned char strbuf[256];
 
 //
 static int countbyte=0;		//统计字节数
@@ -29,7 +31,16 @@ static int instr=0;     //在字符串内
 
 
 
-int explainstruct(char* p)
+int printchild(unsigned char* p)
+{
+	int ret;
+
+	ret=snprintf(strbuf,0x80,"	%x%x	@%d\n",p[0],p[1],countline+1);
+	write(dest,strbuf,ret);
+	printf("%s",strbuf);
+	return 0;
+}
+int explainstruct(unsigned char* p)
 {
 	int i;
 	int ret;
@@ -96,18 +107,26 @@ int explainstruct(char* p)
 		}
 		ret=nameend-namestart+snprintf(
 			strbuf+nameend-namestart,0x80,
-			"	@%d\n{\n}\n",countline+1
+			"	@%d\n{\n",countline+1
 		);
 	}
 	else
 	{
-		ret=snprintf(strbuf,0x80,"struct	@%d\n{\n}\n",countline+1);
+		nameend=ret;
+		ret=snprintf(strbuf,0x80,"struct	@%d\n{\n",countline+1);
 	}
 
-	//print
+	//"aaaa\n{\n"
 	write(dest,strbuf,ret);
 	printf("%s",strbuf);
 
+	//"	bbbb"
+	printchild(p+nameend);
+
+	//"}\n"
+	ret=snprintf(strbuf,0x80,"}\n");
+	write(dest,strbuf,ret);
+	printf("%s",strbuf);
 	return 6-1;
 }
 int explainunion(char* p)
