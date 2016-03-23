@@ -52,6 +52,7 @@ int pickname(unsigned char* p,unsigned char* q)
 {
 	int i=0;
 	int o=0;
+
 	a[0]=a[1]=0;
 
 	//eat
@@ -61,7 +62,7 @@ int pickname(unsigned char* p,unsigned char* q)
 		else if(p[i]=='{')break;
 
 		//碰到空格
-		else if( (p[i]==0x9)&&(p[i]==0x20) )
+		else if( (p[i]==0x9) | (p[i]==0x20) )
 		{
 			//手上有东西 -> 这个结束了
 			if(a[o]!=0)
@@ -81,15 +82,15 @@ int pickname(unsigned char* p,unsigned char* q)
 			}
 		}
 	}
-	//
 
+	o=0;
 	if(a[1]!=0)p=a[1];
 	for(i=0;i<0x100;i++)
 	{
 		if(     ((p[i]>='a')&&(p[i]<='z')) |
 			((p[i]>='A')&&(p[i]<='Z')) |
 			((p[i]>='0')&&(p[i]<='9')) |
-			(p[i]=='_') |p[i]==' ')
+			(p[i]=='_') )
 		{
 			q[o]=p[i];
 			o++;
