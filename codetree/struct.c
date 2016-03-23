@@ -17,196 +17,177 @@ static int src=-1;
 //
 static unsigned char datahome[0x2000];	//4k+4k
 static unsigned char strbuf[256];
+static unsigned char backup[256];
+
+//
+static char* prophet=0;
+static char* a[16];
 
 //
 static int countbyte=0;		//统计字节数
 static int countline=0;		//统计行数
 
 //
-static int instruct=0;    //在函数内
-static int inmarco=0;   //在宏内
-static int innote=0;    //在注释内
-static int instr=0;     //在字符串内
+static int instruct=0;
+	//0:	不在结构体里
+	//1:	在结构体内
+	//?:	被包在第几个括号里
+static int inmarco=0;
+	//0:	不在宏里
+	//1:	在普通宏内
+	//'d':	#define
+	//'e':	#else
+static int innote=0;
+	//0:	不在注释里
+	//1:	//
+	//9:	/**/
+static int instr=0;
+	//0:	不在字符串里
+	//1:	在字符串内
 
 
 
 
-int printchild(unsigned char* p)
+int pickname(unsigned char* p,unsigned char* q)
 {
-	int ret;
+	int i=0;
+	int o=0;
+	a[0]=a[1]=0;
 
-	ret=snprintf(strbuf,0x80,"	%x%x	@%d\n",p[0],p[1],countline+1);
-	write(dest,strbuf,ret);
-	printf("%s",strbuf);
+	//eat
+	for(i=0;i<0x100;i++)
+	{
+		if(p[i]==';')break;
+		else if(p[i]=='{')break;
+
+		//碰到空格
+		else if( (p[i]==0x9)&&(p[i]==0x20) )
+		{
+			//手上有东西 -> 这个结束了
+			if(a[o]!=0)
+			{
+				o++;
+				a[o]=0;
+			}
+		}
+
+		//可用字符
+		else
+		{
+			//第一个字节 -> 记录位置
+			if(a[o]==0)
+			{
+				a[o]=p+i;
+			}
+		}
+	}
+	//
+
+	if(a[1]!=0)p=a[1];
+	for(i=0;i<0x100;i++)
+	{
+		if(     ((p[i]>='a')&&(p[i]<='z')) |
+			((p[i]>='A')&&(p[i]<='Z')) |
+			((p[i]>='0')&&(p[i]<='9')) |
+			(p[i]=='_') |p[i]==' ')
+		{
+			q[o]=p[i];
+			o++;
+		}
+		else break;
+	}
+	return o;
+}
+int printprophet(unsigned char* p)
+{
+	int i,o;
+
+	//结构体结束
+	if(p==0)
+	{
+		//o=snprintf(strbuf,0x80,"}%d,%d,%d,%d\n",instruct,inmarco,innote,instr);
+		o=snprintf(strbuf,0x80,"}\n");
+		goto printthis;
+	}
+
+	//新结构体
+	if(instruct==0)
+	{
+		o  = pickname(p , strbuf);
+		o += snprintf(strbuf+o,0x80,"	@%d\n{\n",countline+1);
+	}
+
+	//结构体内部结构体
+	else
+	{
+		o=1;
+		strbuf[0]=0x9;
+		o += pickname(p , strbuf+1);
+		o += snprintf(strbuf+o,0x80,"\n",countline+1);
+		//o += snprintf(strbuf+o,0x80,"	@%d\n",countline+1);
+	}
+
+printthis:
+	//printf("%s",strbuf);
+	write(dest,strbuf,o);
+	prophet=0;
 	return 0;
 }
-int explainstruct(unsigned char* p)
+int checkprophet(unsigned char* p)
 {
 	int i;
-	int ret;
-	int namestart;
-	int nameend;
 
 	//struct
-	if( p[1] != 't' )return 0;
-	if( p[2] != 'r' )return 0;
-	if( p[3] != 'u' )return 0;
-	if( p[4] != 'c' )return 0;
-	if( p[5] != 't' )return 0;
-
-	//blank or tab or '{':	解决"nameisstructisname"的问题
-	if( p[6]!=' ' )
+	if( p[0] == 's' )
 	{
-		if(p[6]!='	')
-		{
-			if(p[6]!='{')
-			{
-				return 0;
-			}
-		}
+		if( p[1] != 't' )goto wrong;
+		if( p[2] != 'r' )goto wrong;
+		if( p[3] != 'u' )goto wrong;
+		if( p[4] != 'c' )goto wrong;
+		if( p[5] != 't' )goto wrong;
+		i=6;
 	}
 
-	//'{'必须在';'之前:	可能只是定义一个变量
-	//'{'必须在')'之前:	可能是在传参
-	namestart=0;
-	nameend=0;
-	for(ret=6;ret<0xff;ret++)
-	{
-		if(p[ret]=='{')break;
-		else if(p[ret]==';')return 0;
-		else if(p[ret]==')')return 0;
-
-		if(namestart==0)
-		{
-			if(
-			(p[ret]>='a' && p[ret]<='z') |
-			(p[ret]>='A' && p[ret]<='Z') |
-			(p[ret]>='0' && p[ret]<='9') |
-			p[ret]=='_' )
-			{
-				namestart=ret;
-			}
-		}//if
-
-		if( (namestart!=0) && (nameend==0) )
-		{
-			if( (p[ret]==' ') | (p[ret]=='	') | (p[ret]=='{') )
-			{
-				nameend=ret;
-			}
-		}
-	}
-
-	//better name
-	if( (namestart != 0) && (namestart<nameend) )
-	{
-		//move
-		for(i=0;i<nameend-namestart;i++)
-		{
-			strbuf[i]=p[i+namestart];
-		}
-		ret=nameend-namestart+snprintf(
-			strbuf+nameend-namestart,0x80,
-			"	@%d\n{\n",countline+1
-		);
-	}
-	else
-	{
-		nameend=ret;
-		ret=snprintf(strbuf,0x80,"struct	@%d\n{\n",countline+1);
-	}
-
-	//"aaaa\n{\n"
-	write(dest,strbuf,ret);
-	printf("%s",strbuf);
-
-	//"	bbbb"
-	printchild(p+nameend);
-
-	//"}\n"
-	ret=snprintf(strbuf,0x80,"}\n");
-	write(dest,strbuf,ret);
-	printf("%s",strbuf);
-	return 6-1;
-}
-int explainunion(char* p)
-{
-	int i;
-	int ret;
-	int namestart;
-	int nameend;
-
+/*
 	//union
-	if( p[1] != 'n' )return 0;
-	if( p[2] != 'i' )return 0;
-	if( p[3] != 'o' )return 0;
-	if( p[4] != 'n' )return 0;
-
-	//blank or tab or '{'
-	if( p[5]!=' ' )
+	else if(p[0]=='u')
 	{
-		if(p[5]!='	')
-		{
-			if(p[5]!='{')
-			{
-				return 0;
-			}
-		}
+		if( p[1] != 'n' )goto wrong;
+		if( p[2] != 'i' )goto wrong;
+		if( p[3] != 'o' )goto wrong;
+		if( p[4] != 'n' )goto wrong;
+		i=5;
+	}
+	//enum
+	else if(p[0]=='e')
+	{
+		if( p[1] != 'n' )goto wrong;
+		if( p[2] != 'u' )goto wrong;
+		if( p[3] != 'm' )goto wrong;
+		i=4;
+	}
+*/
+	//not this
+	else goto wrong;
+
+	//解决"nameisstructisname"的问题
+	if(	(p[i] != 0x20) &&
+		(p[i] !=  0x9) &&
+		(p[i] !=  '{') &&
+		(p[i] !=  0xa) &&
+		(p[i] !=  0xd) )
+	{
+		goto wrong;
 	}
 
-	//
-	namestart=0;
-	nameend=0;
-	for(ret=6;ret<0xff;ret++)
-	{
-		if(p[ret]=='{')break;
-		else if(p[ret]==';')return 0;
-		else if(p[ret]==')')return 0;
+correct:
+//printf("correct:%c\n",p[0]);
+	return i-1;
 
-		if(namestart==0)
-		{
-			if(
-			(p[ret]>='a' && p[ret]<='z') |
-			(p[ret]>='A' && p[ret]<='Z') |
-			(p[ret]>='0' && p[ret]<='9') |
-			p[ret]=='_' )
-			{
-				namestart=ret;
-			}
-		}//if
-
-		if( (namestart!=0) && (nameend==0) )
-		{
-			if( (p[ret]==' ') | (p[ret]=='	') | (p[ret]=='{') )
-			{
-				nameend=ret;
-			}
-		}
-	}
-
-	//better name
-	if( (namestart != 0) && (namestart<nameend) )
-	{
-		//move
-		for(i=0;i<nameend-namestart;i++)
-		{
-			strbuf[i]=p[i+namestart];
-		}
-		ret=nameend-namestart+snprintf(
-			strbuf+nameend-namestart,0x80,
-			"	@%d\n{\n}\n",countline+1
-		);
-	}
-	else
-	{
-		ret=snprintf(strbuf,0x80,"union	@%d\n{\n}\n",countline+1);
-	}
-
-	//print
-	write(dest,strbuf,ret);
-	printf("%s",strbuf);
-
-	return 5-1;
+wrong:
+	prophet=0;
+//printf("wrong:%c\n",p[0]);
+	return 0;
 }
 int explainheader(int start,int end)
 {
@@ -230,7 +211,7 @@ int explainheader(int start,int end)
 		//printf("%c",ch);
 
 		//软退
-		if( (i>end) )
+		if( (i>end) && (prophet==0) && (instruct==0) )
 		{
 			if(ch==' ')break;
 			else if(ch==0x9)break;
@@ -241,6 +222,12 @@ int explainheader(int start,int end)
 		//强退(代码里绝不会有真正的0，都是ascii的0x30)
 		if(ch==0)
 		{
+			if(prophet!=0)
+			{
+				pickname(prophet,backup);
+				prophet=backup;
+			}
+
                         //printf("@%x\n",i);
                         break;
                 }
@@ -251,8 +238,8 @@ int explainheader(int start,int end)
 			//
 			countline++;
 
-			//宏，暂时换行清零
-			inmarco=0;
+			//define宏，换行清零
+			if(inmarco=='d')inmarco=0;
 
 			//单行注释，换行清零
 			if(innote==1)innote=0;
@@ -323,18 +310,134 @@ int explainheader(int start,int end)
                 }
 		else if(ch=='#')
 		{
-			inmarco=1;
+                        //不在注释里面,也不在字符串里的时候
+                        if(innote>0|instr>0)continue;
+
+                        //吃掉所有空格和tab
+                        while(1)
+                        {
+                                if( (datahome[i+1]==' ') | (datahome[i+1]==0x9) )i++;
+                                else break;
+                        }
+
+                        //宏外面碰到#号
+                        if(inmarco==0)
+                        {
+                                //#if
+                                if( (*(unsigned short*)(datahome+i+1) )==0x6669 )
+                                {
+                                        inmarco=1;
+                                        i+=2;
+                                }
+
+                                //#define
+                                if( (*(unsigned short*)(datahome+i+1) )==0x6564 )
+                                {
+                                        if( (*(unsigned int*)(datahome+i+3) )==0x656e6966 )
+                                        {
+                                                inmarco='d';
+                                                i+=6;
+                                        }
+                                }
+                        }
+
+                        //普通宏里又碰到了#号
+                        else if(inmarco==1)
+                        {
+                                //#else -> 升级
+                                if( (*(unsigned int*)(datahome+i+1) )==0x65736c65 )
+                                {
+
+                                        inmarco='e';
+                                        i+=4;
+                                }
+                        }
+
+                        //else里面碰到#号
+                        else if(inmarco=='e')
+                        {
+                                if( (datahome[i+1]=='e') &&
+                                    (datahome[i+2]=='n') &&
+                                    (datahome[i+3]=='d') &&
+                                    (datahome[i+4]=='i') &&
+                                    (datahome[i+5]=='f') )
+                                {
+                                        inmarco=0;
+                                        i+=5;
+                                }
+                        }
 		}
 		else if(ch=='s')
 		{
-			if(inmarco>0|innote>0|instr>0)continue;
-			i += explainstruct( datahome+i );
+			if(inmarco>=2|innote>0|instr>0)continue;
+
+			//
+			if(prophet==0)
+			{
+				prophet=datahome+i;
+				i += checkprophet( prophet );
+			}
 		}
+/*
 		else if(ch=='u')
 		{
-			if(inmarco>0|innote>0|instr>0)continue;
-			i += explainunion( datahome+i );
+			if(inmarco>=2|innote>0|instr>0)continue;
+
+			//
+			if(prophet==0)
+			{
+				prophet=datahome+i;
+				i += checkprophet( prophet );
+			}
 		}
+*/
+		else if(ch=='{')
+		{
+			if(inmarco>=2|innote>0|instr>0)continue;
+
+			if(prophet!=0)
+			{
+				printprophet(prophet);
+				instruct++;
+			}
+		}
+
+		else if(ch=='}')
+		{
+			if(inmarco>=2|innote>0|instr>0)continue;
+
+			if(instruct>1)instruct--;
+			else if(instruct==1)
+			{
+				instruct=0;
+				printprophet(0);
+			}
+		}
+
+		else if(ch==';')
+		{
+			if(inmarco>=2|innote>0|instr>0)continue;
+
+			if(prophet!=0)
+			{
+				if(instruct>0)
+				{
+					printprophet(prophet);
+				}
+				prophet=0;
+			}
+		}
+
+		else if(ch==')')
+		{
+			if(inmarco>=2|innote>0|instr>0)continue;
+
+			if(prophet!=0)
+			{
+				prophet=0;
+			}
+		}
+
 	}//for
 
 	return i-end;
@@ -346,6 +449,7 @@ void explainfile(char* thisfile,unsigned long long size)
 	int ret=0;
 
 	//init
+	prophet=0;
 	countbyte=countline=0;
 	instruct=inmarco=innote=instr=0;
 
