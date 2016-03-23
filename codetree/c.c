@@ -31,10 +31,22 @@ static int countbyte=0;		//统计字节数
 static int countline=0;		//统计行数
 
 //status
-static int infunc=0;	//1:在函数内		?:被包在第几个括号里
-static int inmarco=0;	//1:在普通宏内		9:在"#else"内
-static int innote=0;	//1:在单行注释内	9:在多行注释内
-static int instr=0;	//1:在字符串内
+static int infunc=0;
+	//0:	不在函数里
+	//1:	在函数内
+	//?:	被包在第几个括号里
+static int inmarco=0;
+	//0:	不在宏里
+	//1:	在普通宏内
+	//'d':	#define
+	//'e':	#else
+static int innote=0;
+	//0:	不在注释里
+	//1:	//
+	//9:	/**/
+static int instr=0;
+	//0:	不在字符串里
+	//1:	在字符串内
 
 
 
@@ -247,6 +259,9 @@ int explainpurec(int start,int end)
 			//换行了，可能函数名不对了
 			if(prophet != 0)doubt=1;
 
+			//define宏，换行清零
+			if(inmarco=='d')inmarco=0;
+
 			//单行注释，换行清零
 			if(innote==1)innote=0;
 		}
@@ -271,7 +286,7 @@ int explainpurec(int start,int end)
 			(ch>='0' && ch<='9') |
 			ch=='_' )
 		{
-			if(inmarco==9|innote>0|instr>0)continue;
+			if(inmarco>=2|innote>0|instr>0)continue;
 			chance=0;
 
 			//
@@ -289,14 +304,14 @@ int explainpurec(int start,int end)
 		//prophets' doubt
 		else if( (ch==' ')|(ch==0x9) )
 		{
-			if(inmarco==9|innote>0|instr>0)continue;
+			if(inmarco>=2|innote>0|instr>0)continue;
 			if(prophet != 0)doubt=1;
 		}
 
 		//prophets' fable right or wrong
 		else if(ch=='(')
 		{
-			if(inmarco==9|innote>0|instr>0)continue;
+			if(inmarco>=2|innote>0|instr>0)continue;
 			if(prophet!=0)
 			{
 				//somthing like:    what=func();
@@ -317,7 +332,7 @@ int explainpurec(int start,int end)
 		}
 		else if(ch==')')
 		{
-			if(inmarco==9|innote>0|instr>0)continue;
+			if(inmarco>=2|innote>0|instr>0)continue;
 			prophet=0;
 			doubt=0;
 
@@ -325,7 +340,7 @@ int explainpurec(int start,int end)
 		}
 		else if(ch=='{')
 		{
-			if(inmarco==9|innote>0|instr>0)continue;
+			if(inmarco>=2|innote>0|instr>0)continue;
 
 			//已经在函数里
 			if(infunc!=0)infunc++;
@@ -346,7 +361,7 @@ int explainpurec(int start,int end)
 		}
 		else if(ch=='}')
 		{
-			if(inmarco==9|innote>0|instr>0)continue;
+			if(inmarco>=2|innote>0|instr>0)continue;
 			chance=0;
 
 			if(infunc>0)
@@ -367,48 +382,52 @@ int explainpurec(int start,int end)
 				else break;
 			}
 
-			//宏里又碰到了#号
-			if(inmarco!=0)
-			{
-				//#else -> 升级
-				if( (*(unsigned int*)(datahome+i+1) )==0x65736c65 )
-				{
-
-					inmarco=9;
-				}
-
-				//#???? -> 降级
-				else
-				{
-					inmarco=0;
-				}
-			}
-
 			//宏外面碰到#号
-			else if(inmarco==0)
+			if(inmarco==0)
 			{
 				//#if
 				if( (*(unsigned short*)(datahome+i+1) )==0x6669 )
 				{
 					inmarco=1;
+					i+=2;
+				}
+
+				//#define
+				if( (*(unsigned short*)(datahome+i+1) )==0x6564 )
+				{
+					if( (*(unsigned int*)(datahome+i+3) )==0x656e6966 )
+					{
+						inmarco='d';
+						i+=6;
+					}
 				}
 			}
-/*
-			//debug!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-			int j;
-			printf("#");
-			for(j=1;j<64;j++)
+
+			//普通宏里又碰到了#号
+			else if(inmarco==1)
 			{
-				if(datahome[i+j]<=0xd)break;
-				printf("%c",datahome[i+j]);
+				//#else -> 升级
+				if( (*(unsigned int*)(datahome+i+1) )==0x65736c65 )
+				{
+
+					inmarco='e';
+					i+=4;
+				}
 			}
-			printf("\t->(%d,%d,%d,%d)\n",
-				infunc,
-				inmarco,
-				innote,
-				instr
-			);
-*/
+
+			//else里面碰到#号
+			else if(inmarco=='e')
+			{
+				if( (datahome[i+1]=='e') &&
+				    (datahome[i+2]=='n') &&
+				    (datahome[i+3]=='d') &&
+				    (datahome[i+4]=='i') &&
+				    (datahome[i+5]=='f') )
+				{
+					inmarco=0;
+					i+=5;
+				}
+			}
 		}
 		else if(ch=='\"')
 		{
@@ -468,14 +487,14 @@ int explainpurec(int start,int end)
 		//prophets' abandon
 		else if(ch==',')
 		{
-			if(inmarco==9|innote>0|instr>0)continue;
+			if(inmarco>=2|innote>0|instr>0)continue;
 			chance=0;
 			doubt=0;
 			prophet=0;
 		}
 		else if( (ch=='=') | (ch==';') | (ch=='&') | (ch=='|') )
 		{
-			if(inmarco==9|innote>0|instr>0)continue;
+			if(inmarco>=2|innote>0|instr>0)continue;
 
 			chance=0;
 			doubt=0;
