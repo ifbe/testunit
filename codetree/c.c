@@ -385,13 +385,6 @@ int explainpurec(int start,int end)
 			//宏外面碰到#号
 			if(inmarco==0)
 			{
-				//#if
-				if( (*(unsigned short*)(datahome+i+1) )==0x6669 )
-				{
-					inmarco=1;
-					i+=2;
-				}
-
 				//#define
 				if( (*(unsigned short*)(datahome+i+1) )==0x6564 )
 				{
@@ -400,6 +393,24 @@ int explainpurec(int start,int end)
 						inmarco='d';
 						i+=6;
 					}
+				}
+
+				//#if
+				else if( (*(unsigned short*)(datahome+i+1) )==0x6669 )
+				{
+					inmarco=1;
+					i+=2;
+
+					//借用一下innote，这一行不能要
+					innote=1;
+				}
+
+				//#else 这里是为了暂时不管宏嵌套的问题...
+				else if( (*(unsigned int*)(datahome+i+1) )==0x65736c65 )
+				{
+
+					inmarco='e';
+					i+=4;
 				}
 			}
 
@@ -413,9 +424,20 @@ int explainpurec(int start,int end)
 					inmarco='e';
 					i+=4;
 				}
+
+				//#endif -> 降级
+				else if( (datahome[i+1]=='e') &&
+				    (datahome[i+2]=='n') &&
+				    (datahome[i+3]=='d') &&
+				    (datahome[i+4]=='i') &&
+				    (datahome[i+5]=='f') )
+				{
+					inmarco=0;
+					i+=5;
+				}
 			}
 
-			//else里面碰到#号
+			//else里面碰到endif号
 			else if(inmarco=='e')
 			{
 				if( (datahome[i+1]=='e') &&
@@ -484,7 +506,6 @@ int explainpurec(int start,int end)
 			doubt=0;
 		}
 
-		//prophets' abandon
 		else if(ch==',')
 		{
 			if(inmarco>=2|innote>0|instr>0)continue;
@@ -492,7 +513,16 @@ int explainpurec(int start,int end)
 			doubt=0;
 			prophet=0;
 		}
-		else if( (ch=='=') | (ch==';') | (ch=='&') | (ch=='|') )
+
+		else if(ch=='&')
+		{
+			if(inmarco>=2|innote>0|instr>0)continue;
+
+			doubt=0;
+			prophet=0;
+			prophetinsist=0;
+		}
+		else if( (ch=='=') | (ch==';') | (ch=='|') )
 		{
 			if(inmarco>=2|innote>0|instr>0)continue;
 
