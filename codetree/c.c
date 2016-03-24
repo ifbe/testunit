@@ -390,17 +390,18 @@ int explainpurec(int start,int end)
 				instr=0;
 			}
 		}
+
+		//这里有bug，必须干掉单引号括一个字符的情况
 		else if(ch=='\'')
 		{
 			if(innote>0|instr>0)continue;
 
-			while(1)
+			if(datahome[i+2]=='\'')
 			{
-				i++;
-				if(datahome[i]=='\'')break;
-				if(datahome[i]=='\\')i++;
+				i+=2;
 			}
 		}
+
 		else if(datahome[i]=='/')
 		{
 			//在这三种情况下什么都不能干
@@ -410,12 +411,14 @@ int explainpurec(int start,int end)
 			if(datahome[i+1]=='/')	//    //
 			{
 				innote=1;
+				i++;
 			}
 
 			//多行注释
 			else if(datahome[i+1]=='*')	//    /*
 			{
 				innote=9;
+				i++;
 			}
 		}
 		else if(datahome[i]=='*')
@@ -758,7 +761,7 @@ void fileordir(char* thisname)
 int main(int argc,char *argv[])  
 {
 	char* in=0;
-	char* out="func.seed";
+	char* out="c.seed";
 	if(argc==1)
 	{
 		in=".";

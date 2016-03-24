@@ -269,17 +269,18 @@ int explainheader(int start,int end)
                                 instr=0;
                         }
                 }
-                else if(ch=='\'')
-                {
-                        if(innote>0|instr>0)continue;
 
-                        while(1)
-                        {
-                                i++;
-                                if(datahome[i]=='\'')break;
-                                if(datahome[i]=='\\')i++;
-                        }
+		//这里有bug，暂时不管字符
+		else if(ch=='\'')
+		{
+			if(innote>0|instr>0)continue;
+
+			if(datahome[i+2]=='\'')
+			{
+				i+=2;
+			}
                 }
+
                 else if(datahome[i]=='/')
                 {
                         //在这三种情况下什么都不能干
@@ -289,26 +290,107 @@ int explainheader(int start,int end)
                         if(datahome[i+1]=='/')  //    //
                         {
                                 innote=1;
+				i++;
                         }
 
                         //多行注释
                         else if(datahome[i+1]=='*')     //    /*
                         {
                                 innote=9;
+				i++;
                         }
                 }
                 else if(datahome[i]=='*')
                 {
-                        if(instr>0)continue;
+                        if((innote==1)|(instr>0))continue;
 
                         if(datahome[i+1]=='/')
                         {
                                 if(innote==9)
                                 {
                                         innote=0;
+					i++;
                                 }
                         }
                 }
+		else if(ch=='s')
+		{
+			if(inmarco>=2|innote>0|instr>0)continue;
+
+			//
+			if(prophet==0)
+			{
+				prophet=datahome+i;
+				i += checkprophet( prophet );
+			}
+		}
+/*
+		else if(ch=='u')
+		{
+			if(inmarco>=2|innote>0|instr>0)continue;
+
+			//
+			if(prophet==0)
+			{
+				prophet=datahome+i;
+				i += checkprophet( prophet );
+			}
+		}
+*/
+		else if(ch==';')
+		{
+			if(inmarco>=2|innote>0|instr>0)continue;
+
+			if(prophet!=0)
+			{
+				if(instruct>0)
+				{
+					printprophet(prophet);
+				}
+				prophet=0;
+			}
+		}
+
+		else if(ch=='{')
+		{
+			if(inmarco>=2|innote>0|instr>0)continue;
+
+			if(prophet!=0)
+			{
+				printprophet(prophet);
+				instruct++;
+			}
+		}
+
+		else if(ch=='}')
+		{
+			if(inmarco>=2|innote>0|instr>0)continue;
+
+			if(instruct>1)instruct--;
+			else if(instruct==1)
+			{
+				instruct=0;
+				printprophet(0);
+			}
+		}
+
+		else if(ch==')')
+		{
+			if(inmarco>=2|innote>0|instr>0)continue;
+
+			if(prophet!=0)
+			{
+				prophet=0;
+			}
+		}
+
+		else if(ch=='>')
+		{
+			if(inmarco>=2|innote>0|instr>0)continue;
+
+			if(prophet!=0)prophet=0;
+		}
+
 		else if(ch=='#')
 		{
                         //不在注释里面,也不在字符串里的时候
@@ -367,78 +449,7 @@ int explainheader(int start,int end)
                                         i+=5;
                                 }
                         }
-		}
-		else if(ch=='s')
-		{
-			if(inmarco>=2|innote>0|instr>0)continue;
-
-			//
-			if(prophet==0)
-			{
-				prophet=datahome+i;
-				i += checkprophet( prophet );
-			}
-		}
-/*
-		else if(ch=='u')
-		{
-			if(inmarco>=2|innote>0|instr>0)continue;
-
-			//
-			if(prophet==0)
-			{
-				prophet=datahome+i;
-				i += checkprophet( prophet );
-			}
-		}
-*/
-		else if(ch=='{')
-		{
-			if(inmarco>=2|innote>0|instr>0)continue;
-
-			if(prophet!=0)
-			{
-				printprophet(prophet);
-				instruct++;
-			}
-		}
-
-		else if(ch=='}')
-		{
-			if(inmarco>=2|innote>0|instr>0)continue;
-
-			if(instruct>1)instruct--;
-			else if(instruct==1)
-			{
-				instruct=0;
-				printprophet(0);
-			}
-		}
-
-		else if(ch==';')
-		{
-			if(inmarco>=2|innote>0|instr>0)continue;
-
-			if(prophet!=0)
-			{
-				if(instruct>0)
-				{
-					printprophet(prophet);
-				}
-				prophet=0;
-			}
-		}
-
-		else if(ch==')')
-		{
-			if(inmarco>=2|innote>0|instr>0)continue;
-
-			if(prophet!=0)
-			{
-				prophet=0;
-			}
-		}
-
+		}//#
 	}//for
 
 	return i-end;
