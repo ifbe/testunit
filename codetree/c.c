@@ -57,10 +57,10 @@ int copyname(unsigned char* p,unsigned char* q)
 	unsigned long long temp;
 
 	//2byte:	if
-	temp=*(unsigned short*)p;
-	if(temp==0x6669)
+	if(p[2]==' ' | p[2]=='(' | p[2]==0x9)
 	{
-		if(p[2]==' ' | p[2]=='(' | p[2]==0x9)
+		temp=*(unsigned short*)p;
+		if(temp==0x6669)
 		{
 			i=2;
 			goto decide;
@@ -68,10 +68,10 @@ int copyname(unsigned char* p,unsigned char* q)
 	}
 
 	//3byte:	for
-	temp=0xffffff & (*(unsigned int*)p);
-	if(temp==0x726f66)
+	if(p[3]==' ' | p[3]=='(' | p[3]==0x9)
 	{
-		if(p[3]==' ' | p[3]=='(' | p[3]==0x9)
+		temp=0xffffff & (*(unsigned int*)p);
+		if(temp==0x726f66)
 		{
 			i=3;
 			goto decide;
@@ -79,10 +79,10 @@ int copyname(unsigned char* p,unsigned char* q)
 	}
 
 	//4byte:	else
-	temp=*(unsigned int*)p;
-	if(temp==0x65736c65)
+	if(p[4]==' ' | p[4]=='(' | p[4]==0x9)
 	{
-		if(p[4]==' ' | p[4]=='(' | p[4]==0x9)
+		temp=*(unsigned int*)p;
+		if(temp==0x65736c65)
 		{
 			i=4;
 			goto decide;
@@ -90,44 +90,49 @@ int copyname(unsigned char* p,unsigned char* q)
 	}
 
 	//5byte:	while
-	temp=0xffffffffff & (*(unsigned long long*)p);
-	if(temp==0x656c696877)
+	if(p[5]==' ' | p[5]=='(' | p[5]==0x9)
 	{
-		if(p[5]==' ' | p[5]=='(' | p[5]==0x9)
+		temp=0xffffffffff & (*(unsigned long long*)p);
+		if(temp==0x656c696877)
 		{
 			i=5;
 			goto decide;
 		}
 	}
 
-	//6byte:	switch , sizeof , printf
-	temp=0xffffffffffff & (*(unsigned long long*)p);
-	if(temp==0x686374697773)
+	//6byte:	printf,return,sizeof,switch
+	if(p[6]==' ' | p[6]=='(' | p[6]==0x9)
 	{
-		if(p[6]==' ' | p[6]=='(' | p[6]==0x9)
-		{
-			i=6;
-			goto decide;
-		}
-	}
-	else if(temp==0x666f657a6973)
-	{
-		if(p[6]==' ' | p[6]=='(' | p[6]==0x9)
-		{
-			i=6;
-			goto decide;
-		}
-	}
+		temp=0xffffffffffff & (*(unsigned long long*)p);
 /*
-	else if(temp==0x66746e697270)
-	{
-		if(p[6]==' ' | p[6]=='(' | p[6]==0x9)
+		//printf
+		if(temp==0x66746e697270)
+		{
+			i=6;
+			goto decide;
+		}
+*/
+		//return
+		if(temp==0x6e7275746572)
+		{
+			i=6;
+			goto decide;
+		}
+
+		//sizeof
+		else if(temp==0x666f657a6973)
+		{
+			i=6;
+			goto decide;
+		}
+
+		//switch
+		else if(temp==0x686374697773)
 		{
 			i=6;
 			goto decide;
 		}
 	}
-*/
 decide:
 	if(i!=0)
 	{
@@ -264,6 +269,9 @@ int explainpurec(int start,int end)
 
 			//单行注释，换行清零
 			if(innote==1)innote=0;
+
+			//字符串，换行清零
+			if(instr==1)instr=0;
 		}
 
 		//........
@@ -370,87 +378,6 @@ int explainpurec(int start,int end)
 				if(infunc==0)printprophet(0);
 			}
 		}
-		else if(ch=='#')
-		{
-			//不在注释里面,也不在字符串里的时候
-			if(innote>0|instr>0)continue;
-
-			//吃掉所有空格和tab
-			while(1)
-			{
-				if( (datahome[i+1]==' ') | (datahome[i+1]==0x9) )i++;
-				else break;
-			}
-
-			//宏外面碰到#号
-			if(inmarco==0)
-			{
-				//#define
-				if( (*(unsigned short*)(datahome+i+1) )==0x6564 )
-				{
-					if( (*(unsigned int*)(datahome+i+3) )==0x656e6966 )
-					{
-						inmarco='d';
-						i+=6;
-					}
-				}
-
-				//#if
-				else if( (*(unsigned short*)(datahome+i+1) )==0x6669 )
-				{
-					inmarco=1;
-					i+=2;
-
-					//借用一下innote，这一行不能要
-					innote=1;
-				}
-
-				//#else 这里是为了暂时不管宏嵌套的问题...
-				else if( (*(unsigned int*)(datahome+i+1) )==0x65736c65 )
-				{
-
-					inmarco='e';
-					i+=4;
-				}
-			}
-
-			//普通宏里又碰到了#号
-			else if(inmarco==1)
-			{
-				//#else -> 升级
-				if( (*(unsigned int*)(datahome+i+1) )==0x65736c65 )
-				{
-
-					inmarco='e';
-					i+=4;
-				}
-
-				//#endif -> 降级
-				else if( (datahome[i+1]=='e') &&
-				    (datahome[i+2]=='n') &&
-				    (datahome[i+3]=='d') &&
-				    (datahome[i+4]=='i') &&
-				    (datahome[i+5]=='f') )
-				{
-					inmarco=0;
-					i+=5;
-				}
-			}
-
-			//else里面碰到endif号
-			else if(inmarco=='e')
-			{
-				if( (datahome[i+1]=='e') &&
-				    (datahome[i+2]=='n') &&
-				    (datahome[i+3]=='d') &&
-				    (datahome[i+4]=='i') &&
-				    (datahome[i+5]=='f') )
-				{
-					inmarco=0;
-					i+=5;
-				}
-			}
-		}
 		else if(ch=='\"')
 		{
 			if(innote>0)continue;
@@ -493,13 +420,14 @@ int explainpurec(int start,int end)
 		}
 		else if(datahome[i]=='*')
 		{
-			if(instr>0)continue;
+			if((innote==1)|(instr>0))continue;
 
 			if(datahome[i+1]=='/')
 			{
 				if(innote==9)
 				{
 					innote=0;
+					i++;
 				}
 			}
 			prophet=0;
@@ -514,15 +442,19 @@ int explainpurec(int start,int end)
 			prophet=0;
 		}
 
-		else if(ch=='&')
+		else if( (ch=='&') | (ch=='+') | (ch=='-') | (ch=='>') | (ch=='<') )
 		{
 			if(inmarco>=2|innote>0|instr>0)continue;
 
-			doubt=0;
-			prophet=0;
-			prophetinsist=0;
+			if(infunc>0)
+			{
+				doubt=0;
+				prophet=0;
+				prophetinsist=0;
+			}
 		}
-		else if( (ch=='=') | (ch==';') | (ch=='|') )
+
+		else if( (ch=='=') | (ch==';') | (ch=='|') ) 
 		{
 			if(inmarco>=2|innote>0|instr>0)continue;
 
@@ -532,10 +464,95 @@ int explainpurec(int start,int end)
 			prophetinsist=0;
 		}
 
-		else if(datahome[i]>0x80)		//utf-8 > 0x80
+		else if(ch=='#')
 		{
-			//do nothing
-		}
+			//不在注释里面,也不在字符串里的时候
+			if(innote>0|instr>0)continue;
+
+			//吃掉所有空格和tab
+			while(1)
+			{
+				if( (datahome[i+1]==' ') | (datahome[i+1]==0x9) )i++;
+				else break;
+			}
+
+			//宏外面碰到#号
+			if(inmarco==0)
+			{
+				//#define
+				if( (*(unsigned short*)(datahome+i+1) )==0x6564 )
+				{
+					if( (*(unsigned int*)(datahome+i+3) )==0x656e6966 )
+					{
+						i+=6;
+						inmarco='d';
+					}
+				}
+
+				//#else 这里是为了暂时不管宏嵌套的问题...
+				else if( (*(unsigned int*)(datahome+i+1) )==0x65736c65 )
+				{
+
+					inmarco='e';
+					i+=4;
+				}
+
+				//#if
+				else if( (*(unsigned short*)(datahome+i+1) )==0x6669 )
+				{
+					inmarco=1;
+					i+=2;
+				}
+			}
+
+			//普通宏里又碰到了#号
+			else if(inmarco==1)
+			{
+/*
+				//嵌套在#if里面的#define,这种解法不对
+				if( (*(unsigned short*)(datahome+i+1) )==0x6564 )
+				{
+					if( (*(unsigned int*)(datahome+i+3) )==0x656e6966 )
+					{
+						i+=6;
+						inmarco='d';
+					}
+				}
+*/
+				//#else -> 升级
+				if( (*(unsigned int*)(datahome+i+1) )==0x65736c65 )
+				{
+
+					inmarco='e';
+					i+=4;
+				}
+
+				//#endif -> 降级
+				else if( (datahome[i+1]=='e') &&
+				    (datahome[i+2]=='n') &&
+				    (datahome[i+3]=='d') &&
+				    (datahome[i+4]=='i') &&
+				    (datahome[i+5]=='f') )
+				{
+					inmarco=0;
+					i+=5;
+				}
+			}
+
+			//else里面碰到endif号
+			else if(inmarco=='e')
+			{
+				if( (datahome[i+1]=='e') &&
+				    (datahome[i+2]=='n') &&
+				    (datahome[i+3]=='d') &&
+				    (datahome[i+4]=='i') &&
+				    (datahome[i+5]=='f') )
+				{
+					inmarco=0;
+					i+=5;
+				}
+			}
+		}//#marco
 
 	}//for
 
