@@ -50,11 +50,9 @@ static char in[256]={0};
 	//输入文件名
 static char out[256]={0};
 	//输出文件名
-static char type[256]={0};
-static int typelen=0;
+static char suffix[256]={0};
+static int length=0;
 	//文件种类
-static char worker[256]={0};
-	//处理员
 
 
 
@@ -238,13 +236,13 @@ void fileordir(char* thisname)
 		if(j==0)return;
 
 		//长度不够不对
-		if(i-j<typelen)return;
+		if(i-j<length)return;
 
 		//长度超过也不对
-		if( thisname[ j+typelen ] > 0x20 )return;
+		if( thisname[ j+length ] > 0x20 )return;
 
 		//名字不一样不对
-		if( strcmp( thisname+j , type ) != 0 )return;
+		if( strcmp( thisname+j , suffix ) != 0 )return;
 
 		//文件空的也不对
 		i=statbuf.st_size;
@@ -263,7 +261,7 @@ int main(int argc,char *argv[])
 {
 	int i;
 	char* p;
-	in[0]=out[0]=type[0]=worker[0]=0;
+	in[0]=out[0]=suffix[0]=0;
 
 
 
@@ -272,8 +270,8 @@ int main(int argc,char *argv[])
 	if(argc==1)
 	{
 		printf("usage:\n");
-		printf("code2seed type=.c worker=purec\n");
-		printf("code2seed in=. out=code.seed type=.c worker=purec\n");
+		printf("code2seed .c\n");
+		printf("code2seed in=. out=code.seed .cpp\n");
 		return 0;
 	}
 	//****************************************************
@@ -287,29 +285,12 @@ int main(int argc,char *argv[])
 		p=argv[i];
 		if(p==0)break;
 
-		//type=
-		if(	(p[0]=='t') &&
-			(p[1]=='y') &&
-			(p[2]=='p') &&
-			(p[3]=='e') &&
-			(p[4]=='=') )
+		//.c	.cpp	.h
+		if(p[0]=='.')
 		{
-			printf("type=%s\n",p+5);
-			snprintf(type,16,"%s",p+5);
-			typelen=strlen(type);
-		}
-
-		//worker=
-		if(	(p[0]=='w') &&
-			(p[1]=='o') &&
-			(p[2]=='r') &&
-			(p[3]=='k') &&
-			(p[4]=='e') &&
-			(p[5]=='r') &&
-			(p[6]=='=') )
-		{
-			printf("worker=%s\n",p+7);
-			snprintf(worker,16,"%s",p+7);
+			printf("suffix=%s\n",p);
+			snprintf(suffix,16,"%s",p);
+			length=strlen(suffix);
 		}
 
 		//in=
@@ -337,14 +318,9 @@ int main(int argc,char *argv[])
 
 
 	//********************检查开始********************
-	if(type[0]==0)
+	if(suffix[0]==0)
 	{
-		printf("invalid type\n");
-		return 0;
-	}
-	if(worker[0]==0)
-	{
-		printf("invalid worker\n");
+		printf("invalid suffix\n");
 		return 0;
 	}
 	if(in[0]==0)
