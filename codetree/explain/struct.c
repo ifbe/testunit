@@ -47,7 +47,7 @@ static int instr=0;
 
 
 
-int pickname(unsigned char* p,unsigned char* q)
+int struct_pickname(unsigned char* p,unsigned char* q)
 {
 	int i=0;
 	int o=0;
@@ -98,7 +98,7 @@ int pickname(unsigned char* p,unsigned char* q)
 	}
 	return o;
 }
-int printprophet(unsigned char* p)
+int struct_printprophet(unsigned char* p)
 {
 	int i,o;
 
@@ -113,7 +113,7 @@ int printprophet(unsigned char* p)
 	//新结构体
 	if(instruct==0)
 	{
-		o  = pickname(p , strbuf);
+		o  = struct_pickname(p , strbuf);
 		o += snprintf(strbuf+o,0x80,"	@%d\n{\n",countline+1);
 	}
 
@@ -122,7 +122,7 @@ int printprophet(unsigned char* p)
 	{
 		o=1;
 		strbuf[0]=0x9;
-		o += pickname(p , strbuf+1);
+		o += struct_pickname(p , strbuf+1);
 		o += snprintf(strbuf+o,0x80,"\n",countline+1);
 		//o += snprintf(strbuf+o,0x80,"	@%d\n",countline+1);
 	}
@@ -224,7 +224,7 @@ int explainstruct(int start,int end)
 		{
 			if(prophet!=0)
 			{
-				pickname(prophet,backup);
+				struct_pickname(prophet,backup);
 				prophet=backup;
 			}
 
@@ -344,7 +344,7 @@ int explainstruct(int start,int end)
 			{
 				if(instruct>0)
 				{
-					printprophet(prophet);
+					struct_printprophet(prophet);
 				}
 				prophet=0;
 			}
@@ -356,7 +356,7 @@ int explainstruct(int start,int end)
 
 			if(prophet!=0)
 			{
-				printprophet(prophet);
+				struct_printprophet(prophet);
 				instruct++;
 			}
 		}
@@ -369,7 +369,7 @@ int explainstruct(int start,int end)
 			else if(instruct==1)
 			{
 				instruct=0;
-				printprophet(0);
+				struct_printprophet(0);
 			}
 		}
 

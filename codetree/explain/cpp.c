@@ -50,7 +50,7 @@ static int instr=0;
 
 
 
-int copyname(unsigned char* p,unsigned char* q)
+int cpp_copyname(unsigned char* p,unsigned char* q)
 {
 	int i=0;
 	unsigned long long temp;
@@ -163,7 +163,7 @@ forcecopy:
 	return i;
 
 }
-void printprophet(unsigned char* p)
+void cpp_printprophet(unsigned char* p)
 {
 	int count=0;
 
@@ -180,7 +180,7 @@ void printprophet(unsigned char* p)
 	//在函数外
 	if(infunc==0)
 	{
-		count=copyname(p , strbuf);
+		count=cpp_copyname(p , strbuf);
 		count+=snprintf(
 			strbuf+count,
 			0x80,
@@ -193,7 +193,7 @@ void printprophet(unsigned char* p)
 		strbuf[0]=0x9;
 		count++;
 
-		count += copyname(p , strbuf+1);
+		count += cpp_copyname(p , strbuf+1);
 		if(count==1)return;
 
 		strbuf[count]='\n';
@@ -205,7 +205,7 @@ finalprint:
 	write(dest,strbuf,count);
 	//printf("%s",dest);
 }
-int explainpurec(int start,int end)
+int explaincpp(int start,int end)
 {
 	int i=0;
 	unsigned char ch=0;
@@ -241,12 +241,12 @@ int explainpurec(int start,int end)
 			//保存一下上次的名字
 			if(prophet!=0)
 			{
-				copyname(prophet,backup1);
+				cpp_copyname(prophet,backup1);
 				prophet=backup1;
 			}
 			if(prophetinsist!=0)
 			{
-				copyname(prophetinsist,backup2);
+				cpp_copyname(prophetinsist,backup2);
 				prophetinsist=backup2;
 			}
 
@@ -324,7 +324,7 @@ int explainpurec(int start,int end)
 				//somthing like:    what=func();
 				if(infunc > 0)
 				{
-					printprophet(prophet);
+					cpp_printprophet(prophet);
 				}
 
 				//在函数外面碰到了左括号
@@ -358,7 +358,7 @@ int explainpurec(int start,int end)
 				//消灭aaa=(struct){int a,int b}这种
 				if( (chance>0) && (prophetinsist!=0) )
 				{
-					printprophet(prophetinsist);
+					cpp_printprophet(prophetinsist);
 
 					infunc++;
 					prophet=prophetinsist=0;
@@ -374,7 +374,7 @@ int explainpurec(int start,int end)
 			if(infunc>0)
 			{
 				infunc--;
-				if(infunc==0)printprophet(0);
+				if(infunc==0)cpp_printprophet(0);
 			}
 		}
 		else if(ch=='\"')
@@ -560,7 +560,7 @@ int explainpurec(int start,int end)
 
 	return i-end;	//可能多分析了几十几百个字节
 }
-void startpurec()
+void startcpp()
 {
         //init
         prophet=prophetinsist=0;
@@ -568,7 +568,7 @@ void startpurec()
         countbyte=countline=0;
         infunc = inmarco = innote = instr = 0;
 }
-void stoppurec(int where)
+void stopcpp(int where)
 {
         printf("@%x@%d -> %d,%d,%d,%d\n\n\n\n",
                 where,
@@ -580,12 +580,12 @@ void stoppurec(int where)
         );
         write(dest,"\n\n\n\n",4);
 }
-void initpurec(int i,char* p)
+void initcpp(int i,char* p)
 {
 	//
 	dest=i;
 	datahome=p;
 }
-void killpurec()
+void killcpp()
 {
 }

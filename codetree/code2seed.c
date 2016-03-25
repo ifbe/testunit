@@ -6,6 +6,36 @@
 #include <fcntl.h>
 #include <sys/stat.h>  
 #include <sys/types.h> 
+//c
+int explainpurec(int,int);
+void startpurec();
+void stoppurec(int);
+void initpurec(int,char*);
+void killpurec();
+//struct
+int explainstruct(int,int);
+void startstruct();
+void stopstruct(int);
+void initstruct(int,char*);
+void killstruct();
+//cpp
+int explaincpp(int,int);
+void startcpp();
+void stopcpp(int);
+void initcpp(int,char*);
+void killcpp();
+//class
+int explainclass(int,int);
+void startclass();
+void stopclass(int);
+void initclass(int,char*);
+void killclass();
+//java
+int explainjava(int,int);
+void startjava();
+void stopjava(int);
+void initjava(int,char*);
+void killjava();
 
 
 
@@ -242,8 +272,8 @@ int main(int argc,char *argv[])
 	if(argc==1)
 	{
 		printf("usage:\n");
-		printf("code2seed if=.c of=name.seed\n");
-		printf("code2seed if=/mnt/code/linux/*.c of=name.seed\n");
+		printf("code2seed type=.c worker=purec\n");
+		printf("code2seed in=. out=code.seed type=.c worker=purec\n");
 		return 0;
 	}
 	//****************************************************
