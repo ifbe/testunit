@@ -1,2 +1,2 @@
 clean:
-	rm -f *.seed *.tree
+	rm -f *.seed *.tree a.out

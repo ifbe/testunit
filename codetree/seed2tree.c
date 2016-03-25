@@ -232,8 +232,8 @@ statfailed:
 int main(int argc,char *argv[])  
 {
 	//
-	char* in="func.seed";
-	char* out="func.tree";
+	char* in="code.seed";
+	char* out="code.tree";
 	if(argc==1)
 	{
 		wantedname="main";
