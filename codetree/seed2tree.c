@@ -182,7 +182,7 @@ void seed2tree(char* inininin)
 	}
 
 	//open
-	src=open(inininin , O_RDONLY);
+	src=open(inininin , O_RDONLY|O_BINARY);
 	if(src<0)
 	{
 		printf("open failed\n");

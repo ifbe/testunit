@@ -46,13 +46,15 @@ static int dest=-1;
 static int src=-1;
 
 //
-static char in[256]={0};
-	//输入文件名
-static char out[256]={0};
-	//输出文件名
+static char infile[256]={0};
+	//input dir
+static char outfile[256]={0};
+	//output name
+static char processor[256]={0};
+	//file processor
 static char suffix[256]={0};
 static int length=0;
-	//文件种类
+	//file suffix
 
 
 
@@ -67,7 +69,7 @@ void explainfile(char* thisfile,unsigned long long size)
 
 //_______________________open+start___________________________
 	//open
-	src=open(thisfile , O_RDONLY);
+	src=open(thisfile , O_RDONLY|O_BINARY);
 	if(src<0){printf("open fail\n");exit(-1);}
 
 	//infomation
@@ -190,12 +192,13 @@ theend:
 }
 void fileordir(char* thisname)
 {
-        DIR*		thisfolder;
-        struct dirent*	ent;
+	DIR*		thisfolder;
+	struct dirent*	ent;
 	struct stat	statbuf;
 
 	int	i=0,j=0;
-        char	childpath[256];
+	char	childpath[256];
+	printf("i am here\n");
 
 	//看看是否存在
 	i=stat( thisname , &statbuf );
@@ -261,7 +264,7 @@ int main(int argc,char *argv[])
 {
 	int i;
 	char* p;
-	in[0]=out[0]=suffix[0]=0;
+	infile[0]=outfile[0]=processor[0]=suffix[0]=0;
 
 
 
@@ -271,7 +274,8 @@ int main(int argc,char *argv[])
 	{
 		printf("usage:\n");
 		printf("code2seed .c\n");
-		printf("code2seed in=. out=code.seed .cpp\n");
+		printf("code2seed infile=filename.cc outfile=what.seed\n");
+		printf("code2seed infile=/tmp/what.java outfile=what.seed\n");
 		return 0;
 	}
 	//****************************************************
@@ -293,23 +297,31 @@ int main(int argc,char *argv[])
 			length=strlen(suffix);
 		}
 
-		//in=
+		//infile=
 		if(	(p[0]=='i') &&
 			(p[1]=='n') &&
-			(p[2]=='=') )
+			(p[2]=='f') &&
+			(p[3]=='i') &&
+			(p[4]=='l') &&
+			(p[5]=='e') &&
+			(p[6]=='=') )
 		{
-			printf("in=%s\n",p+3);
-			snprintf(in,16,"%s",p+3);
+			printf("infile=%s\n",p+7);
+			snprintf(infile,16,"%s",p+7);
 		}
 
-		//out=
+		//outfile=
 		if(	(p[0]=='o') &&
 			(p[1]=='u') &&
 			(p[2]=='t') &&
-			(p[3]=='=') )
+			(p[3]=='f') &&
+			(p[4]=='i') &&
+			(p[5]=='l') &&
+			(p[6]=='e') &&
+			(p[7]=='=') )
 		{
-			printf("out=%s\n",p+4);
-			snprintf(out,16,"%s",p+4);
+			printf("outfile=%s\n",p+8);
+			snprintf(outfile,16,"%s",p+8);
 		}
 	}
 	//*******************分析输入结束******************
@@ -320,18 +332,53 @@ int main(int argc,char *argv[])
 	//********************检查开始********************
 	if(suffix[0]==0)
 	{
-		printf("invalid suffix\n");
-		return 0;
+		if(infile[0]!=0)
+		{
+			//search infile for suffix
+			p=0;
+			for(i=0;i<256;i++)
+			{
+				if(infile==0)break;
+				if(infile[i]=='.')p=infile+i;
+			}
+			if(p==0)
+			{
+				printf("invalid suffix1\n");
+				return 0;
+			}
+
+			//
+			printf("suffix=%s\n",p);
+			snprintf(suffix,16,"%s",p);
+			length=strlen(suffix);
+		}
+		else
+		{
+			printf("invalid suffix2\n");
+			return 0;
+		}
 	}
-	if(in[0]==0)
+	if(processor[0]==0)
 	{
-		printf("invalid in,using .\n");
-		snprintf(in,16,".");
+		//set up default processor
+		/*
+		if(.c)purec
+		if(.cc)cpp
+		if(.cpp)cpp
+		if(.h)struct
+		if(.hh)class
+		if(.java)java
+		*/
 	}
-	if(out[0]==0)
+	if(infile[0]==0)
 	{
-		printf("invalid out,using code.seed\n");
-		snprintf(out,16,"code.seed");
+		printf("invalid infile,using .\n");
+		snprintf(infile,16,".");
+	}
+	if(outfile[0]==0)
+	{
+		printf("invalid outfile,using code.seed\n");
+		snprintf(outfile,16,"code.seed");
 	}
 	//********************检查结束**********************
 
@@ -339,21 +386,15 @@ int main(int argc,char *argv[])
 
 
 	//**********************before**********************
-	dest=open(out,O_CREAT|O_RDWR|O_TRUNC,S_IRWXU|S_IRWXG|S_IRWXO);
+	dest=open(outfile,O_CREAT|O_RDWR|O_TRUNC|O_BINARY,S_IRWXU|S_IRWXG|S_IRWXO);
 	initpurec(dest,datahome);
-	//dest_cpp=open(out,O_CREAT|O_RDWR|O_TRUNC,S_IRWXU|S_IRWXG|S_IRWXO);
-	//initcpp(dest_cpp,datahome);
-	//dest_struct=open(out,O_CREAT|O_RDWR|O_TRUNC,S_IRWXU|S_IRWXG|S_IRWXO);
-	//initstruct(dest_struct,datahome);
-	//dest_class=open(out,O_CREAT|O_RDWR|O_TRUNC,S_IRWXU|S_IRWXG|S_IRWXO);
-	//initclass(dest_class,datahome);
 	//***************************************************
 
 
 
 
 	//********************processing***********************
-	fileordir( in );
+	fileordir( infile );
 	//***************************************************
 
 
