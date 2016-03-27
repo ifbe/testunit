@@ -13,14 +13,20 @@
 //
 static int dest=-1;
 static int src=-1;
-//
+
+//.seed
+static char* buf=0;
+static int count=0;
+
+//输入文件名
 static char infile[256]={0};
-	//输入文件名
+
+//输出文件名
 static char outfile[256]={0};
-	//输出文件名
+
+//请求的函数名
 static char funcname[256]={0};
 static int  funclength=0;
-	//请求的函数名
 
 
 
@@ -28,14 +34,9 @@ static int  funclength=0;
 //在已经读完的缓冲区里搜索自己
 //搜不到就写上等级(tab个数)，以及名称(字符串)，外加问号
 //搜到就递归调用这个函数(省的手动压栈)
-static char tempforname[256];
 static int namestack[16];
 static int depth=0;
-void nodeorleaf
-(
-	char* start,int count,		//search where , byte count
-	char* wantname,int namesize	//name addr , name count
-)
+void nodeorleaf(char* wantname,int namesize)
 {
 	int new=1;	//isnewline
 	int this=0,run=0;
@@ -48,16 +49,16 @@ void nodeorleaf
 			//不一样就提前跳出来
 			for(run=0;run<namesize;run++)
 			{
-				if(start[this+run] != wantname[run])break;
+				if(buf[this+run] != wantname[run])break;
 			}
 
 			//没有提前跳出来说明找到了那就跳出while(1)
 			if( run==namesize )
 			{
 				//必须再确认一个东西,防止printf找到printfxxxx
-				if(start[this+run]=='\n')break;
-				if(start[this+run]==0x9)break;
-				if(start[this+run]==0x20)break;
+				if(buf[this+run]=='\n')break;
+				if(buf[this+run]==0x9)break;
+				if(buf[this+run]==0x20)break;
 			}
 
 			//继续往下搜索
@@ -65,7 +66,7 @@ void nodeorleaf
 		}
 		else		//old
 		{
-			if(start[this]=='\n')
+			if(buf[this]=='\n')
 			{
 				new=1;
 			}
@@ -138,13 +139,13 @@ void nodeorleaf
 	run=this;
 	while(1)
 	{
-		if( start[run] == '}' )break;
-		if( start[run] != 0xa )
+		if( buf[run] == '}' )break;
+		if( buf[run] != 0xa )
 		{
 			run++;
 			continue;
 		}
-		if( start[run+1] !=0x9 )
+		if( buf[run+1] !=0x9 )
 		{
 			run++;
 			continue;
@@ -152,11 +153,11 @@ void nodeorleaf
 
 		run+=2;
 		new=0;
-		while(start[run+new]!='\n')new++;
+		while(buf[run+new]!='\n')new++;
 
 		namestack[depth]=this;
 		depth++;
-		nodeorleaf(start,count,start+run,new);
+		nodeorleaf(buf+run,new);
 		depth--;
 
 		run+=new;
@@ -174,13 +175,12 @@ void nodeorleaf
 void seed2tree(char* inininin)
 {
 	struct stat	statbuf;
-	char* buf;
-	int temp;
+	int ret;
 	printf("%s\n",inininin);
 
 	//check
-	temp=stat( inininin , &statbuf );
-	if(temp == -1)
+	ret=stat( inininin , &statbuf );
+	if(ret == -1)
 	{
 		printf("wrong file\n");
 		goto statfailed;
@@ -198,28 +198,22 @@ void seed2tree(char* inininin)
 	buf=(char*)malloc( (statbuf.st_size) + 0x1000 );
 	if(buf==NULL)
 	{
-		printf("too large\n");
+		printf("malloc failed1\n");
 		goto mallocfailed;
 	}
 
 	//read
-	temp=read(src,buf,statbuf.st_size);
-	if(temp!=statbuf.st_size)
+	count=read(src,buf,statbuf.st_size);
+	if(count!=statbuf.st_size)
 	{
 		printf("read failed\n");
 		goto readfailed;
 	}
 
 	//process
-	depth=0;
 	namestack[0]=0;
-	nodeorleaf( buf , statbuf.st_size , funcname , funclength );
-/*
-	for( temp=0;temp<statbuf.st_size;temp++ )
-	{
-		printf("%c",buf[temp]);
-	}
-*/
+	depth=0;
+	nodeorleaf( funcname , funclength );
 
 readfailed:
 	free(buf);
@@ -331,7 +325,7 @@ int main(int argc,char *argv[])
 
 
 	//open,process,close
-	dest=open(outfile,O_CREAT|O_RDWR|O_TRUNC,S_IRWXU|S_IRWXG|S_IRWXO);
+	dest=open(outfile,O_CREAT|O_RDWR|O_TRUNC|O_BINARY,S_IRWXU|S_IRWXG|S_IRWXO);
 	seed2tree(infile);
 	close(dest);
 }

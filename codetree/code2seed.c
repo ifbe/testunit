@@ -45,16 +45,21 @@ static unsigned char datahome[0x2000];	//4k+4k
 static int dest=-1;
 static int src=-1;
 
-//
+//input dirname or input filename
 static char infile[256]={0};
-	//input dir
+
+//output name
 static char outfile[256]={0};
-	//output name
+
+//file processor
 static char processor[256]={0};
-	//file processor
+void (*explain_start)(int,char*);
+void (*explain_stop)();
+void (*explain_continue)(int,int);
+
+//file suffix
 static char suffix[256]={0};
 static int length=0;
-	//file suffix
 
 
 
@@ -401,12 +406,6 @@ int main(int argc,char *argv[])
 
 	//**********************after************************
 	close(dest);
-	killpurec();
-	//close(dest_cpp);
-	//killcpp();
-	//close(dest_struct);
-	//killstruct();
-	//close(dest_class);
-	//killclass();
+	//killpurec();
 	//**************************************************
 }
