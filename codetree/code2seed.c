@@ -198,7 +198,6 @@ void fileordir(char* thisname)
 
 	int	i=0,j=0;
 	char	childpath[256];
-	printf("i am here\n");
 
 	//看看是否存在
 	i=stat( thisname , &statbuf );

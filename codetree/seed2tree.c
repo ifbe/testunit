@@ -14,8 +14,13 @@
 static int dest=-1;
 static int src=-1;
 //
-char* wantedname=0;
-int   wantedlength=0;
+static char infile[256]={0};
+	//输入文件名
+static char outfile[256]={0};
+	//输出文件名
+static char funcname[256]={0};
+static int  funclength=0;
+	//请求的函数名
 
 
 
@@ -208,7 +213,7 @@ void seed2tree(char* inininin)
 	//process
 	depth=0;
 	namestack[0]=0;
-	nodeorleaf( buf , statbuf.st_size , wantedname , wantedlength );
+	nodeorleaf( buf , statbuf.st_size , funcname , funclength );
 /*
 	for( temp=0;temp<statbuf.st_size;temp++ )
 	{
@@ -232,26 +237,101 @@ statfailed:
 int main(int argc,char *argv[])  
 {
 	//
-	char* in="code.seed";
-	char* out="code.tree";
+	int i;
+	char* p;
+	infile[0]=outfile[0]=funcname[0]=0;
+
+
+
+
+	//************************help*************************
 	if(argc==1)
 	{
-		wantedname="main";
-		wantedlength=strlen(wantedname);
+		printf("usage:\n");
+		printf("seed2tree name\n");
+		printf("seed2tree func=main\n");
+		printf("seed2tree func=the_func_name infile=code.seed outfile=code.tree\n");
+		return 0;
 	}
-	if(argc==2)
+	//******************************************************
+
+
+
+
+	//********************分析输入开始*********************
+	for(i=1;i<argc;i++)
 	{
-		wantedname=argv[1];
-		wantedlength=strlen(wantedname);
+		p=argv[i];
+		if(p==0)break;
+
+		//func
+		if( (p[0]=='f') &&
+			(p[1]=='u') &&
+			(p[2]=='n') &&
+			(p[3]=='c') &&
+			(p[4]=='=') )
+		{
+			printf("infile=%s\n",p+5);
+			snprintf(funcname,16,"%s",p+5);
+			funclength=strlen(funcname);
+		}
+
+		//infile=
+		if(	(p[0]=='i') &&
+			(p[1]=='n') &&
+			(p[2]=='f') &&
+			(p[3]=='i') &&
+			(p[4]=='l') &&
+			(p[5]=='e') &&
+			(p[6]=='=') )
+		{
+			printf("infile=%s\n",p+7);
+			snprintf(infile,16,"%s",p+7);
+		}
+
+		//outfile=
+		if(	(p[0]=='o') &&
+			(p[1]=='u') &&
+			(p[2]=='t') &&
+			(p[3]=='f') &&
+			(p[4]=='i') &&
+			(p[5]=='l') &&
+			(p[6]=='e') &&
+			(p[7]=='=') )
+		{
+			printf("outfile=%s\n",p+8);
+			snprintf(outfile,16,"%s",p+8);
+		}
 	}
-/*
-	inname=
-	outname=
-	type=
-	depth=
-*/
+	//*******************分析输入结束******************
+
+
+
+
+	//********************检查开始********************
+	if(funcname[0]==0)
+	{
+		printf("invalid funcname,using main\n");
+		snprintf(funcname,16,"main");
+		funclength=strlen(funcname);
+	}
+	if(infile[0]==0)
+	{
+		printf("invalid infile,using code.seed\n");
+		snprintf(infile,16,"code.seed");
+	}
+	if(outfile[0]==0)
+	{
+		printf("invalid outfile,using code.tree\n");
+		snprintf(outfile,16,"code.tree");
+	}
+	//********************检查结束**********************
+
+
+
+
 	//open,process,close
-	dest=open(out,O_CREAT|O_RDWR|O_TRUNC,S_IRWXU|S_IRWXG|S_IRWXO);
-	seed2tree(in);
+	dest=open(outfile,O_CREAT|O_RDWR|O_TRUNC,S_IRWXU|S_IRWXG|S_IRWXO);
+	seed2tree(infile);
 	close(dest);
 }
