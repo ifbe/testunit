@@ -228,14 +228,13 @@ int explainstruct(int start,int end)
 				prophet=backup;
 			}
 
-                        //printf("@%x\n",i);
-                        break;
-                }
+			//printf("@%x\n",i);
+			break;
+		}
 
-		//在这里记录行数？
-		else if( (ch==0xa)|(ch==0xd) )
+		//0xa:		linux的换行符
+		else if(ch==0xa)
 		{
-			//
 			countline++;
 
 			//define宏，换行清零
@@ -243,31 +242,63 @@ int explainstruct(int start,int end)
 
 			//单行注释，换行清零
 			if(innote==1)innote=0;
+
+			//字符串，换行清零
+			if(instr==1)instr=0;
+		}
+
+		//0xd:		mac或是windows的换行符
+		else if(ch==0xd)
+		{
+			//如果是windows的换行符，吃掉后面的0xa
+			countline++;
+			if(datahome[i+1]==0xa)i++;
+
+			//define宏，换行清零
+			if(inmarco=='d')inmarco=0;
+
+			//单行注释，换行清零
+			if(innote==1)innote=0;
+
+			//字符串，换行清零
+			if(instr==1)instr=0;
 		}
 
 		//.....................
 		else if(ch=='\\')
 		{
-			//吃掉一个
-			i++;
-			if( (datahome[i]==0xa)|(datahome[i]==0xd) )
+			//linux的换行
+			if(datahome[i+1]==0xa)
 			{
 				countline++;
 			}
+
+			//mac或者windows的换行
+			else if(datahome[i+1]==0xd)
+			{
+				//windows的换行多吃掉一个
+				if(datahome[i+2]==0xa)i++;
+				countline++;
+			}
+
+			//吃一个，然后换行
+			i++;
 			continue;
 		}
-                else if(ch=='\"')
-                {
-                        if(innote>0)continue;
-                        if( instr==0 )
-                        {
-                                instr=1;
-                        }
-                        else if(instr==1)
-                        {
-                                instr=0;
-                        }
-                }
+
+		//双引号
+		else if(ch=='\"')
+		{
+			if(innote>0)continue;
+			if( instr==0 )
+			{
+				instr=1;
+			}
+			else if(instr==1)
+			{
+				instr=0;
+			}
+		}
 
 		//这里有bug，暂时不管字符
 		else if(ch=='\'')

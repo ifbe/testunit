@@ -254,14 +254,11 @@ int explainpurec(int start,int end)
 			break;
 		}
 
-		//在这里记录行数？
-		else if( (ch==0xa)|(ch==0xd) )
+		//0xa:		linux的换行符
+		else if(ch==0xa)
 		{
-			//
+			//linux的换行符
 			countline++;
-
-			//换行了，可能函数名不对了
-			if(prophet != 0)doubt=1;
 
 			//define宏，换行清零
 			if(inmarco=='d')inmarco=0;
@@ -271,18 +268,50 @@ int explainpurec(int start,int end)
 
 			//字符串，换行清零
 			if(instr==1)instr=0;
+
+			//换行了，可能函数名不对了
+			if(prophet != 0)doubt=1;
 		}
 
-		//........
+		//0xd:		mac或是windows的换行符
+		else if(ch==0xd)
+		{
+			//如果是windows的换行符，吃掉后面的0xa
+			countline++;
+			if(datahome[i+1]==0xa)i++;
+
+			//define宏，换行清零
+			if(inmarco=='d')inmarco=0;
+
+			//单行注释，换行清零
+			if(innote==1)innote=0;
+
+			//字符串，换行清零
+			if(instr==1)instr=0;
+
+			//换行了，可能函数名不对了
+			if(prophet != 0)doubt=1;
+		}
+
+		//.....................
 		else if(ch=='\\')
 		{
-			//吃掉一个
-			i++;
-			if( (datahome[i]==0xa)|(datahome[i]==0xd) )
+			//linux的换行
+			if(datahome[i+1]==0xa)
 			{
 				countline++;
 			}
 
+			//mac或者windows的换行
+			else if(datahome[i+1]==0xd)
+			{
+				//windows的换行多吃掉一个
+				if(datahome[i+2]==0xa)i++;
+				countline++;
+			}
+
+			//吃一个，然后换行
+			i++;
 			continue;
 		}
 
@@ -345,6 +374,7 @@ int explainpurec(int start,int end)
 
 			if(infunc==0)chance=1;
 		}
+
 		else if(ch=='{')
 		{
 			if(inmarco>=2|innote>0|instr>0)continue;
@@ -366,6 +396,7 @@ int explainpurec(int start,int end)
 				}//chance && insist!=0
 			}//infunc
 		}
+
 		else if(ch=='}')
 		{
 			if(inmarco>=2|innote>0|instr>0)continue;
@@ -377,6 +408,7 @@ int explainpurec(int start,int end)
 				if(infunc==0)purec_printprophet(0);
 			}
 		}
+
 		else if(ch=='\"')
 		{
 			if(innote>0)continue;
@@ -420,6 +452,7 @@ int explainpurec(int start,int end)
 				i++;
 			}
 		}
+
 		else if(datahome[i]=='*')
 		{
 			if((innote==1)|(instr>0))continue;
@@ -441,6 +474,12 @@ int explainpurec(int start,int end)
 			if(inmarco>=2|innote>0|instr>0)continue;
 			chance=0;
 			doubt=0;
+			prophet=0;
+		}
+
+		else if(ch==':')
+		{
+			if(inmarco>=2|innote>0|instr>0)continue;
 			prophet=0;
 		}
 
