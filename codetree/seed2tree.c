@@ -6,6 +6,10 @@
 #include <fcntl.h>
 #include <sys/stat.h>  
 #include <sys/types.h> 
+#ifndef O_BINARY
+	//mingw64 compatiable
+	#define O_BINARY 0x0
+#endif
 
 
 
@@ -176,7 +180,6 @@ void seed2tree(char* inininin)
 {
 	struct stat	statbuf;
 	int ret;
-	printf("%s\n",inininin);
 
 	//check
 	ret=stat( inininin , &statbuf );
@@ -241,10 +244,11 @@ int main(int argc,char *argv[])
 	//************************help*************************
 	if(argc==1)
 	{
-		printf("usage:\n");
-		printf("seed2tree name\n");
-		printf("seed2tree func=main\n");
-		printf("seed2tree func=the_func_name infile=code.seed outfile=code.tree\n");
+		printf("seed2tree(infile=? outfile=? func=?\n{\n");
+                printf("        code2seed.exe schedule_chk_task\n");
+                printf("        code2seed.exe infile=1.txt base_probe\n");
+                printf("        code2seed.exe infile=2.txt outfile=3.txt main\n");
+                printf("}//inname,outname,whatdoyouwant\n");
 		return 0;
 	}
 	//******************************************************
@@ -258,18 +262,6 @@ int main(int argc,char *argv[])
 		p=argv[i];
 		if(p==0)break;
 
-		//func
-		if( (p[0]=='f') &&
-			(p[1]=='u') &&
-			(p[2]=='n') &&
-			(p[3]=='c') &&
-			(p[4]=='=') )
-		{
-			printf("infile=%s\n",p+5);
-			snprintf(funcname,16,"%s",p+5);
-			funclength=strlen(funcname);
-		}
-
 		//infile=
 		if(	(p[0]=='i') &&
 			(p[1]=='n') &&
@@ -280,11 +272,12 @@ int main(int argc,char *argv[])
 			(p[6]=='=') )
 		{
 			printf("infile=%s\n",p+7);
-			snprintf(infile,16,"%s",p+7);
+			snprintf(infile,256,"%s",p+7);
+			continue;
 		}
 
 		//outfile=
-		if(	(p[0]=='o') &&
+		else if((p[0]=='o') &&
 			(p[1]=='u') &&
 			(p[2]=='t') &&
 			(p[3]=='f') &&
@@ -294,8 +287,28 @@ int main(int argc,char *argv[])
 			(p[7]=='=') )
 		{
 			printf("outfile=%s\n",p+8);
-			snprintf(outfile,16,"%s",p+8);
+			snprintf(outfile,256,"%s",p+8);
+			continue;
 		}
+
+		//outfile=
+		else if((p[0]=='f') &&
+			(p[1]=='u') &&
+			(p[2]=='n') &&
+			(p[3]=='c') &&
+			(p[4]=='=') )
+		{
+			printf("func=%s\n",p+5);
+			snprintf(funcname,256,"%s",p+5);
+			funclength=strlen(funcname);
+			continue;
+		}
+
+		//what func are you looking for
+		//what func are you looking for
+		printf("func=%s\n",p);
+		snprintf(funcname,256,"%s",p);
+		funclength=strlen(funcname);
 	}
 	//*******************分析输入结束******************
 
@@ -305,18 +318,18 @@ int main(int argc,char *argv[])
 	//********************检查开始********************
 	if(funcname[0]==0)
 	{
-		printf("invalid funcname,using main\n");
+		printf("func=main\n");
 		snprintf(funcname,16,"main");
 		funclength=strlen(funcname);
 	}
 	if(infile[0]==0)
 	{
-		printf("invalid infile,using code.seed\n");
+		printf("infile=code.seed\n");
 		snprintf(infile,16,"code.seed");
 	}
 	if(outfile[0]==0)
 	{
-		printf("invalid outfile,using code.tree\n");
+		printf("outfile=code.tree\n");
 		snprintf(outfile,16,"code.tree");
 	}
 	//********************检查结束**********************

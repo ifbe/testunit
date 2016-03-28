@@ -6,6 +6,14 @@
 #include <fcntl.h>
 #include <sys/stat.h>  
 #include <sys/types.h> 
+#ifndef O_BINARY
+	//mingw64 compatiable
+	#define O_BINARY 0x0
+#endif
+
+
+
+
 //c
 int explainpurec(int,int);
 void startpurec();
@@ -51,15 +59,15 @@ static char infile[256]={0};
 //output name
 static char outfile[256]={0};
 
-//file processor
-static char processor[256]={0};
-void (*explain_start)(int,char*);
-void (*explain_stop)();
-void (*explain_continue)(int,int);
-
 //file suffix
 static char suffix[256]={0};
 static int length=0;
+
+//file worker
+static char worker[256]={0};
+void (*explain_start)(int,char*);
+void (*explain_stop)();
+void (*explain_continue)(int,int);
 
 
 
@@ -208,7 +216,7 @@ void fileordir(char* thisname)
 	i=stat( thisname , &statbuf );
 	if(i == -1)
 	{
-		printf("wrong file\n");
+		printf("wrong infile!!!!!!!!!!\n");
 		return;
 	}
 
@@ -268,7 +276,7 @@ int main(int argc,char *argv[])
 {
 	int i;
 	char* p;
-	infile[0]=outfile[0]=processor[0]=suffix[0]=0;
+	infile[0]=outfile[0]=suffix[0]=worker[0]=0;
 
 
 
@@ -276,10 +284,12 @@ int main(int argc,char *argv[])
 	//***********************help*************************
 	if(argc==1)
 	{
-		printf("usage:\n");
-		printf("code2seed .c\n");
-		printf("code2seed infile=filename.cc outfile=what.seed\n");
-		printf("code2seed infile=/tmp/what.java outfile=what.seed\n");
+		printf("code2seed(infile=? outfile=? suffix=? worker=?)\n{\n");
+		printf("	code2seed.exe xxx.c\n");
+		printf("	code2seed.exe suffix=.c\n");
+		printf("	code2seed.exe infile=1.h outfile=1.seed\n");
+		printf("	code2seed.exe infile=2.cc outfile=2.txt suffix=.cc worker=cpp\n");
+		printf("}//inname,outname,intype,outtype\n");
 		return 0;
 	}
 	//****************************************************
@@ -293,14 +303,6 @@ int main(int argc,char *argv[])
 		p=argv[i];
 		if(p==0)break;
 
-		//.c	.cpp	.h
-		if(p[0]=='.')
-		{
-			printf("suffix=%s\n",p);
-			snprintf(suffix,16,"%s",p);
-			length=strlen(suffix);
-		}
-
 		//infile=
 		if(	(p[0]=='i') &&
 			(p[1]=='n') &&
@@ -312,10 +314,11 @@ int main(int argc,char *argv[])
 		{
 			printf("infile=%s\n",p+7);
 			snprintf(infile,16,"%s",p+7);
+			continue;
 		}
 
 		//outfile=
-		if(	(p[0]=='o') &&
+		else if((p[0]=='o') &&
 			(p[1]=='u') &&
 			(p[2]=='t') &&
 			(p[3]=='f') &&
@@ -326,6 +329,43 @@ int main(int argc,char *argv[])
 		{
 			printf("outfile=%s\n",p+8);
 			snprintf(outfile,16,"%s",p+8);
+			continue;
+		}
+
+		//suffix=
+		else if((p[0]=='s') &&
+			(p[1]=='u') &&
+			(p[2]=='f') &&
+			(p[3]=='f') &&
+			(p[4]=='i') &&
+			(p[5]=='x') &&
+			(p[6]=='=') )
+		{
+			printf("suffix=%s\n",p+7);
+			snprintf(suffix,16,"%s",p+7);
+			length=strlen(suffix);
+		}
+
+		//worker=
+		else if((p[0]=='w') &&
+			(p[1]=='o') &&
+			(p[2]=='r') &&
+			(p[3]=='k') &&
+			(p[4]=='e') &&
+			(p[5]=='r') &&
+			(p[6]=='=') )
+		{
+			printf("worker=%s\n",p+7);
+			snprintf(worker,16,"%s",p+7);
+			continue;
+		}
+
+		//default treat it as infile
+		else
+		{
+			//.c	.cpp	.h
+			printf("infile=%s\n",p);
+			snprintf(infile,256,"%s",p);
 		}
 	}
 	//*******************分析输入结束******************
@@ -334,37 +374,39 @@ int main(int argc,char *argv[])
 
 
 	//********************检查开始********************
+	if(infile[0]==0)
+	{
+		printf("infile=.\n");
+		snprintf(infile,16,".");
+	}
+	if(outfile[0]==0)
+	{
+		printf("outfile=code.seed\n");
+		snprintf(outfile,16,"code.seed");
+	}
 	if(suffix[0]==0)
 	{
-		if(infile[0]!=0)
+		//试着从infile名字里面拿到后缀名
+		p=0;
+		for(i=0;i<256;i++)
 		{
-			//search infile for suffix
-			p=0;
-			for(i=0;i<256;i++)
-			{
-				if(infile==0)break;
-				if(infile[i]=='.')p=infile+i;
-			}
-			if(p==0)
-			{
-				printf("invalid suffix1\n");
-				return 0;
-			}
-
-			//
-			printf("suffix=%s\n",p);
-			snprintf(suffix,16,"%s",p);
-			length=strlen(suffix);
+			if(infile==0)break;
+			if(infile[i]=='.')p=infile+i;
 		}
-		else
+		if( (p==0) | (p[1]==0) )
 		{
-			printf("invalid suffix2\n");
+			printf("invalid suffix!!!!!!!!!!!\n");
 			return 0;
 		}
+
+		//
+		printf("suffix=%s\n",p);
+		snprintf(suffix,16,"%s",p);
+		length=strlen(suffix);
 	}
-	if(processor[0]==0)
+	if(worker[0]==0)
 	{
-		//set up default processor
+		//set up default worker
 		/*
 		if(.c)purec
 		if(.cc)cpp
@@ -373,16 +415,31 @@ int main(int argc,char *argv[])
 		if(.hh)class
 		if(.java)java
 		*/
-	}
-	if(infile[0]==0)
-	{
-		printf("invalid infile,using .\n");
-		snprintf(infile,16,".");
-	}
-	if(outfile[0]==0)
-	{
-		printf("invalid outfile,using code.seed\n");
-		snprintf(outfile,16,"code.seed");
+		if(strcmp(suffix,".c")==0)
+		{
+			printf("worker=purec\n");
+			snprintf(worker,16,"purec");
+		}
+		else if(strcmp(suffix,".cc")==0)
+		{
+			printf("worker=cpp\n");
+			snprintf(worker,16,"cpp");
+		}
+		else if(strcmp(suffix,".cpp")==0)
+		{
+			printf("worker=cpp\n");
+			snprintf(worker,16,"cpp");
+		}
+		else if(strcmp(suffix,".h")==0)
+		{
+			printf("worker=struct\n");
+			snprintf(worker,16,"struct");
+		}
+		else
+		{
+			printf("invalid worker!!!!!!!!!!\n");
+			return 0;
+		}
 	}
 	//********************检查结束**********************
 
@@ -390,6 +447,15 @@ int main(int argc,char *argv[])
 
 
 	//**********************before**********************
+	if(strcmp(worker,"purec")==0)
+	{
+	}
+	else if(strcmp(worker,"cpp")==0)
+	{
+	}
+	else if(strcmp(worker,"struct")==0)
+	{
+	}
 	dest=open(outfile,O_CREAT|O_RDWR|O_TRUNC|O_BINARY,S_IRWXU|S_IRWXG|S_IRWXO);
 	initpurec(dest,datahome);
 	//***************************************************

@@ -6,6 +6,14 @@
 #include <fcntl.h>
 #include <sys/stat.h>  
 #include <sys/types.h> 
+#ifndef O_BINARY
+	//mingw64 compatiable
+	#define O_BINARY 0x0
+#endif
+
+
+
+
 //
 static int dest=-1;
 static int src=-1;
@@ -14,10 +22,10 @@ static int src=-1;
 static char* buf=0;
 static int count=0;
 
-//ÊäÈëÎÄ¼şÃû
+//¿¿¿¿¿
 static char infile[256]={0};
 
-//Êä³öÎÄ¼şÃû
+//¿¿¿¿¿
 static char outfile[256]={0};
 
 
@@ -26,9 +34,9 @@ static char outfile[256]={0};
 //(char* , int) -> (int* , int)
 void seed2table()
 {
-	unsigned int ancestoroffset=0;	//º¯ÊıËùÔÚÎÄ¼ş
+	unsigned int ancestoroffset=0;	//¿¿¿¿¿¿¿¿
 	unsigned int ancestorlength=0;
-	unsigned int fatheroffset=0;		//º¯ÊıËùÔÚº¯Êı
+	unsigned int fatheroffset=0;	//¿¿¿¿¿¿¿¿
 	unsigned int fatherlength=0;
 	unsigned int lineoffset=0;
 	unsigned int linelength=0;
@@ -39,13 +47,13 @@ void seed2table()
 
 	for(i=0;i<count;i++)
 	{
-		//»»ĞĞ
+		//linux¿¿¿
 		if(buf[i]==0xa)
 		{
 			lineoffset++;
 			if(signal==0)continue;
 
-			//ÕâÒ»ĞĞ·ÖÎöÍêÁË£¬¼ÇÂ¼ÕâÒ»ĞĞ
+			//¿¿¿¿¿
 			write(dest,&ancestoroffset,4);
 			write(dest,&ancestorlength,4);
 			write(dest,&fatheroffset,4);
@@ -64,7 +72,7 @@ void seed2table()
 			if(buf[i+1]==0xa)i++;
 			if(signal=0)continue;
 
-			//ÕâÒ»ĞĞ·ÖÎöÍêÁË£¬¼ÇÂ¼ÕâÒ»ĞĞ
+			//¿¿¿¿¿
 			write(dest,&ancestoroffset,4);
 			write(dest,&ancestorlength,4);
 			write(dest,&fatheroffset,4);
@@ -78,10 +86,10 @@ void seed2table()
 			continue;
 		}
 
-		//ÎÄ¼şÃûºÍÎÄ¼ş³¤¶È
+		//¿¿¿¿¿¿¿¿¿
 		else if(buf[i]=='#')
 		{
-			//ÊÇÃû×Ö£ºÈ¡³öÃû×Ö£¬²¢ÇÒ³Ôµ½ĞĞÎ²
+			//¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿
 			if(	(buf[i+1]=='n')&&
 				(buf[i+2]=='a')&&
 				(buf[i+3]=='m')&&
@@ -103,7 +111,7 @@ void seed2table()
 				continue;
 			}
 
-			//¾ÍËã²»ÊÇÃû×Ö£¬Åöµ½¾®ºÅÕâÒ»ĞĞÒ²µÃÈ«³Ô¹â
+			//¿¿¿¿¿¿¿¿¿¿¿¿¿¿¿
 			else
 			{
 				while(1)
@@ -118,7 +126,7 @@ void seed2table()
 			}
 		}
 
-		//Ò»ĞĞĞĞ´¦Àí
+		//¿¿¿¿¿
 		else
 		{
 			if(buf[i]==0x9)
@@ -157,7 +165,7 @@ void seed2table()
 				signal=1;
 			}
 
-			//È»ºóÒ»Ö±³Ôµ½ÏÂÒ»ĞĞ
+			//¿¿¿¿¿¿¿¿¿¿¿
 			while(1)
 			{
 				if(buf[i+1]==0)break;
@@ -189,9 +197,7 @@ int main(int argc,char *argv[])
 	if(argc==1)
 	{
 		printf("usage:\n");
-		printf("seed2tree name\n");
-		printf("seed2tree func=main\n");
-		printf("seed2tree func=the_func_name infile=code.seed outfile=code.tree\n");
+		printf("seed2table infile=code.seed outfile=code.table\n");
 		return 0;
 	}
 	//******************************************************
@@ -199,7 +205,7 @@ int main(int argc,char *argv[])
 
 
 
-	//********************·ÖÎöÊäÈë¿ªÊ¼*********************
+	//********************¿¿¿¿¿¿*********************
 	for(i=1;i<argc;i++)
 	{
 		p=argv[i];
@@ -232,12 +238,12 @@ int main(int argc,char *argv[])
 			snprintf(outfile,16,"%s",p+8);
 		}
 	}
-	//*******************·ÖÎöÊäÈë½áÊø******************
+	//*******************¿¿¿¿¿¿******************
 
 
 
 
-	//********************¼ì²é¿ªÊ¼********************
+	//********************¿¿¿¿********************
 	if(infile[0]==0)
 	{
 		printf("invalid infile,using code.seed\n");
@@ -245,10 +251,10 @@ int main(int argc,char *argv[])
 	}
 	if(outfile[0]==0)
 	{
-		printf("invalid outfile,using code.tree\n");
+		printf("invalid outfile,using code.table\n");
 		snprintf(outfile,16,"code.table");
 	}
-	//********************¼ì²é½áÊø**********************
+	//********************¿¿¿¿**********************
 
 
 
@@ -257,7 +263,7 @@ int main(int argc,char *argv[])
 	ret=stat( infile , &statbuf );
 	if(ret == -1)
 	{
-		printf("wrong file\n");
+		printf("wrong infile\n");
 		goto statfailed;
 	}
 
