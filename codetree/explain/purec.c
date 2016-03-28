@@ -13,21 +13,24 @@
 //fp
 static int dest=-1;
 
-//destination,source,datahome
-static unsigned char* datahome;	//4k+4k
+//给read用，给snprintf用，以及强退的时候保存东西用
+static unsigned char* datahome;		//4k+4k
 static unsigned char strbuf[256];
 static unsigned char backup1[256];
 static unsigned char backup2[256];
 
-//the prophets who guide me
-static unsigned char* prophet=0;	//后面可能要用的函数名字
-static unsigned char* insist=0;	//在函数外面碰到了左括号:
-static int doubt=0;		//"疑虑"(想更细致就出错):	else myfunc ()
-static int chance=0;
-
 //count
 static int countbyte=0;		//统计字节数
 static int countline=0;		//统计行数
+
+//函数名字
+static unsigned char* prophet=0;	//后面可能要用的函数名字
+static unsigned char* insist=0;		//在函数外面碰到了左括号:
+static unsigned char* doubt=0;		//有些人写代码else myfunc ()
+
+//这到底是不是个函数
+static int chance=0;
+static int roundbracket=0;
 
 //status
 static int infunc=0;
@@ -224,6 +227,7 @@ int explainpurec(int start,int end)
 	{
 		//拿一个
 		ch=datahome[i];
+/*
 		printf("(%d,%d,%d,%d),	",infunc,inmarco,innote,instr);
 		printf("(%.8llx,%.8llx,%.8llx)	%c\n",
 			(unsigned long long)prophet,
@@ -231,6 +235,7 @@ int explainpurec(int start,int end)
 			(unsigned long long)doubt,
 			ch
 		);
+*/
 
 		//软退
 		if( (i>end) && (prophet==0) && (insist==0))
@@ -276,7 +281,7 @@ int explainpurec(int start,int end)
 			if(instr==1)instr=0;
 
 			//换行了，可能函数名不对了
-			if(prophet != 0)doubt=1;
+			if(prophet != 0)doubt=datahome+i;
 		}
 
 		//0xd:		mac或是windows的换行符
@@ -296,7 +301,7 @@ int explainpurec(int start,int end)
 			if(instr==1)instr=0;
 
 			//换行了，可能函数名不对了
-			if(prophet != 0)doubt=1;
+			if(prophet != 0)doubt=datahome+i;
 		}
 
 		//.....................
@@ -335,7 +340,7 @@ int explainpurec(int start,int end)
 			if(prophet==0)prophet=datahome+i;
 			else
 			{
-				if(doubt==1)
+				if(doubt!=0)
 				{
 					doubt=0;
 					prophet=datahome+i;
@@ -347,29 +352,35 @@ int explainpurec(int start,int end)
 		else if( (ch==' ')|(ch==0x9) )
 		{
 			if(inmarco>=2|innote>0|instr>0)continue;
-			if(prophet != 0)doubt=1;
+			if(prophet != 0)doubt=datahome+i;
 		}
 
 		//prophets' fable right or wrong
 		else if(ch=='(')
 		{
 			if(inmarco>=2|innote>0|instr>0)continue;
-			if(prophet!=0)
+
+			//somthing like:    what=func();
+			if(infunc > 0)
 			{
-				//somthing like:    what=func();
-				if(infunc > 0)
+				if(prophet!=0)
 				{
 					purec_printprophet(prophet);
+					prophet=0;
+					doubt=0;
 				}
+			}
 
-				//在函数外面碰到了左括号
-				else
+			//在函数外面碰到了左括号
+			else
+			{
+				if(prophet!=0)
 				{
-					insist=prophet;
+					if(roundbracket==0)insist=prophet;
+					prophet=0;
+					doubt=0;
 				}
-
-				prophet=0;
-				doubt=0;
+				roundbracket++;
 			}
 		}
 		else if(ch==')')
@@ -378,7 +389,11 @@ int explainpurec(int start,int end)
 			prophet=0;
 			doubt=0;
 
-			if(infunc==0)chance=1;
+			if(infunc==0)
+			{
+				chance=1;
+				roundbracket--;
+			}
 		}
 
 		else if(ch=='{')
@@ -397,8 +412,8 @@ int explainpurec(int start,int end)
 					purec_printprophet(insist);
 
 					infunc++;
-					prophet=insist=0;
-					doubt=chance=0;
+					chance=0;
+					prophet=insist=doubt=0;
 				}//chance && insist!=0
 			}//infunc
 		}
@@ -506,9 +521,7 @@ int explainpurec(int start,int end)
 			if(inmarco>=2|innote>0|instr>0)continue;
 
 			chance=0;
-			doubt=0;
-			prophet=0;
-			insist=0;
+			prophet=doubt=insist=0;
 		}
 
 		else if(ch=='#')
@@ -608,10 +621,10 @@ int explainpurec(int start,int end)
 void startpurec()
 {
         //init
-        prophet=insist=0;
-        doubt = chance=0;
+	chance=0;
         countbyte=countline=0;
         infunc = inmarco = innote = instr = 0;
+        prophet=insist=doubt=0;
 }
 void stoppurec(int where)
 {

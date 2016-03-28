@@ -19,14 +19,10 @@ install:
 	-cp code2seed.exe /opt/bin/
 	-cp seed2hash.exe /opt/bin/
 	-cp hash2tree.exe /opt/bin/
-	-cp seed2table.exe /opt/bin/
-	-cp table2txt.exe /opt/bin/
 uninstall:
 	-rm -f /opt/bin/code2seed.exe
 	-rm -f /opt/bin/seed2hash.exe
 	-rm -f /opt/bin/hash2tree.exe
-	-rm -f /opt/bin/seed2table.exe
-	-rm -f /opt/bin/table2txt.exe
 clean:
 	rm -f *.exe *.out
 	rm -f *.seed *.tree
