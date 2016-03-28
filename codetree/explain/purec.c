@@ -21,7 +21,7 @@ static unsigned char backup2[256];
 
 //the prophets who guide me
 static unsigned char* prophet=0;	//后面可能要用的函数名字
-static unsigned char* prophetinsist=0;	//在函数外面碰到了左括号:
+static unsigned char* insist=0;	//在函数外面碰到了左括号:
 static int doubt=0;		//"疑虑"(想更细致就出错):	else myfunc ()
 static int chance=0;
 
@@ -224,10 +224,16 @@ int explainpurec(int start,int end)
 	{
 		//拿一个
 		ch=datahome[i];
-		//printf("%c",ch);
+		printf("(%d,%d,%d,%d),	",infunc,inmarco,innote,instr);
+		printf("(%.8llx,%.8llx,%.8llx)	%c\n",
+			(unsigned long long)prophet,
+			(unsigned long long)insist,
+			(unsigned long long)doubt,
+			ch
+		);
 
 		//软退
-		if( (i>end) && (prophet==0) && (prophetinsist==0))
+		if( (i>end) && (prophet==0) && (insist==0))
 		{
 			if(ch==' ')break;
 			else if(ch==0x9)break;
@@ -244,10 +250,10 @@ int explainpurec(int start,int end)
 				purec_copyname(prophet,backup1);
 				prophet=backup1;
 			}
-			if(prophetinsist!=0)
+			if(insist!=0)
 			{
-				purec_copyname(prophetinsist,backup2);
-				prophetinsist=backup2;
+				purec_copyname(insist,backup2);
+				insist=backup2;
 			}
 
 			//printf("@%x\n",i);
@@ -359,7 +365,7 @@ int explainpurec(int start,int end)
 				//在函数外面碰到了左括号
 				else
 				{
-					prophetinsist=prophet;
+					insist=prophet;
 				}
 
 				prophet=0;
@@ -386,12 +392,12 @@ int explainpurec(int start,int end)
 			else
 			{
 				//消灭aaa=(struct){int a,int b}这种
-				if( (chance>0) && (prophetinsist!=0) )
+				if( (chance>0) && (insist!=0) )
 				{
-					purec_printprophet(prophetinsist);
+					purec_printprophet(insist);
 
 					infunc++;
-					prophet=prophetinsist=0;
+					prophet=insist=0;
 					doubt=chance=0;
 				}//chance && insist!=0
 			}//infunc
@@ -491,7 +497,7 @@ int explainpurec(int start,int end)
 			{
 				doubt=0;
 				prophet=0;
-				prophetinsist=0;
+				insist=0;
 			}
 		}
 
@@ -502,7 +508,7 @@ int explainpurec(int start,int end)
 			chance=0;
 			doubt=0;
 			prophet=0;
-			prophetinsist=0;
+			insist=0;
 		}
 
 		else if(ch=='#')
@@ -602,7 +608,7 @@ int explainpurec(int start,int end)
 void startpurec()
 {
         //init
-        prophet=prophetinsist=0;
+        prophet=insist=0;
         doubt = chance=0;
         countbyte=countline=0;
         infunc = inmarco = innote = instr = 0;
