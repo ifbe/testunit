@@ -27,7 +27,7 @@ static int seedcount=0;
 //tree
 static char treename[256]={0};
 static int treefd=-1;
-static char* stack[16]={0};
+static int stack[16]={0};
 static int depth=0;
 //
 static unsigned char strbuf[256]={0};
@@ -259,7 +259,7 @@ void printhash(int where)
 		}
 
 		i--;
-		if(i==0)return;
+		if(i==0)break;
 	}
 	while(1)
 	{
@@ -286,6 +286,7 @@ void printhash(int where)
 void createtree(char* p,int sz)
 {
 	int i;
+	int this;
 	int where;
 	int len;
 
@@ -293,8 +294,8 @@ void createtree(char* p,int sz)
 
 
 	//找不到就原样打印
-	where=searchhash(p,sz);
-	if(where==-1)
+	this=searchhash(p,sz);
+	if(this==-1)
 	{
 		//打tab
 		for(i=0;i<depth;i++)
@@ -311,8 +312,8 @@ void createtree(char* p,int sz)
 
 
 	//找到了就进去
-	len=*(unsigned short*)(hashbuf+where+0xa);
-	where=*(unsigned int*)(hashbuf+where+4);
+	len=*(unsigned short*)(hashbuf+this+0xa);
+	where=*(unsigned int*)(hashbuf+this+4);
 
 
 
@@ -322,7 +323,6 @@ void createtree(char* p,int sz)
 	{
 		write(treefd,"	",1);
 	}
-	//printf("%c",seedbuf[i]);
 	write(treefd,seedbuf+where,len);
 
 
@@ -336,7 +336,7 @@ void createtree(char* p,int sz)
 	}
 	for(i=0;i<depth;i++)
 	{
-		if(stack[depth]==p)
+		if(stack[i]==this)
 		{
 			write(treefd,"	#recursion\n",12);
 			return;
@@ -358,7 +358,7 @@ void createtree(char* p,int sz)
 		write(treefd,"	",1);
 	}
 	write(treefd,"{\n",2);
-	stack[depth]=p;
+	stack[depth]=this;
 	depth++;
 
 
