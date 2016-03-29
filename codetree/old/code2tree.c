@@ -181,12 +181,20 @@ void seed2tree(char* inininin)
 	struct stat	statbuf;
 	int ret;
 
-	//check
+	//stat
 	ret=stat( inininin , &statbuf );
 	if(ret == -1)
 	{
 		printf("wrong file\n");
-		goto statfailed;
+		goto failed;
+	}
+
+	//malloc
+	buf=(char*)malloc( (statbuf.st_size) + 0x1000 );
+	if(buf==NULL)
+	{
+		printf("malloc failed1\n");
+		goto failed;
 	}
 
 	//open
@@ -195,14 +203,6 @@ void seed2tree(char* inininin)
 	{
 		printf("open failed\n");
 		goto openfailed;
-	}
-
-	//malloc
-	buf=(char*)malloc( (statbuf.st_size) + 0x1000 );
-	if(buf==NULL)
-	{
-		printf("malloc failed1\n");
-		goto mallocfailed;
 	}
 
 	//read
@@ -219,12 +219,10 @@ void seed2tree(char* inininin)
 	nodeorleaf( funcname , funclength );
 
 readfailed:
-	free(buf);
-mallocfailed:
 	close(src);
 openfailed:
-	return;
-statfailed:
+	free(buf);
+failed:
 	return;
 }
 

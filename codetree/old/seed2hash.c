@@ -27,7 +27,7 @@ static char outfile[256]={0};
 
 //
 static char* buf=0;
-static int count=0;
+static unsigned long long count=0;
 
 //
 static unsigned int lineoffset=0;
@@ -53,16 +53,26 @@ void whathash(int start , int size)
 //(char* , int) -> (int* , int)
 void generatehash()
 {
-	int i=0;
-	int ret;
-	unsigned int length=0;
+	//数据特别大，用int会溢出
+	unsigned long long i=0;
+	unsigned long long ret=0;
+	unsigned long long percent=0;
+	unsigned long long length=0;
 
-	//check
+	//stat
 	ret=stat( infile , &statbuf );
 	if(ret == -1)
 	{
 		printf("wrong infile\n");
-		goto statfailed;
+		goto failed;
+	}
+
+	//malloc
+	buf=(char*)malloc( (statbuf.st_size) + 0x1000 );
+	if(buf==NULL)
+	{
+		printf("malloc failed1\n");
+		goto failed;
 	}
 
 	//open
@@ -72,14 +82,6 @@ void generatehash()
 	{
 		printf("open failed\n");
 		goto openfailed;
-	}
-
-	//malloc
-	buf=(char*)malloc( (statbuf.st_size) + 0x1000 );
-	if(buf==NULL)
-	{
-		printf("malloc failed1\n");
-		goto mallocfailed;
 	}
 
 	//read
@@ -94,8 +96,15 @@ void generatehash()
 
 
 	//start generating
+	percent=1;
 	for(i=0;i<count;i++)
 	{
+		if( ( (i*100) / count ) >= percent)
+		{
+			printf("%llx/%llx(%lld%%)\n",i,count,percent);
+			percent++;
+		}
+
 		//linux
 		if( (buf[i]==0xa) | (buf[i]==0xd) )
 		{
@@ -172,35 +181,43 @@ void generatehash()
 
 
 readfailed:
-	free(buf);
-mallocfailed:
 	close(src);
 	close(dest);
 openfailed:
-	return;
-statfailed:
+	free(buf);
+failed:
 	return;
 }//seed2hash
 
 
 
 
-void checkhash()
+void sorthash()
 {
-	int ret=0;
-	int i=0;
-	int j=0;
+	//数据特别大，用int会溢出
+	unsigned long long i=0;
+	unsigned long long j=0;
+	unsigned long long ret=0;
+	unsigned long long percent=0;
 	unsigned int temp1;
 	unsigned int temp2;
 	unsigned int temp3;
 	unsigned int temp4;
 
-	//check
+	//stat
 	ret=stat( outfile , &statbuf );
 	if(ret == -1)
 	{
 		printf("wrong infile\n");
-		goto statfailed;
+		goto failed;
+	}
+
+	//malloc
+	buf=(char*)malloc( (statbuf.st_size) + 0x1000 );
+	if(buf==NULL)
+	{
+		printf("malloc failed1\n");
+		goto failed;
 	}
 
 	//open
@@ -211,14 +228,6 @@ void checkhash()
 		goto openfailed;
 	}
 
-	//malloc
-	buf=(char*)malloc( (statbuf.st_size) + 0x1000 );
-	if(buf==NULL)
-	{
-		printf("malloc failed1\n");
-		goto mallocfailed;
-	}
-
 	//read
 	count=read(src,buf,statbuf.st_size);
 	if(count!=statbuf.st_size)
@@ -227,10 +236,16 @@ void checkhash()
 		goto readfailed;
 	}
 
+	//close
+	close(src);
 
 
 
-	//start checking
+
+	//open
+	dest=open(outfile,O_CREAT|O_RDWR|O_TRUNC|O_BINARY,S_IRWXU|S_IRWXG|S_IRWXO);
+/*
+	//start sorting
 	ret=0;
 	for(i=0;i<count;i+=0x10)
 	{
@@ -260,18 +275,67 @@ void checkhash()
 
 		ret=0;
 	}//for i
+*/
+	percent=1;
+	for(i=0;i<count;i+=0x10)
+	{
+		if( ( (i*100) / count ) >= percent)
+		{
+			printf("%llx/%llx(%lld%%)\n",i,count,percent);
+			percent++;
+		}
+
+		//min address , min value
+		ret=i;
+		temp1=*(unsigned int*)(buf+i+0xc);
+
+		//search smaller
+		for(j=i+0x10;j<count;j+=0x10)
+		{
+			temp2=*(unsigned int*)(buf+j+0xc);
+			if(temp2<temp1)
+			{
+				ret=j;
+				temp1=temp2;
+			}
+		}
+
+		//swap(this,smallest)
+		//printf("%x\n",temp1);
+		temp1=*(unsigned int*)(buf+i+0x0);
+		temp2=*(unsigned int*)(buf+i+0x4);
+		temp3=*(unsigned int*)(buf+i+0x8);
+		temp4=*(unsigned int*)(buf+i+0xc);
+		*(unsigned int*)(buf+i+0x0)=*(unsigned int*)(buf+ret+0x0);
+		*(unsigned int*)(buf+i+0x4)=*(unsigned int*)(buf+ret+0x4);
+		*(unsigned int*)(buf+i+0x8)=*(unsigned int*)(buf+ret+0x8);
+		*(unsigned int*)(buf+i+0xc)=*(unsigned int*)(buf+ret+0xc);
+		*(unsigned int*)(buf+ret+0x0)=temp1;
+		*(unsigned int*)(buf+ret+0x4)=temp2;
+		*(unsigned int*)(buf+ret+0x8)=temp3;
+		*(unsigned int*)(buf+ret+0xc)=temp4;
+	}
+
+	//write
+	write(dest,buf,count);
+
+	//
+	close(dest);
+
+	//
+	free(buf);
+
+	//
+	return;
 
 
 
 
 readfailed:
-	free(buf);
-mallocfailed:
 	close(src);
-	close(dest);
 openfailed:
-	return;
-statfailed:
+	free(buf);
+failed:
 	return;
 }
 
@@ -289,12 +353,14 @@ int main(int argc,char *argv[])
 
 
 	//************************help*************************
+/*
 	if(argc==1)
 	{
 		printf("usage:\n");
 		printf("seed2hash infile=code.seed outfile=code.table\n");
 		return 0;
 	}
+*/
 	//******************************************************
 
 
@@ -360,7 +426,7 @@ int main(int argc,char *argv[])
 	printf("generated\n");
 
 	//check
-	printf("checking........\n");
-	checkhash();
-	printf("checked\n");
+	printf("sorting........\n");
+	sorthash();
+	printf("sorted\n");
 }
