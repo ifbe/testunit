@@ -92,7 +92,7 @@ void readall()
 		exit(-1);
 	}
 
-	printf("hashname=%s,hashcount=%d\n",hashname,hashcount);
+	printf("%s has %d functions\n",hashname,hashcount>>4);
 	close(hashfd);
 //********************************************************
 
@@ -140,7 +140,7 @@ void readall()
 		exit(-1);
 	}
 
-	printf("seedname=%s,seedcount=%d\n",seedname,seedcount);
+	printf("%s has %d bytes\n",seedname,seedcount);
 	close(seedfd);
 //********************************************************
 }
@@ -164,7 +164,7 @@ int searchhash(char* p , int size)
 		goodhash=(goodhash<<5)+goodhash+p[i];
 	}
 	badhash=(badhash&0xffff)+(size<<16);
-	printf("badhash=%x,goodhash=%x\n",badhash,goodhash);
+	//printf("badhash=%x,goodhash=%x\n",badhash,goodhash);
 
 	//second,search for the hash value
 	min=0;
@@ -172,7 +172,7 @@ int searchhash(char* p , int size)
 	while(1)
 	{
 		//printf("trying:(%x,%x)\n",min,max);
-		if(max-min<=1)
+		if(max-min<=0)
 		{
 			//printf("not found\n");
 			return -1;
@@ -192,11 +192,11 @@ int searchhash(char* p , int size)
 		}
 		else if(temp1 > goodhash)
 		{
-			max=i;
+			max=i-1;
 		}
 		else
 		{
-			min=i;
+			min=i+1;
 		}
 	}//while(1)
 }
@@ -394,7 +394,7 @@ void createtree(char* p,int sz)
 
 
 
-	//打tab,打左括号
+	//打tab,打括号
 	depth--;
 	for(i=0;i<depth;i++)
 	{
@@ -484,7 +484,7 @@ int main(int argc,char *argv[])
 	//default......................
 	if(hashname[0]==0)
 	{
-		printf("hash=code.hash\n");
+		//printf("hash=code.hash\n");
 		snprintf(hashname,256,"code.hash");
 	}
 	if(seedname[0]==0)
