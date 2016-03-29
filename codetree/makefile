@@ -22,3 +22,4 @@ uninstall:
 clean:
 	rm -f *.exe *.out
 	rm -f *.seed *.tree
+	rm -f *.hash *.table

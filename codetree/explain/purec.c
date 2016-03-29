@@ -621,7 +621,7 @@ int explainpurec(int start,int end)
 void startpurec()
 {
         //init
-	chance=0;
+	chance=roundbracket=0;
         countbyte=countline=0;
         infunc = inmarco = innote = instr = 0;
         prophet=insist=doubt=0;

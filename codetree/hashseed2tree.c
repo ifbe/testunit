@@ -172,7 +172,7 @@ int searchhash(char* p , int size)
 	while(1)
 	{
 		//printf("trying:(%x,%x)\n",min,max);
-		if(max-min<=0)
+		if(max-min<0)
 		{
 			//printf("not found\n");
 			return -1;
