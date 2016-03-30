@@ -206,7 +206,8 @@ int searchhash(char* p , int size)
 
 void printhash(int where)
 {
-	int i;
+	int ii;
+	int jj;
 	int min;
 	int max;
 	unsigned int temp1;
@@ -217,6 +218,7 @@ void printhash(int where)
 	min=max=where;
 	while(1)
 	{
+		//前面一个
 		temp1=*(unsigned int*)(hashbuf + min - 0x4);
 		if(temp1 != goodhash)break;
 
@@ -224,60 +226,69 @@ void printhash(int where)
 	}
 	while(1)
 	{
+		//后面一个
 		temp1=*(unsigned int*)(hashbuf + max + 0x1c);
 		if(temp1 != goodhash)break;
 
 		max=max+16;
 	}
-	for(i=min;i<=max;i+=16)
+	for(ii=min;ii<=max;ii+=16)
 	{
-		temp3=*(unsigned int*)(hashbuf+i+8);
+		//检查冲突
+		temp3=*(unsigned int*)(hashbuf+ii+8);
 		if(badhash!=temp3)
 		{
 			printf("conflict hash!\n");
 			continue;
 		}
 
-		temp1=*(unsigned int*)(hashbuf+i+0x0);
-		temp2=*(unsigned int*)(hashbuf+i+0x4);
-		temp4=*(unsigned int*)(hashbuf+i+0xc);
-		printf("(%.8d,%.8x,%.8x,%.8x)\n",temp1,temp2,temp3,temp4);
-	}
+		//temp1=*(unsigned int*)(hashbuf+ii+0x0);
+		//temp2=*(unsigned int*)(hashbuf+ii+0x4);
+		//temp4=*(unsigned int*)(hashbuf+ii+0xc);
+		//printf("(%.8d,%.8x,%.8x,%.8x)\n",temp1,temp2,temp3,temp4);
 
-	//file
-	i=*(unsigned int*)(hashbuf+where+4);
-	while(1)
-	{
-		if(	(seedbuf[i]=='#') &&
-			(seedbuf[i+1]=='n') &&
-			(seedbuf[i+2]=='a') &&
-			(seedbuf[i+3]=='m') &&
-			(seedbuf[i+4]=='e') )
+
+
+
+		//打印1：函数所在文件名
+		jj=*(unsigned int*)(hashbuf+ii+4);
+		while(1)
 		{
-			i+=7;
-			break;
+			if(	(seedbuf[jj]=='#') &&
+				(seedbuf[jj+1]=='n') &&
+				(seedbuf[jj+2]=='a') &&
+				(seedbuf[jj+3]=='m') &&
+				(seedbuf[jj+4]=='e') )
+			{
+				jj+=7;
+				break;
+			}
+
+			jj--;
+			if(jj==0)break;
+		}
+		while(1)
+		{
+			printf("%c",seedbuf[jj]);
+			if(seedbuf[jj] == 0xa)break;
+			jj++;
 		}
 
-		i--;
-		if(i==0)break;
-	}
-	while(1)
-	{
-		printf("%c",seedbuf[i]);
-		if(seedbuf[i] == 0xa)break;
-		i++;
-	}
-	
-	//function
-	i=*(unsigned int*)(hashbuf+where+4);
-	while(1)
-	{
-		printf("%c",seedbuf[i]);
-		if(seedbuf[i]=='}')break;
 
-		i++;
+
+
+		//打印2：整个函数
+		jj=*(unsigned int*)(hashbuf+ii+4);
+		while(1)
+		{
+			//打印到右括号为止
+			printf("%c",seedbuf[jj]);
+			if(seedbuf[jj]=='}')break;
+	
+			jj++;
+		}
+		printf("\n");
 	}
-	printf("\n");
 }
 
 
