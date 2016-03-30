@@ -685,6 +685,12 @@ int main(int argc,char *argv[])
 	}
 	if(suffix[0]==0)
 	{
+		//种子已经有了，只想要哈希就跳过这些
+		if(strcmp(worker,"hash")==0)
+		{
+			goto hashgenerating;
+		}
+
 		//试着从codename名字里面拿到后缀名
 		p=0;
 		for(i=0;i<256;i++)
@@ -745,22 +751,28 @@ int main(int argc,char *argv[])
 
 
 
+seedgenerating:
 	//*********************1:code2seed***********************
 	printf("seed generating.................\n");
-	//choose
+	seedfd=open(
+		seedname,
+		O_CREAT|O_RDWR|O_TRUNC|O_BINARY,
+	S_IRWXU|S_IRWXG|S_IRWXO
+	);
+
 	if(strcmp(worker,"purec")==0)
 	{
+		//open
+		initpurec(seedfd,datahome);
 	}
 	else if(strcmp(worker,"cpp")==0)
 	{
+		initcpp(seedfd,datahome);
 	}
 	else if(strcmp(worker,"struct")==0)
 	{
+		initstruct(seedfd,datahome);
 	}
-
-	//open
-	seedfd=open(seedname,O_CREAT|O_RDWR|O_TRUNC|O_BINARY,S_IRWXU|S_IRWXG|S_IRWXO);
-	initpurec(seedfd,datahome);
 
 	//do it
 	fileordir( codename );
@@ -773,6 +785,7 @@ int main(int argc,char *argv[])
 
 
 
+hashgenerating:
 	//**********************2.seed2hash*********************
 	printf("hash generating................\n");
 	generatehash();
@@ -782,6 +795,7 @@ int main(int argc,char *argv[])
 
 
 
+hashsorting:
 	//********************.hash sorting*******************
 	printf("hash sorting..................\n");
 	sorthash();
