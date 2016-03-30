@@ -3,6 +3,8 @@
 #include<netinet/in.h>  
 #include<string.h>  
 #include<stdio.h>  
+#include<unistd.h>
+#include<fcntl.h>
   
 #define BUF_LEN 1028  
 #define SERVER_PORT 8080  
