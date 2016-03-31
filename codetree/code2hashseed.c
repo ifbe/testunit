@@ -440,8 +440,10 @@ void generatehash()
 void sorthash()
 {
         //数据特别大，用int会溢出
-        unsigned long long i=0;
-        unsigned long long j=0;
+        unsigned long long ii=0;
+        unsigned long long jj=0;
+        unsigned long long min=0;
+        unsigned long long max=0;
         unsigned long long ret=0;
         unsigned long long percent=0;
         unsigned int temp1;
@@ -492,41 +494,46 @@ void sorthash()
 
         //open
         hashfd=open(hashname,O_CREAT|O_RDWR|O_TRUNC|O_BINARY,S_IRWXU|S_IRWXG|S_IRWXO);
+
+
+
+
+	//sort "goodhash"
         percent=1;
-        for(i=0;i<hashcount;i+=0x10)
+        for(ii=0;ii<hashcount;ii+=0x10)
         {
-                if( ( (i*100) / hashcount ) >= percent)
+                if( ( (ii*100) / hashcount ) >= percent)
                 {
-                        printf("%llx/%llx(%lld%%).............\r",i,hashcount,percent);
+                        printf("%llx/%llx(%lld%%).............\r",ii,hashcount,percent);
 			fflush(stdout);
                         percent++;
                 }
 
                 //min address , min value
-                ret=i;
-                temp1=*(unsigned int*)(buf+i+0xc);
+                ret=ii;
+                temp1=*(unsigned int*)(buf+ii+0xc);
 
                 //search smaller
-                for(j=i+0x10;j<hashcount;j+=0x10)
+                for(jj=ii+0x10;jj<hashcount;jj+=0x10)
                 {
-                        temp2=*(unsigned int*)(buf+j+0xc);
+                        temp2=*(unsigned int*)(buf+jj+0xc);
                         if(temp2<temp1)
                         {
-                                ret=j;
+                                ret=jj;
                                 temp1=temp2;
                         }
                 }
 
                 //swap(this,smallest)
                 //printf("%x\n",temp1);
-                temp1=*(unsigned int*)(buf+i+0x0);
-                temp2=*(unsigned int*)(buf+i+0x4);
-                temp3=*(unsigned int*)(buf+i+0x8);
-                temp4=*(unsigned int*)(buf+i+0xc);
-                *(unsigned int*)(buf+i+0x0)=*(unsigned int*)(buf+ret+0x0);
-                *(unsigned int*)(buf+i+0x4)=*(unsigned int*)(buf+ret+0x4);
-                *(unsigned int*)(buf+i+0x8)=*(unsigned int*)(buf+ret+0x8);
-                *(unsigned int*)(buf+i+0xc)=*(unsigned int*)(buf+ret+0xc);
+                temp1=*(unsigned int*)(buf+ii+0x0);
+                temp2=*(unsigned int*)(buf+ii+0x4);
+                temp3=*(unsigned int*)(buf+ii+0x8);
+                temp4=*(unsigned int*)(buf+ii+0xc);
+                *(unsigned int*)(buf+ii+0x0)=*(unsigned int*)(buf+ret+0x0);
+                *(unsigned int*)(buf+ii+0x4)=*(unsigned int*)(buf+ret+0x4);
+                *(unsigned int*)(buf+ii+0x8)=*(unsigned int*)(buf+ret+0x8);
+                *(unsigned int*)(buf+ii+0xc)=*(unsigned int*)(buf+ret+0xc);
                 *(unsigned int*)(buf+ret+0x0)=temp1;
                 *(unsigned int*)(buf+ret+0x4)=temp2;
                 *(unsigned int*)(buf+ret+0x8)=temp3;
@@ -534,13 +541,58 @@ void sorthash()
         }
 	printf("\n");
 
-        //write
+
+
+
+	//sort "badhash"
+	for(min=0;min<hashcount;min+=0x10)
+	{
+		temp1=*(unsigned int*)(buf+min+0xc);
+		for(max=min;max<hashcount;max+=0x10)
+		{
+			temp2=*(unsigned int*)(buf+max+0xc);
+			if(temp2!=temp1)break;
+		}
+		if(max==min+0x10)continue;
+
+		//sort
+		for(ii=min;ii<max;ii+=0x10)
+		{
+			ret=ii;
+			temp1=*(unsigned int*)(buf+ii+0x8);
+			for(jj=ii+0x10;jj<max;jj+=0x10)
+			{
+				temp2=*(unsigned int*)(buf+jj+0x8);
+				if(temp2<temp1)
+				{
+					ret=jj;
+					temp1=temp2;
+				}
+			}
+
+			//swap(this,smallest)
+			//printf("%x\n",temp1);
+			temp1=*(unsigned int*)(buf+ii+0x0);
+			temp2=*(unsigned int*)(buf+ii+0x4);
+			temp3=*(unsigned int*)(buf+ii+0x8);
+			temp4=*(unsigned int*)(buf+ii+0xc);
+			*(unsigned int*)(buf+ii+0x0)=*(unsigned int*)(buf+ret+0x0);
+			*(unsigned int*)(buf+ii+0x4)=*(unsigned int*)(buf+ret+0x4);
+			*(unsigned int*)(buf+ii+0x8)=*(unsigned int*)(buf+ret+0x8);
+			*(unsigned int*)(buf+ii+0xc)=*(unsigned int*)(buf+ret+0xc);
+			*(unsigned int*)(buf+ret+0x0)=temp1;
+			*(unsigned int*)(buf+ret+0x4)=temp2;
+			*(unsigned int*)(buf+ret+0x8)=temp3;
+			*(unsigned int*)(buf+ret+0xc)=temp4;
+		}
+	}
+
+
+
+
+        //write,close,free
         write(hashfd,buf,hashcount);
-
-        //
         close(hashfd);
-
-        //
         free(buf);
 }
 

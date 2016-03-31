@@ -153,9 +153,12 @@ int searchhash(char* p , int size)
 	int i;
 	int min;
 	int max;
-	unsigned int temp1;
+	unsigned int temp;
 
-	//first,generate the hash value
+
+
+
+	//1,generate the hash value
 	badhash=0;
 	goodhash=5381;
 	for(i=0;i<size;i++)
@@ -166,7 +169,10 @@ int searchhash(char* p , int size)
 	badhash=(badhash&0xffff)+(size<<16);
 	//printf("badhash=%x,goodhash=%x\n",badhash,goodhash);
 
-	//second,search for the hash value
+
+
+
+	//2,bisection search for "goodhash"
 	min=0;
 	max=hashcount/16;
 	while(1)
@@ -177,20 +183,17 @@ int searchhash(char* p , int size)
 			//printf("not found\n");
 			return -1;
 		}
-
 		i=(min+max)/2;
-		//printf("i=%x\n",i);
 
-		temp1=*(unsigned int*)(hashbuf + i*16 + 0xc);
-		//printf("temp1=%x\n",temp1);
-
-		if(temp1 == goodhash)
+		//check
+		temp=*(unsigned int*)(hashbuf + (i*16) + 0xc);
+		if(temp == goodhash)
 		{
-			//printf("found@%d\n",*(unsigned int*)(hashbuf+i*16));
-			//break;
-			return i*16;
+			temp=*(unsigned int*)(hashbuf + (i*16) + 0x8);
+			if(temp == badhash)return i*16;
+			else break;
 		}
-		else if(temp1 > goodhash)
+		else if(temp > goodhash)
 		{
 			max=i-1;
 		}
@@ -199,6 +202,40 @@ int searchhash(char* p , int size)
 			min=i+1;
 		}
 	}//while(1)
+
+
+
+
+	//3."badhash" not match,go left
+	min=i<<4;
+	while(1)
+	{
+		min-=16;
+		if(min<0)break;
+
+		temp=*(unsigned int*)(hashbuf + min + 0xc);
+		if(temp != goodhash)continue;
+
+		temp=*(unsigned int*)(hashbuf + min + 0x8);
+		if(temp == badhash)return min;
+	}
+
+	//4."badhash" not match,go right
+	max=i<<4;
+	while(1)
+	{
+		max+=16;
+		if(max > hashcount)break;
+
+		temp=*(unsigned int*)(hashbuf + min + 0xc);
+		if(temp != goodhash)continue;
+
+		temp=*(unsigned int*)(hashbuf + min + 0x8);
+		if(temp == badhash)return max;
+	}
+
+	//not found
+	return -1;
 }
 
 
@@ -300,31 +337,9 @@ void createtree(char* p,int sz)
 	int this;
 	int where;
 	int len;
-
-
-
-
-	//找不到就原样打印
-	this=searchhash(p,sz);
-	if(this==-1)
-	{
-		//打tab
-		for(i=0;i<depth;i++)
-		{
-			write(treefd,"	",1);
-		}
-
-		write(treefd,p,sz);
-		write(treefd,"\n",1);
-		return;
-	}
-
-
-
-
-	//找到了就进去
-	len=*(unsigned short*)(hashbuf+this+0xa);
-	where=*(unsigned int*)(hashbuf+this+4);
+	unsigned long long temp1;
+	unsigned long long temp2;
+	unsigned long long temp3;
 
 
 
@@ -334,17 +349,35 @@ void createtree(char* p,int sz)
 	{
 		write(treefd,"	",1);
 	}
-	write(treefd,seedbuf+where,len);
+	write(treefd,p,sz);
 
 
 
 
-	//检查栈深，递归，重复等等情况，打出原因并且退出
+	//1.found nothing
+	this=searchhash(p,sz);
+	if(this==-1)
+	{
+		write(treefd,"\n",1);
+		return;
+	}
+	//2.found more than one
+	if(this==0)temp1=0;
+	else temp1=*(unsigned long long*)(hashbuf+this- 0x8);
+	temp2=*(unsigned long long*)(hashbuf+this+ 0x8);
+	temp2=*(unsigned long long*)(hashbuf+this+0x18);
+	if( (temp1 == temp2)|(temp2 == temp3) )
+	{
+		write(treefd,"	#dumplicate\n",13);
+		return;
+	}
+	//3.too deep
 	if(depth>8)
 	{
 		write(treefd,"	#too deep\n",11);
 		return;
 	}
+	//4.recursion
 	for(i=0;i<depth;i++)
 	{
 		if(stack[i]==this)
@@ -353,11 +386,7 @@ void createtree(char* p,int sz)
 			return;
 		}
 	}
-
-
-
-
-	//过了检查就打个换行
+	//ok.过了检查就打个换行
 	write(treefd,"\n",1);
 
 
@@ -375,7 +404,8 @@ void createtree(char* p,int sz)
 
 
 
-	//开始递归
+	//找到了就进去,开始递归
+	where=*(unsigned int*)(hashbuf+this+4);
 	while(1)
 	{
 		if(seedbuf[where]=='{')break;
