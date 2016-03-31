@@ -1,6 +1,5 @@
 all:
-	gcc web.c
-	gcc wrap.c -o webwrap.exe
+	gcc webwrap.c -o webwrap.exe
 install:
 	cp webwrap.exe /opt/bin/
 uninstall:

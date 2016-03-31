@@ -519,7 +519,14 @@ int main(int argc,char *argv[])
 			//printf("fgets:%s\n",strbuf);
 
 			i=searchhash( strbuf , strlen(strbuf)-1 );
-			if(i != -1)printhash(i);
+			if(i == -1)
+			{
+				printf("not found\n");
+			}
+			else printhash(i);
+
+			//必须加这个，不然管道有大问题
+			fflush(stdout);
 		}
 	}
 	else
