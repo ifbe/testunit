@@ -102,7 +102,8 @@ void thisisfather(char** arg)
 		//发给exe，把拿到的回复扔回去
 		if(strncmp(getname,"/?i=",4)!=0)
 		{
-			goto nextone;
+			position=0;
+			goto sendresponse;
 		}
 
 //printf("name=%s,size=%d\n",getname,getsize-getname);
@@ -145,13 +146,16 @@ void thisisfather(char** arg)
                 haha[position]=0;
 		//printf("%s",haha,position);
 
-//printf("5\n");
+sendresponse:
 		//头
 		write(thisfd, http_response, strlen(http_response));
 		write(thisfd, http_head, strlen(http_head));
 
 		//身体
-		write(thisfd, haha, position);
+		if(position!=0)
+		{
+			write(thisfd, haha, position);
+		}
 
 		//尾巴
 		write(thisfd, http_tail, strlen(http_tail));
