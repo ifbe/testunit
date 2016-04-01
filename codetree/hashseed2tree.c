@@ -412,6 +412,10 @@ void printhash(int where)
 	//only one , print the tree?
 	if(min==max)
 	{
+		//prepare
+		treefd=1;
+		depthmax=4;
+
 		//打印1：函数所在文件名
 		jj=*(unsigned int*)(hashbuf+where+4);
 		while(1)
@@ -429,19 +433,17 @@ void printhash(int where)
 			jj--;
 			if(jj==0)break;
 		}
+		ii=jj;
 		while(1)
 		{
-			printf("%c",seedbuf[jj]);
-			if(seedbuf[jj] == 0xa)break;
-			jj++;
+			if(seedbuf[ii] == 0xa)break;
+			ii++;
 		}
+		write(treefd,seedbuf+jj,ii-jj+1);
 
 		//body
 		temp1=*(unsigned int*)(hashbuf+where+4);
 		temp2=*(unsigned short*)(hashbuf+where+0xa);
-
-		treefd=1;
-		depthmax=3;
 		createtree(seedbuf+temp1,temp2);
 		return;
 	}
