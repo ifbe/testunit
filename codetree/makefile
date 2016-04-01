@@ -14,11 +14,11 @@ fun:
 	gcc fun/seed2table.c -o seed2table.exe
 	gcc fun/table2txt.c -o table2txt.exe
 install:
-	-cp code2hashseed.exe /opt/bin/
-	-cp hashseed2tree.exe /opt/bin/
+	-cp code2hashseed.exe /bin/
+	-cp hashseed2tree.exe /bin/
 uninstall:
-	-rm -f /opt/bin/code2hashseed.exe
-	-rm -f /opt/bin/hashseed2tree.exe
+	-rm -f /bin/code2hashseed.exe
+	-rm -f /bin/hashseed2tree.exe
 clean:
 	rm -f *.exe *.out
 	rm -f *.seed *.tree

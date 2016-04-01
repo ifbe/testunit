@@ -308,237 +308,241 @@ void whathash(int start , int size)
 //(char* , int) -> (int* , int)
 void generatehash()
 {
-        //数据特别大，用int会溢出
-        unsigned long long i=0;
-        unsigned long long ret=0;
-        unsigned long long percent=0;
-        unsigned long long length=0;
+	//数据特别大，用int会溢出
+	unsigned long long i=0;
+	unsigned long long ret=0;
+	unsigned long long percent=0;
+	unsigned long long length=0;
 
-        //stat
-        ret=stat( seedname , &statbuf );
-        if(ret == -1)
-        {
-                printf("wrong seedname\n");
+	//stat
+	ret=stat( seedname , &statbuf );
+	if(ret == -1)
+	{
+		printf("wrong seedname\n");
 		exit(-1);
-        }
+	}
 
-        //malloc
-        buf=(char*)malloc( (statbuf.st_size) + 0x1000 );
-        if(buf==NULL)
-        {
-                printf("malloc failed1\n");
+	//malloc
+	buf=(char*)malloc( (statbuf.st_size) + 0x1000 );
+	if(buf==NULL)
+	{
+		printf("malloc failed1\n");
 		exit(-1);
-        }
+	}
 
-        //open
-        hashfd=open(hashname,O_CREAT|O_RDWR|O_TRUNC|O_BINARY,S_IRWXU|S_IRWXG|S_IRWXO);
-        seedfd=open(seedname , O_RDONLY|O_BINARY);
-        if(seedfd<0)
-        {
-                printf("open failed\n");
+	//open
+	hashfd=open(hashname,O_CREAT|O_RDWR|O_TRUNC|O_BINARY,S_IRWXU|S_IRWXG|S_IRWXO);
+	seedfd=open(seedname , O_RDONLY|O_BINARY);
+	if(seedfd<0)
+	{
+		printf("open failed\n");
 		free(buf);
 		exit(-1);
-        }
+	}
 
-        //read
-        seedcount=read(seedfd,buf,statbuf.st_size);
-        if(seedcount!=statbuf.st_size)
-        {
-                printf("read failed\n");
+	//read
+	seedcount=read(seedfd,buf,statbuf.st_size);
+	if(seedcount!=statbuf.st_size)
+	{
+		printf("read failed\n");
 		close(seedfd);
 		free(buf);
 		exit(-1);
-        }
+	}
 
 
 
 
-        //start generating
-        percent=1;
-        for(i=0;i<seedcount;i++)
-        {
-                if( ( (i*100) / seedcount ) >= percent)
-                {
-                        printf("%llx/%llx(%lld%%)..............\r",i,seedcount,percent);
+	//start generating
+	percent=1;
+	for(i=0;i<seedcount;i++)
+	{
+		if( ( (i*100) / seedcount ) >= percent)
+		{
+			printf("%llx/%llx(%lld%%)..............\r",i,seedcount,percent);
 			fflush(stdout);
-                        percent++;
-                }
+			percent++;
+		}
 
-                //linux
-                if( (buf[i]==0xa) | (buf[i]==0xd) )
-                {
-                        //deal with mac and windows problem
-                        if(buf[i]==0xd)
-                        {
-                                if(buf[i+1]==0xa)i++;
-                        }
+		//linux
+		if( (buf[i]==0xa) | (buf[i]==0xd) )
+		{
+			//deal with mac and windows problem
+			if(buf[i]==0xd)
+			{
+				if(buf[i+1]==0xa)i++;
+			}
 
-                        //line number
-                        lineoffset++;
-                        if(ret==0)continue;
+			//line number
+			lineoffset++;
+			if(ret==0)continue;
 
-                        //hash
-                        whathash(byteoffset,length);
+			//hash
+			whathash(byteoffset,length);
 
-                        //write
-                        write(hashfd,&lineoffset,4);
-                        write(hashfd,&byteoffset,4);
-                        write(hashfd,&badhash,4);
-                        write(hashfd,&goodhash,4);
+			//write
+			write(hashfd,&lineoffset,4);
+			write(hashfd,&byteoffset,4);
+			write(hashfd,&badhash,4);
+			write(hashfd,&goodhash,4);
 
-                        //next
-                        ret=0;
-                        continue;
-                }
+			//next
+			ret=0;
+			continue;
+		}
 
-                //不要的全吃掉
-                else if((buf[i]=='#') |
-                        (buf[i]=='{') |
-                        (buf[i]=='}') |
-                        (buf[i]==0x9) )
-                {
-                        while(1)
-                        {
-                                if(buf[i+1]==0)break;
-                                else if(buf[i+1]==0xa)break;
-                                else if(buf[i+1]==0xd)break;
+		//不要的全吃掉
+		else if((buf[i]=='#') |
+				(buf[i]=='{') |
+				(buf[i]=='}') |
+				(buf[i]==0x9) )
+		{
+			while(1)
+			{
+				if(buf[i+1]==0)break;
+				else if(buf[i+1]==0xa)break;
+				else if(buf[i+1]==0xd)break;
 
-                                i++;
-                        }
-                        continue;
-                }
-                //if(buf[i]==0x9)i++;
+				i++;
+			}
+			continue;
+		}
+		//if(buf[i]==0x9)i++;
 
-                byteoffset=i;
-                while(1)
-                {
-                        if(buf[i+1]==0)break;
-                        else if(buf[i+1]==0x9)break;
-                        else if(buf[i+1]==0x20)break;
-                        else if(buf[i+1]==0xa)break;
-                        else if(buf[i+1]==0xd)break;
-                        i++;
-                }
-                length=i-byteoffset+1;
+		byteoffset=i;
+		while(1)
+		{
+			if(buf[i+1]==0)break;
+			else if(buf[i+1]==0x9)break;
+			else if(buf[i+1]==0x20)break;
+			else if(buf[i+1]==0xa)break;
+			else if(buf[i+1]==0xd)break;
+			i++;
+		}
+		length=i-byteoffset+1;
 
-                //
-                while(1)
-                {
-                        if(buf[i+1]==0)break;
-                        else if(buf[i+1]==0xa)break;
-                        else if(buf[i+1]==0xd)break;
+		//
+		while(1)
+		{
+			if(buf[i+1]==0)break;
+			else if(buf[i+1]==0xa)break;
+			else if(buf[i+1]==0xd)break;
 
-                        i++;
-                }
+			i++;
+		}
 
-                //
-                ret=1;
-        }//for
+		//
+		ret=1;
+	}//for
+
+	close(hashfd);
 	printf("\n");
 
 }//seed2hash
 void sorthash()
 {
-        //数据特别大，用int会溢出
-        unsigned long long ii=0;
-        unsigned long long jj=0;
-        unsigned long long min=0;
-        unsigned long long max=0;
-        unsigned long long ret=0;
-        unsigned long long percent=0;
-        unsigned int temp1;
-        unsigned int temp2;
-        unsigned int temp3;
-        unsigned int temp4;
+	//数据特别大，用int会溢出
+	unsigned long long ii=0;
+	unsigned long long jj=0;
+	unsigned long long min=0;
+	unsigned long long max=0;
+	unsigned long long ret=0;
+	unsigned long long percent=0;
+	unsigned int temp1;
+	unsigned int temp2;
+	unsigned int temp3;
+	unsigned int temp4;
 
-        //stat
-        ret=stat( hashname , &statbuf );
-        if(ret == -1)
-        {
-                printf("wrong seedname\n");
+	//stat
+	ret=stat( hashname , &statbuf );
+	printf("hashcount=%d\n",hashcount);
+	if(ret == -1)
+	{
+		printf("wrong seedname\n");
 		return;
-        }
+	}
 
-        //malloc
-        buf=(char*)malloc( (statbuf.st_size) + 0x1000 );
-        if(buf==NULL)
-        {
-                printf("malloc failed1\n");
+	//malloc
+	buf=(char*)malloc( (statbuf.st_size) + 0x1000 );
+	if(buf==NULL)
+	{
+		printf("malloc failed1\n");
 		return;
-        }
+	}
 
-        //open
-        hashfd=open(hashname , O_RDONLY|O_BINARY);
-        if(hashfd<0)
-        {
-                printf("open failed\n");
+	//open
+	hashfd=open(hashname , O_RDONLY|O_BINARY);
+	if(hashfd<0)
+	{
+		printf("open failed\n");
 		free(buf);
 		return;
-        }
+	}
 
-        //read
-        hashcount=read(hashfd,buf,statbuf.st_size);
-        if(hashcount!=statbuf.st_size)
-        {
-                printf("read failed\n");
+	//read
+	hashcount=read(hashfd,buf,statbuf.st_size);
+	printf("hashcount=%d\n",hashcount);
+	if(hashcount!=statbuf.st_size)
+	{
+		printf("read failed\n");
 		close(hashfd);
 		free(buf);
 		return;
-        }
+	}
 
-        //close
-        close(hashfd);
-
-
+	//close
+	close(hashfd);
 
 
-        //open
-        hashfd=open(hashname,O_CREAT|O_RDWR|O_TRUNC|O_BINARY,S_IRWXU|S_IRWXG|S_IRWXO);
+
+
+	//open
+	hashfd=open(hashname,O_CREAT|O_RDWR|O_TRUNC|O_BINARY,S_IRWXU|S_IRWXG|S_IRWXO);
 
 
 
 
 	//sort "goodhash"
-        percent=1;
-        for(ii=0;ii<hashcount;ii+=0x10)
-        {
-                if( ( (ii*100) / hashcount ) >= percent)
-                {
-                        printf("%llx/%llx(%lld%%).............\r",ii,hashcount,percent);
+	percent=1;
+	for(ii=0;ii<hashcount;ii+=0x10)
+	{
+		if( ( (ii*100) / hashcount ) >= percent)
+		{
+			printf("%llx/%llx(%lld%%).............\r",ii,hashcount,percent);
 			fflush(stdout);
-                        percent++;
-                }
+			percent++;
+		}
 
-                //min address , min value
-                ret=ii;
-                temp1=*(unsigned int*)(buf+ii+0xc);
+		//min address , min value
+		ret=ii;
+		temp1=*(unsigned int*)(buf+ii+0xc);
 
-                //search smaller
-                for(jj=ii+0x10;jj<hashcount;jj+=0x10)
-                {
-                        temp2=*(unsigned int*)(buf+jj+0xc);
-                        if(temp2<temp1)
-                        {
-                                ret=jj;
-                                temp1=temp2;
-                        }
-                }
+		//search smaller
+		for(jj=ii+0x10;jj<hashcount;jj+=0x10)
+		{
+			temp2=*(unsigned int*)(buf+jj+0xc);
+			if(temp2<temp1)
+			{
+				ret=jj;
+				temp1=temp2;
+			}
+		}
 
-                //swap(this,smallest)
-                //printf("%x\n",temp1);
-                temp1=*(unsigned int*)(buf+ii+0x0);
-                temp2=*(unsigned int*)(buf+ii+0x4);
-                temp3=*(unsigned int*)(buf+ii+0x8);
-                temp4=*(unsigned int*)(buf+ii+0xc);
-                *(unsigned int*)(buf+ii+0x0)=*(unsigned int*)(buf+ret+0x0);
-                *(unsigned int*)(buf+ii+0x4)=*(unsigned int*)(buf+ret+0x4);
-                *(unsigned int*)(buf+ii+0x8)=*(unsigned int*)(buf+ret+0x8);
-                *(unsigned int*)(buf+ii+0xc)=*(unsigned int*)(buf+ret+0xc);
-                *(unsigned int*)(buf+ret+0x0)=temp1;
-                *(unsigned int*)(buf+ret+0x4)=temp2;
-                *(unsigned int*)(buf+ret+0x8)=temp3;
-                *(unsigned int*)(buf+ret+0xc)=temp4;
-        }
+		//swap(this,smallest)
+		//printf("%x\n",temp1);
+		temp1=*(unsigned int*)(buf+ii+0x0);
+		temp2=*(unsigned int*)(buf+ii+0x4);
+		temp3=*(unsigned int*)(buf+ii+0x8);
+		temp4=*(unsigned int*)(buf+ii+0xc);
+		*(unsigned int*)(buf+ii+0x0)=*(unsigned int*)(buf+ret+0x0);
+		*(unsigned int*)(buf+ii+0x4)=*(unsigned int*)(buf+ret+0x4);
+		*(unsigned int*)(buf+ii+0x8)=*(unsigned int*)(buf+ret+0x8);
+		*(unsigned int*)(buf+ii+0xc)=*(unsigned int*)(buf+ret+0xc);
+		*(unsigned int*)(buf+ret+0x0)=temp1;
+		*(unsigned int*)(buf+ret+0x4)=temp2;
+		*(unsigned int*)(buf+ret+0x8)=temp3;
+		*(unsigned int*)(buf+ret+0xc)=temp4;
+	}
 	printf("\n");
 
 
@@ -590,10 +594,10 @@ void sorthash()
 
 
 
-        //write,close,free
-        write(hashfd,buf,hashcount);
-        close(hashfd);
-        free(buf);
+	//write,close,free
+	write(hashfd,buf,hashcount);
+	close(hashfd);
+	free(buf);
 }
 
 
