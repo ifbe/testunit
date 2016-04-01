@@ -17,12 +17,12 @@
 //hash
 static char hashname[256]={0};
 static int hashfd=-1;
-static char* hashbuf=0;
+static unsigned char* hashbuf=0;
 static int hashcount=0;
 //seed
 static char seedname[256]={0};
 static int seedfd=-1;
-static char* seedbuf=0;
+static unsigned char* seedbuf=0;
 static int seedcount=0;
 //tree
 static char treename[256]={0};
@@ -404,7 +404,7 @@ void printhash(int where)
 		if(temp1 != goodhash)break;
 
 		temp2=*(unsigned int*)(hashbuf + max + 0x18);
-		if(temp1 != badhash)break;
+		if(temp2 != badhash)break;
 
 		max=max+16;
 	}
@@ -412,6 +412,31 @@ void printhash(int where)
 	//only one , print the tree?
 	if(min==max)
 	{
+		//打印1：函数所在文件名
+		jj=*(unsigned int*)(hashbuf+where+4);
+		while(1)
+		{
+			if(	(seedbuf[jj]=='#') &&
+				(seedbuf[jj+1]=='n') &&
+				(seedbuf[jj+2]=='a') &&
+				(seedbuf[jj+3]=='m') &&
+				(seedbuf[jj+4]=='e') )
+			{
+				jj+=7;
+				break;
+			}
+
+			jj--;
+			if(jj==0)break;
+		}
+		while(1)
+		{
+			printf("%c",seedbuf[jj]);
+			if(seedbuf[jj] == 0xa)break;
+			jj++;
+		}
+
+		//body
 		temp1=*(unsigned int*)(hashbuf+where+4);
 		temp2=*(unsigned short*)(hashbuf+where+0xa);
 
