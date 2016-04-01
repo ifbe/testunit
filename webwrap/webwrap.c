@@ -25,7 +25,7 @@ static int sockfd;
 //
 static int childear[2];
 static int childmouse[2];
-unsigned char haha[0x100000]={0};
+unsigned char haha[0x100000*16]={0};
 int position=0;
 
 

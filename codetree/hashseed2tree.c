@@ -242,96 +242,6 @@ int searchhash(char* p , int size)
 
 
 
-void printhash(int where)
-{
-	int ii;
-	int jj;
-	int min;
-	int max;
-	unsigned int temp1;
-	unsigned int temp2;
-	unsigned int temp3;
-	unsigned int temp4;
-
-	min=max=where;
-	while(1)
-	{
-		//前面一个
-		temp1=*(unsigned int*)(hashbuf + min - 0x4);
-		if(temp1 != goodhash)break;
-
-		min=min-16;
-	}
-	while(1)
-	{
-		//后面一个
-		temp1=*(unsigned int*)(hashbuf + max + 0x1c);
-		if(temp1 != goodhash)break;
-
-		max=max+16;
-	}
-	for(ii=min;ii<=max;ii+=16)
-	{
-		//检查冲突
-		temp3=*(unsigned int*)(hashbuf+ii+8);
-		if(badhash!=temp3)
-		{
-			printf("conflict hash!\n");
-			continue;
-		}
-
-		//temp1=*(unsigned int*)(hashbuf+ii+0x0);
-		//temp2=*(unsigned int*)(hashbuf+ii+0x4);
-		//temp4=*(unsigned int*)(hashbuf+ii+0xc);
-		//printf("(%.8d,%.8x,%.8x,%.8x)\n",temp1,temp2,temp3,temp4);
-
-
-
-
-		//打印1：函数所在文件名
-		jj=*(unsigned int*)(hashbuf+ii+4);
-		while(1)
-		{
-			if(	(seedbuf[jj]=='#') &&
-				(seedbuf[jj+1]=='n') &&
-				(seedbuf[jj+2]=='a') &&
-				(seedbuf[jj+3]=='m') &&
-				(seedbuf[jj+4]=='e') )
-			{
-				jj+=7;
-				break;
-			}
-
-			jj--;
-			if(jj==0)break;
-		}
-		while(1)
-		{
-			printf("%c",seedbuf[jj]);
-			if(seedbuf[jj] == 0xa)break;
-			jj++;
-		}
-
-
-
-
-		//打印2：整个函数
-		jj=*(unsigned int*)(hashbuf+ii+4);
-		while(1)
-		{
-			//打印到右括号为止
-			printf("%c",seedbuf[jj]);
-			if(seedbuf[jj]=='}')break;
-	
-			jj++;
-		}
-		printf("\n");
-	}
-}
-
-
-
-
 void createtree(char* p,int sz)
 {
 	int i;
@@ -448,6 +358,111 @@ void createtree(char* p,int sz)
 		write(treefd,"	",1);
 	}
 	write(treefd,"}\n",2);
+}
+
+
+
+
+void printhash(int where)
+{
+	int ii;
+	int jj;
+	int min;
+	int max;
+	unsigned int temp1;
+	unsigned int temp2;
+	unsigned int temp3;
+	unsigned int temp4;
+
+	//min
+	if(where==0)min=0;
+	else
+	{
+		min=where;
+		while(1)
+		{
+			//前面一个
+			temp1=*(unsigned int*)(hashbuf + min - 0x4);
+			if(temp1 != goodhash)break;
+
+			//
+			temp2=*(unsigned int*)(hashbuf + min - 0x8);
+			if(temp2 != badhash)break;
+
+			//
+			min=min-16;
+			if(min<=0)break;
+		}
+	}
+
+	//max
+	max=where;
+	while(1)
+	{
+		//后面一个
+		temp1=*(unsigned int*)(hashbuf + max + 0x1c);
+		if(temp1 != goodhash)break;
+
+		temp2=*(unsigned int*)(hashbuf + max + 0x18);
+		if(temp1 != badhash)break;
+
+		max=max+16;
+	}
+
+	//only one , print the tree?
+	if(min==max)
+	{
+		temp1=*(unsigned int*)(hashbuf+where+4);
+		temp2=*(unsigned short*)(hashbuf+where+0xa);
+
+		treefd=1;
+		depthmax=3;
+		createtree(seedbuf+temp1,temp2);
+		return;
+	}
+
+	//printall
+	for(ii=min;ii<=max;ii+=16)
+	{
+		//打印1：函数所在文件名
+		jj=*(unsigned int*)(hashbuf+ii+4);
+		while(1)
+		{
+			if(	(seedbuf[jj]=='#') &&
+				(seedbuf[jj+1]=='n') &&
+				(seedbuf[jj+2]=='a') &&
+				(seedbuf[jj+3]=='m') &&
+				(seedbuf[jj+4]=='e') )
+			{
+				jj+=7;
+				break;
+			}
+
+			jj--;
+			if(jj==0)break;
+		}
+		while(1)
+		{
+			printf("%c",seedbuf[jj]);
+			if(seedbuf[jj] == 0xa)break;
+			jj++;
+		}
+
+
+
+
+		//打印2：整个函数
+		jj=*(unsigned int*)(hashbuf+ii+4);
+		while(1)
+		{
+			//打印到右括号为止
+			printf("%c",seedbuf[jj]);
+			if(seedbuf[jj]=='}')break;
+
+			jj++;
+		}
+		printf("\n");
+	}
 }
 
 
