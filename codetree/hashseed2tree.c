@@ -27,11 +27,12 @@ static int seedcount=0;
 //tree
 static char treename[256]={0};
 static int treefd=-1;
-static int stack[16]={0};
-static int depth=0;
-//
 static unsigned char strbuf[256]={0};
 static struct stat statbuf;
+//stack
+static int stack[16]={0};
+static int depthnow=0;
+static int depthmax=8;
 //
 static unsigned int badhash=0;
 static unsigned int goodhash=0;
@@ -345,7 +346,7 @@ void createtree(char* p,int sz)
 
 
 	//打tab,打函数名
-	for(i=0;i<depth;i++)
+	for(i=0;i<depthnow;i++)
 	{
 		write(treefd,"	",1);
 	}
@@ -361,24 +362,28 @@ void createtree(char* p,int sz)
 		write(treefd,"\n",1);
 		return;
 	}
+
 	//2.found more than one
 	if(this==0)temp1=0;
 	else temp1=*(unsigned long long*)(hashbuf+this- 0x8);
 	temp2=*(unsigned long long*)(hashbuf+this+ 0x8);
-	temp2=*(unsigned long long*)(hashbuf+this+0x18);
+	temp3=*(unsigned long long*)(hashbuf+this+0x18);
+
 	if( (temp1 == temp2)|(temp2 == temp3) )
 	{
 		write(treefd,"	#dumplicate\n",13);
 		return;
 	}
+
 	//3.too deep
-	if(depth>8)
+	if(depthnow>=depthmax)
 	{
 		write(treefd,"	#too deep\n",11);
 		return;
 	}
+
 	//4.recursion
-	for(i=0;i<depth;i++)
+	for(i=0;i<depthnow;i++)
 	{
 		if(stack[i]==this)
 		{
@@ -386,6 +391,7 @@ void createtree(char* p,int sz)
 			return;
 		}
 	}
+
 	//ok.过了检查就打个换行
 	write(treefd,"\n",1);
 
@@ -393,13 +399,13 @@ void createtree(char* p,int sz)
 
 
 	//打tab,打左括号
-	for(i=0;i<depth;i++)
+	for(i=0;i<depthnow;i++)
 	{
 		write(treefd,"	",1);
 	}
 	write(treefd,"{\n",2);
-	stack[depth]=this;
-	depth++;
+	stack[depthnow]=this;
+	depthnow++;
 
 
 
@@ -436,8 +442,8 @@ void createtree(char* p,int sz)
 
 
 	//打tab,打括号
-	depth--;
-	for(i=0;i<depth;i++)
+	depthnow--;
+	for(i=0;i<depthnow;i++)
 	{
 		write(treefd,"	",1);
 	}
@@ -477,8 +483,20 @@ int main(int argc,char *argv[])
 		p=argv[i];
 		if(p==0)break;
 
+		//depth=
+		if((p[0]=='d') &&
+			(p[1]=='e') &&
+			(p[2]=='p') &&
+			(p[3]=='t') &&
+			(p[4]=='h') &&
+			(p[5]=='=') )
+		{
+			printf("depth=%s\n",p+6);
+			depthmax=atoi(p+6);
+		}
+
 		//hash=
-		if(	(p[0]=='h') &&
+		else if((p[0]=='h') &&
 			(p[1]=='a') &&
 			(p[2]=='s') &&
 			(p[3]=='h') &&
