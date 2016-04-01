@@ -60,13 +60,9 @@ void initmywebserver()
 void thisisfather(char** arg)
 {
 	//local
-	int ret;
-	int failcount;
-
-	//web
 	int thisfd;
-	char* getname;
-	char* getsize;
+	int failcount;
+	int ret;
 
 	//non block
 	ret=fcntl(childmouse[0], F_GETFL);
@@ -85,7 +81,7 @@ void thisisfather(char** arg)
 	{
         	thisfd = accept(sockfd, NULL, NULL);
 		read(thisfd, httpbuf, 1024);
-//printf("1\n");
+
 		//其他HTTP请求处理，如POST，HEAD等 。这里我们只处理GET   
 		if(strncmp(httpbuf, "GET", 3) != 0)
 		{
@@ -93,22 +89,25 @@ void thisisfather(char** arg)
 		        goto nextone;
 		}
 
-//printf("2\n");
-		//是GET请求
-		getname = httpbuf + 4;
-		getsize = strchr(getname, ' ');
-		*getsize = '\0';
-
 		//发给exe，把拿到的回复扔回去
-		if(strncmp(getname,"/?i=",4)!=0)
+		if(strncmp(httpbuf+4,"/?i=",4)!=0)
 		{
 			position=0;
 			goto sendresponse;
 		}
 
-//printf("name=%s,size=%d\n",getname,getsize-getname);
+		//string end = 0
+		for(ret=8;ret<1000;ret++)
+		{
+			if(httpbuf[ret]<=0x20)
+			{
+				httpbuf[ret]=0;
+				break;
+			}
+		}
+
 		//发给exe
-		ret=snprintf(haha,256,"%s\n",getname+4);
+		ret=snprintf(haha,256,"%s\n",httpbuf+8);
 		ret=write(childear[1],haha,ret);
 		if(ret<=0)
 		{
@@ -116,7 +115,6 @@ void thisisfather(char** arg)
 			exit(-1);
 		}
 
-//printf("4\n");
                 //read from that program,write to stdout
                 ret=0;
 		failcount=0;
