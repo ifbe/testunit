@@ -5,6 +5,7 @@
 #include<unistd.h>
 #include<errno.h>
 #include<time.h>
+#include<signal.h>
 #include<netinet/in.h>
 #include<sys/socket.h>
 #include<sys/stat.h>
@@ -17,9 +18,12 @@ static int childmouse[2];
 
 void initmywebserver(int* sockfd,char* url)
 {
+	int ret;
+
 	//
 	static int serverport=8080;
 	struct sockaddr_in addr;
+	struct sigaction sa;
 
 	//
 	for(ret=strlen(url)-1;ret>=0;ret--)
@@ -56,6 +60,10 @@ void initmywebserver(int* sockfd,char* url)
 		exit(-1);
 	}
 	listen(*sockfd, 128);
+
+	//do not stop when SIGPIPE
+	sa.sa_handler=SIG_IGN;
+	sigaction(SIGPIPE,&sa,0);
 }
 void thisisfather(char* url)
 {
@@ -67,6 +75,7 @@ void thisisfather(char* url)
 	int thisfd;
 	static unsigned char httpbuf[0x1000];
 	//response text
+	static unsigned char http_response[]="HTTP/1.1 200 OK\r\nContent-type: text/html\r\n\r\n";
 	static unsigned char http_head[0x1000] = {0};
 	static unsigned char http_tail[] = "</pre></body></html>";
 	//from exe
@@ -85,7 +94,6 @@ void thisisfather(char* url)
 		http_head,
 		0x1000,
 
-		"HTTP/1.1 200 OK\r\nContent-type: text/html\r\n\r\n";
 		"<html><head><title>codetree</title></head><body>"
 		"<form method=\"get\" action=\"%s\" style=\"text-align:center;\">"
 		"<input type=\"text\" name=\"i\" style=\"width:40%;height:32px\"></input>"
@@ -183,17 +191,22 @@ void thisisfather(char* url)
 
 sendresponse:
 		//头
-		//write(thisfd, http_response, strlen(http_response));
-		write(thisfd, http_head, strlen(http_head));
+		ret=write(thisfd, http_response, strlen(http_response));
+		if(ret<0)goto nextone;
+
+		ret=write(thisfd, http_head, strlen(http_head));
+		if(ret<0)goto nextone;
 
 		//身体
 		if(position!=0)
 		{
-			write(thisfd, haha, position);
+			ret=write(thisfd, haha, position);
+			if(ret<0)goto nextone;
 		}
 
 		//尾巴
-		write(thisfd, http_tail, strlen(http_tail));
+		ret=write(thisfd, http_tail, strlen(http_tail));
+		if(ret<0)goto nextone;
 
 nextone:
 		close(thisfd);
@@ -242,7 +255,7 @@ void main(int argc, char *argv[])
 	int ii;
 	int jj;
 	char* p;
-	char* url;
+	char* url=0;
 	char* finalargv[16]={0};
 	pid_t pid;
 
@@ -254,10 +267,12 @@ void main(int argc, char *argv[])
 	{
 		printf("usage:\n");
 		printf("webwrap url=127.0.0.1:8080 prog=/bin/hashseed2tree.exe\n");
+		return;
 	}
 	if(argc>15)
 	{
 		printf("too many args\n");
+		return;
 	}
 
 
@@ -288,6 +303,16 @@ void main(int argc, char *argv[])
 		{
 			url=p+4;	
 		}
+	}
+	if(url==0)
+	{
+		printf("wrong url\n");
+		return;
+	}
+	if(finalargv[0]==0)
+	{
+		printf("wrong prog\n");
+		return;
 	}
 
 
