@@ -16,12 +16,11 @@ static int childmouse[2];
 
 
 
-void initmywebserver(int* sockfd,char* url)
+int initmywebserver(char* url)
 {
 	int ret;
-
-	//
-	static int serverport=8080;
+	int sockfd;
+	int serverport=8080;
 	struct sockaddr_in addr;
 	struct sigaction sa;
 
@@ -40,8 +39,8 @@ void initmywebserver(int* sockfd,char* url)
 	}
 
 	//建立TCP套接字   
-	*sockfd = socket(AF_INET, SOCK_STREAM, 0);
-	if(*sockfd < 0)
+	sockfd = socket(AF_INET, SOCK_STREAM, 0);
+	if(sockfd < 0)
 	{
 		perror("socket creation failed!\n");
 		exit(-1);
@@ -54,16 +53,19 @@ void initmywebserver(int* sockfd,char* url)
 	//可能和你需要的不同   
 	addr.sin_port = htons(serverport);
 	addr.sin_addr.s_addr = INADDR_ANY;
-	if(bind(*sockfd, (struct sockaddr *)&addr, sizeof(struct sockaddr_in)))
+	if(bind(sockfd, (struct sockaddr *)&addr, sizeof(struct sockaddr_in)))
 	{
 		perror("socket binding failed!\n");
 		exit(-1);
 	}
-	listen(*sockfd, 128);
+	listen(sockfd, 128);
 
 	//do not stop when SIGPIPE
 	sa.sa_handler=SIG_IGN;
 	sigaction(SIGPIPE,&sa,0);
+
+	//everything ok
+	return sockfd;
 }
 void thisisfather(char* url)
 {
@@ -102,7 +104,8 @@ void thisisfather(char* url)
 
 		url
 	);
-	initmywebserver(&sockfd,url);
+	sockfd=initmywebserver(url);
+	if(sockfd<=0)exit(-1);
 
 
 
