@@ -8,36 +8,36 @@
 #include<netinet/in.h>
 #include<sys/socket.h>
 #include<sys/stat.h>
-#define SERVER_PORT 8080
-//
-const static char http_response[] =
-"HTTP/1.1 200 OK\r\nContent-type: text/html\r\n\r\n";
-const static char http_head[] =
-"<html><head><title>codetree</title></head><body>"
-"<form method=\"get\" action=\"http://127.0.0.1:8080\" style=\"text-align:center;\">"
-"<input type=\"text\" name=\"i\" style=\"width:40%;height:32px\"></input>"
-"<input type=\"submit\" style=\"width:10%;height:32px\"></input>"
-"</form><hr><pre>";
-const static char http_tail[] =
-"</pre></body></html>";
-static char httpbuf[0x1000];
-static int sockfd;
 //
 static int childear[2];
 static int childmouse[2];
-unsigned char haha[0x100000*16]={0};
-int position=0;
 
 
 
 
-void initmywebserver()
+void initmywebserver(int* sockfd,char* url)
 {
+	//
+	static int serverport=8080;
 	struct sockaddr_in addr;
 
+	//
+	for(ret=strlen(url)-1;ret>=0;ret--)
+	{
+		if(url[ret]!=':')continue;
+
+		serverport=atoi(url+ret+1);
+		break;
+	}
+	if( (serverport<0) | (serverport>65535) )
+	{
+		printf("wrong port:%d\n",serverport);
+		exit(-1);
+	}
+
 	//建立TCP套接字   
-	sockfd = socket(AF_INET, SOCK_STREAM, 0);
-	if(sockfd < 0)
+	*sockfd = socket(AF_INET, SOCK_STREAM, 0);
+	if(*sockfd < 0)
 	{
 		perror("socket creation failed!\n");
 		exit(-1);
@@ -48,38 +48,75 @@ void initmywebserver()
 
 	//这里要注意，端口号一定要使用htons先转化为网络字节序，否则绑定的实际端口  
 	//可能和你需要的不同   
-	addr.sin_port = htons(SERVER_PORT);
+	addr.sin_port = htons(serverport);
 	addr.sin_addr.s_addr = INADDR_ANY;
-	if(bind(sockfd, (struct sockaddr *)&addr, sizeof(struct sockaddr_in)))
+	if(bind(*sockfd, (struct sockaddr *)&addr, sizeof(struct sockaddr_in)))
 	{
 		perror("socket binding failed!\n");
 		exit(-1);
 	}
-	listen(sockfd, 128);
+	listen(*sockfd, 128);
 }
-void thisisfather(char** arg)
+void thisisfather(char* url)
 {
-	//local
-	int thisfd;
-	int failcount;
+	//temp
 	int ret;
+	int failcount;
+	//socket related
+	int sockfd;
+	int thisfd;
+	static unsigned char httpbuf[0x1000];
+	//response text
+	static unsigned char http_head[0x1000] = {0};
+	static unsigned char http_tail[] = "</pre></body></html>";
+	//from exe
+	static int position=0;
+	static unsigned char haha[0x100000*16]={0};
 
+
+
+
+	//1.检查传进来的参数
+	if(url==0)
+	{
+		snprintf(url,256,"http://127.0.0.1:8080");
+	}
+	snprintf(
+		http_head,
+		0x1000,
+
+		"HTTP/1.1 200 OK\r\nContent-type: text/html\r\n\r\n";
+		"<html><head><title>codetree</title></head><body>"
+		"<form method=\"get\" action=\"%s\" style=\"text-align:center;\">"
+		"<input type=\"text\" name=\"i\" style=\"width:40%;height:32px\"></input>"
+		"<input type=\"submit\" style=\"width:10%;height:32px\"></input>"
+		"</form><hr><pre>",
+
+		url
+	);
+	initmywebserver(&sockfd,url);
+
+
+
+
+	//2.设置不阻塞，分别关掉两个单向管道的某一边
 	//non block
 	ret=fcntl(childmouse[0], F_GETFL);
 	fcntl(childmouse[0],F_SETFL,ret|O_NONBLOCK);
 
 	//parent only write to child's ear
 	close(childear[0]);
+
 	//parent only read from child's mouse
 	close(childmouse[1]);
 
-	//
-	initmywebserver();
 
-	//start!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+
+	//3.开始!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 	while(1)
 	{
-        	thisfd = accept(sockfd, NULL, NULL);
+		thisfd = accept(sockfd, NULL, NULL);
 		read(thisfd, httpbuf, 1024);
 
 		//其他HTTP请求处理，如POST，HEAD等 。这里我们只处理GET   
@@ -115,14 +152,14 @@ void thisisfather(char** arg)
 			exit(-1);
 		}
 
-                //read from that program,write to stdout
-                ret=0;
+		//read from that program,write to stdout
+		ret=0;
 		failcount=0;
-                position=0;
-                while(1)
-                {
-                        ret=read(childmouse[0],haha+position,0x1000);
-                        if(ret<0)
+		position=0;
+		while(1)
+		{
+			ret=read(childmouse[0],haha+position,0x1000);
+			if(ret<0)
 			{
 				//printf("ret=%d,errno=%d\n",ret,errno);
 				usleep(1000);
@@ -138,15 +175,15 @@ void thisisfather(char** arg)
 				exit(-1);
 			}
 
-                        position+=ret;
+			position+=ret;
 			if(position>1000000)break;
-                }
-                haha[position]=0;
+		}
+		haha[position]=0;
 		//printf("%s",haha,position);
 
 sendresponse:
 		//头
-		write(thisfd, http_response, strlen(http_response));
+		//write(thisfd, http_response, strlen(http_response));
 		write(thisfd, http_head, strlen(http_head));
 
 		//身体
@@ -159,13 +196,20 @@ sendresponse:
 		write(thisfd, http_tail, strlen(http_tail));
 
 nextone:
-        	close(thisfd);
+		close(thisfd);
 	}
 }
-void thisischild(char** arg)
+
+
+
+
+
+
+
+
+void thisischild(int argc,char** argv)
 {
 	int ret;
-	//char* thisarg[2]={"/opt/bin/hashseed2tree.exe",0};
 
 	//子进程只输入，不输出
 	dup2(childear[0],0);
@@ -176,9 +220,7 @@ void thisischild(char** arg)
 	close(childmouse[0]);
 
 	//bye bye
-	//ret=execvp(thisarg[0],thisarg);
-	arg++;
-	ret=execvp(arg[0],arg);
+	ret=execvp(argv[0],argv);
 	if(ret==-1)
 	{
 		//printf("execv fail:%d\n",errno);
@@ -187,39 +229,94 @@ void thisischild(char** arg)
 		exit(-1);
 	}
 }
+
+
+
+
+
+
+
+
 void main(int argc, char *argv[])
 {
-        pid_t pid;
+	int ii;
+	int jj;
+	char* p;
+	char* url;
+	char* finalargv[16]={0};
+	pid_t pid;
 
-	//check
-	if(argv[1]==0)
+
+
+
+	//check argc
+	if(argc==1)
 	{
-		printf("wrong exe\n");
-		exit(-1);
+		printf("usage:\n");
+		printf("webwrap url=127.0.0.1:8080 prog=/bin/hashseed2tree.exe\n");
 	}
+	if(argc>15)
+	{
+		printf("too many args\n");
+	}
+
+
+
+
+	//check argv
+	for(ii=1;ii<argc;ii++)
+	{
+		p=argv[ii];
+		if(p==0)break;
+
+		//prog=
+		if(	(p[0]=='p') &&
+			(p[1]=='r') &&
+			(p[2]=='o') &&
+			(p[3]=='g') &&
+			(p[4]=='=') )
+		{
+			finalargv[0]=p+5;
+			finalargv[1]=0;
+			break;
+		}
+		//url=
+		if(	(p[0]=='u') &&
+			(p[1]=='r') &&
+			(p[2]=='l') &&
+			(p[3]=='=') )
+		{
+			url=p+4;	
+		}
+	}
+
+
+
 
 	//create pipe
 	pipe(childear);
 	pipe(childmouse);
-        pid =fork();
 
-	//failed<0
-        if(pid<0)
+
+
+
+	//fork
+	pid=fork();
+	if(pid<0)
 	{
+		//failed<0
 		printf("fork failed\n");
 		return;
 	}
-
-	//child=0
 	else if(pid==0)
-        {
-		thisischild(argv);
-        }
-
-	//father>0
-        else
-        {
-		thisisfather(argv);
-        }
+	{
+		//child=0
+		thisischild(2,finalargv);
+	}
+	else
+	{
+		//father>0
+		thisisfather(url);
+	}
 }
 

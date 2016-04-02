@@ -68,9 +68,9 @@ static char suffix[256]={0};
 
 //file worker
 static char worker[256]={0};
-void (*explain_start)(int,char*);
-void (*explain_stop)();
-void (*explain_continue)(int,int);
+void (*explain_start)();
+void (*explain_stop)(int);
+int (*explain_ing)(int,int);
 
 //
 static unsigned int lineoffset=0;
@@ -113,7 +113,7 @@ void explainfile(char* thisfile,unsigned long long size)
 	write(seedfd,datahome,ret);
 
 	//start
-	startpurec();
+	explain_start();
 //_________________________________________________________
 
 
@@ -136,7 +136,7 @@ void explainfile(char* thisfile,unsigned long long size)
 		//size=0xfff -> datahome[0xfff]=0
 		//size=0x1000 -> datahome[0x1000]=0
 		datahome[size]=0;
-		explainpurec(0,size);
+		explain_ing(0,size);
 
 		goto theend;
 	}
@@ -202,7 +202,7 @@ void explainfile(char* thisfile,unsigned long long size)
 		}
 
 		//do it
-		start=explainpurec(start,0x1000);
+		start=explain_ing(start,0x1000);
 
 		//next or not
 		countbyte += 0x1000;
@@ -216,7 +216,7 @@ void explainfile(char* thisfile,unsigned long long size)
 
 //______________________stop+close___________________________
 theend:
-	stoppurec(countbyte+start);
+	explain_stop(countbyte+start);
 	close(codefd);
         return;
 //_____________________________________________________
@@ -455,7 +455,6 @@ void sorthash()
 
 	//stat
 	ret=stat( hashname , &statbuf );
-	printf("hashcount=%d\n",hashcount);
 	if(ret == -1)
 	{
 		printf("wrong seedname\n");
@@ -481,7 +480,6 @@ void sorthash()
 
 	//read
 	hashcount=read(hashfd,buf,statbuf.st_size);
-	printf("hashcount=%d\n",hashcount);
 	if(hashcount!=statbuf.st_size)
 	{
 		printf("read failed\n");
@@ -813,21 +811,30 @@ seedgenerating:
 	seedfd=open(
 		seedname,
 		O_CREAT|O_RDWR|O_TRUNC|O_BINARY,
-	S_IRWXU|S_IRWXG|S_IRWXO
+		S_IRWXU|S_IRWXG|S_IRWXO
 	);
 
 	if(strcmp(worker,"purec")==0)
 	{
 		//open
 		initpurec(seedfd,datahome);
+		explain_start=startpurec;
+		explain_stop=stoppurec;
+		explain_ing=explainpurec;
 	}
 	else if(strcmp(worker,"cpp")==0)
 	{
 		initcpp(seedfd,datahome);
+		explain_start=startcpp;
+		explain_stop=stopcpp;
+		explain_ing=explaincpp;
 	}
 	else if(strcmp(worker,"struct")==0)
 	{
 		initstruct(seedfd,datahome);
+		explain_start=startstruct;
+		explain_stop=stopstruct;
+		explain_ing=explainstruct;
 	}
 
 	//do it
