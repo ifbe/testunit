@@ -253,7 +253,7 @@ void thisischild(int argc,char** argv)
 
 
 
-void buf2arg(BYTE* buf,int max,int* argc,BYTE** argv)
+void buf2arg(char* buf,int max,int* argc,char** argv)
 {
 	int i;
 	int count=0;
@@ -314,7 +314,9 @@ void main(int argc, char *argv[])
 	//
 	int finalargc;
 	char* finalargv[16]={0};
+	//
 	pid_t pid;
+	char temp[256];
 
 
 
@@ -348,7 +350,8 @@ void main(int argc, char *argv[])
 			(p[3]=='g') &&
 			(p[4]=='=') )
 		{
-			buf2arg(p+5,256,&finalargc,finalargv);
+			snprintf(temp,256,"%s",p+5);
+			buf2arg(temp,256,&finalargc,finalargv);
 			break;
 		}
 		//url=
