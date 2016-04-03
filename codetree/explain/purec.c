@@ -582,7 +582,6 @@ int explainpurec(int start,int end)
 				//#else -> 升级
 				if( (*(unsigned int*)(datahome+i+1) )==0x65736c65 )
 				{
-
 					inmarco='e';
 					i+=4;
 				}
@@ -599,7 +598,7 @@ int explainpurec(int start,int end)
 				}
 			}
 
-			//else里面碰到endif号
+			//else里面碰到endif
 			else if(inmarco=='e')
 			{
 				if( (datahome[i+1]=='e') &&
@@ -620,23 +619,23 @@ int explainpurec(int start,int end)
 }
 void startpurec()
 {
-        //init
+	//init
 	chance=roundbracket=0;
-        countbyte=countline=0;
-        infunc = inmarco = innote = instr = 0;
-        prophet=insist=doubt=0;
+	countbyte=countline=0;
+	infunc = inmarco = innote = instr = 0;
+	prophet=insist=doubt=0;
 }
 void stoppurec(int where)
 {
-        printf("@%x@%d -> %d,%d,%d,%d\n\n\n\n",
-                where,
-                countline,
-                infunc,
-                inmarco,
-                innote,
-                instr
-        );
-        write(dest,"\n\n\n\n",4);
+	printf("@%x@%d -> %d,%d,%d,%d\n\n\n\n",
+		where,
+		countline,
+		infunc,
+		inmarco,
+		innote,
+		instr
+	);
+	write(dest,"\n\n\n\n",4);
 }
 void initpurec(int i,char* p)
 {

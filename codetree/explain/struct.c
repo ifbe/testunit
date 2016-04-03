@@ -49,16 +49,20 @@ static int instr=0;
 
 int struct_pickname(unsigned char* p,unsigned char* q)
 {
-	int i=0;
-	int o=0;
+	int i;
+	int o;
 
+	o=0;
 	a[0]=a[1]=0;
+	//printf("in=%s\n\n\n\n",p);
 
 	//eat
 	for(i=0;i<0x100;i++)
 	{
+		if(o>15)break;
 		if(p[i]==';')break;
-		else if(p[i]=='{')break;
+		if(p[i]=='{')break;
+		if(p[i]=='}')break;
 
 		//碰到空格
 		else if( (p[i]==0x9) | (p[i]==0x20) )
@@ -86,7 +90,7 @@ int struct_pickname(unsigned char* p,unsigned char* q)
 	if(a[1]!=0)p=a[1];
 	for(i=0;i<0x100;i++)
 	{
-		if(     ((p[i]>='a')&&(p[i]<='z')) |
+		if(	((p[i]>='a')&&(p[i]<='z')) |
 			((p[i]>='A')&&(p[i]<='Z')) |
 			((p[i]>='0')&&(p[i]<='9')) |
 			(p[i]=='_') )
@@ -96,11 +100,14 @@ int struct_pickname(unsigned char* p,unsigned char* q)
 		}
 		else break;
 	}
+
+	//printf("out=%d,%s\n\n\n\n",o,q);
 	return o;
 }
 int struct_printprophet(unsigned char* p)
 {
 	int i,o;
+	//printf("in=%s\n\n\n\n",p);
 
 	//结构体结束
 	if(p==0)
@@ -128,7 +135,7 @@ int struct_printprophet(unsigned char* p)
 	}
 
 printthis:
-	//printf("%s",strbuf);
+	//printf("out=%s\n\n\n\n",strbuf);
 	write(dest,strbuf,o);
 	prophet=0;
 	return 0;
@@ -136,6 +143,7 @@ printthis:
 int checkprophet(unsigned char* p)
 {
 	int i;
+//printf("=%s\n",p);
 
 	//struct
 	if( p[0] == 's' )
@@ -171,14 +179,19 @@ int checkprophet(unsigned char* p)
 	else goto wrong;
 
 	//解决"nameisstructisname"的问题
-	if(	(p[i] != 0x20) &&
-		(p[i] !=  0x9) &&
-		(p[i] !=  '{') &&
-		(p[i] !=  0xa) &&
-		(p[i] !=  0xd) )
+	i-=1;
+	while(1)
 	{
-		goto wrong;
+		i++;
+
+		if( p[i] == 0xa )continue;
+		if( p[i] == 0xd )continue;
+		if( p[i] == 0x9 )continue;
+		if( p[i] == 0x20 )continue;
+
+		break;
 	}
+	if(	p[i] ==  ':' )goto wrong;
 
 correct:
 //printf("correct:%c\n",p[0]);
@@ -192,7 +205,7 @@ wrong:
 int explainstruct(int start,int end)
 {
 	int i=0;
-	unsigned ch=0;
+	unsigned char ch=0;
 	printf(
 		"@%x:%d -> %d,%d,%d,%d\n",
 		countbyte+start,
@@ -208,8 +221,15 @@ int explainstruct(int start,int end)
 	{
 		//拿一个
 		ch=datahome[i];
-		//printf("%c",ch);
-
+/*
+		printf("%.2x -> %d,%d,%d,%d\n",
+			ch,
+			instruct,
+			inmarco,
+			innote,
+			instr
+		);
+*/
 		//软退
 		if( (i>end) && (prophet==0) && (instruct==0) )
 		{
@@ -309,40 +329,42 @@ int explainstruct(int start,int end)
 			{
 				i+=2;
 			}
-                }
+		}
 
-                else if(datahome[i]=='/')
-                {
-                        //在这三种情况下什么都不能干
-                        if(innote>0|instr>0)continue;
+		else if(datahome[i]=='/')
+		{
+			//在这三种情况下什么都不能干
+			if(innote>0|instr>0)continue;
 
-                        //单行注释很好解决
-                        if(datahome[i+1]=='/')  //    //
-                        {
-                                innote=1;
+			//单行注释很好解决
+			if(datahome[i+1]=='/')  //    //
+			{
+				innote=1;
 				i++;
-                        }
+			}
 
-                        //多行注释
-                        else if(datahome[i+1]=='*')     //    /*
-                        {
-                                innote=9;
+			//多行注释
+			else if(datahome[i+1]=='*')     //    /*
+			{
+				innote=9;
 				i++;
-                        }
-                }
-                else if(datahome[i]=='*')
-                {
-                        if((innote==1)|(instr>0))continue;
+			}
+		}
 
-                        if(datahome[i+1]=='/')
-                        {
-                                if(innote==9)
-                                {
-                                        innote=0;
+		else if(datahome[i]=='*')
+		{
+			if((innote==1)|(instr>0))continue;
+
+			if(datahome[i+1]=='/')
+			{
+				if(innote==9)
+				{
+					innote=0;
 					i++;
-                                }
-                        }
-                }
+				}
+			}
+		}
+
 		else if(ch=='s')
 		{
 			if(inmarco>=2|innote>0|instr>0)continue;
@@ -351,7 +373,8 @@ int explainstruct(int start,int end)
 			if(prophet==0)
 			{
 				prophet=datahome+i;
-				i += checkprophet( prophet );
+				checkprophet( prophet );
+				//printf("here:%d\n",i);
 			}
 		}
 /*
@@ -363,7 +386,7 @@ int explainstruct(int start,int end)
 			if(prophet==0)
 			{
 				prophet=datahome+i;
-				i += checkprophet( prophet );
+				checkprophet( prophet );
 			}
 		}
 */
@@ -375,6 +398,7 @@ int explainstruct(int start,int end)
 			{
 				if(instruct>0)
 				{
+					//printf("=%s\n",prophet);
 					struct_printprophet(prophet);
 				}
 				prophet=0;
@@ -423,63 +447,81 @@ int explainstruct(int start,int end)
 
 		else if(ch=='#')
 		{
-                        //不在注释里面,也不在字符串里的时候
-                        if(innote>0|instr>0)continue;
+			//不在注释里面,也不在字符串里的时候
+			if(innote>0|instr>0)continue;
 
-                        //吃掉所有空格和tab
-                        while(1)
-                        {
-                                if( (datahome[i+1]==' ') | (datahome[i+1]==0x9) )i++;
-                                else break;
-                        }
+			//吃掉所有空格和tab
+			while(1)
+			{
+				if( (datahome[i+1]==' ') | (datahome[i+1]==0x9) )i++;
+				else break;
+			}
 
-                        //宏外面碰到#号
-                        if(inmarco==0)
-                        {
-                                //#if
-                                if( (*(unsigned short*)(datahome+i+1) )==0x6669 )
-                                {
-                                        inmarco=1;
-                                        i+=2;
-                                }
+			//宏外面碰到#号
+			if(inmarco==0)
+			{
+				//#define
+				if( (*(unsigned short*)(datahome+i+1) )==0x6564 )
+				{
+					if( (*(unsigned int*)(datahome+i+3) )==0x656e6966 )
+					{
+						i+=6;
+						inmarco='d';
+					}
+				}
 
-                                //#define
-                                if( (*(unsigned short*)(datahome+i+1) )==0x6564 )
-                                {
-                                        if( (*(unsigned int*)(datahome+i+3) )==0x656e6966 )
-                                        {
-                                                inmarco='d';
-                                                i+=6;
-                                        }
-                                }
-                        }
+				//#else 这里是为了暂时不管宏嵌套的问题...
+				else if( (*(unsigned int*)(datahome+i+1) )==0x65736c65 )
+				{
+					inmarco='e';
+					i+=4;
+				}
 
-                        //普通宏里又碰到了#号
-                        else if(inmarco==1)
-                        {
-                                //#else -> 升级
-                                if( (*(unsigned int*)(datahome+i+1) )==0x65736c65 )
-                                {
+				//#if
+				else if( (*(unsigned short*)(datahome+i+1) )==0x6669 )
+				{
+					inmarco=1;
+					i+=2;
+				}
+			}
 
-                                        inmarco='e';
-                                        i+=4;
-                                }
-                        }
+			//普通宏里又碰到了#号
+			else if(inmarco==1)
+			{
+				//#else -> 升级
+				if( (*(unsigned int*)(datahome+i+1) )==0x65736c65 )
+				{
+					inmarco='e';
+					i+=4;
+				}
 
-                        //else里面碰到#号
-                        else if(inmarco=='e')
-                        {
-                                if( (datahome[i+1]=='e') &&
-                                    (datahome[i+2]=='n') &&
-                                    (datahome[i+3]=='d') &&
-                                    (datahome[i+4]=='i') &&
-                                    (datahome[i+5]=='f') )
-                                {
-                                        inmarco=0;
-                                        i+=5;
-                                }
-                        }
-		}//#
+				//#endif -> 降级
+				else if( (datahome[i+1]=='e') &&
+				    (datahome[i+2]=='n') &&
+				    (datahome[i+3]=='d') &&
+				    (datahome[i+4]=='i') &&
+				    (datahome[i+5]=='f') )
+				{
+					inmarco=0;
+					i+=5;
+				}
+			}
+
+			//else里面碰到endif
+			else if(inmarco=='e')
+			{
+				if( (datahome[i+1]=='e') &&
+					(datahome[i+2]=='n') &&
+					(datahome[i+3]=='d') &&
+					(datahome[i+4]=='i') &&
+					(datahome[i+5]=='f') )
+				{
+					inmarco=0;
+					i+=5;
+				}
+			}
+		}//#marco
+
 	}//for
 
 	return i-end;
@@ -493,15 +535,15 @@ void startstruct()
 }
 void stopstruct(int where)
 {
-        printf("@%x@%d -> %d,%d,%d,%d\n\n\n\n",
-                where,
-                countline,
-                instruct,
-                inmarco,
-                innote,
-                instr
-        );
-        write(dest,"\n\n\n\n",4);
+	printf("@%x@%d -> %d,%d,%d,%d\n\n\n\n",
+		where,
+		countline,
+		instruct,
+		inmarco,
+		innote,
+		instr
+	);
+	write(dest,"\n\n\n\n",4);
 }
 void initstruct(int i,char* p)
 {

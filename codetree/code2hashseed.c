@@ -218,7 +218,7 @@ void explainfile(char* thisfile,unsigned long long size)
 theend:
 	explain_stop(countbyte+start);
 	close(codefd);
-        return;
+	return;
 //_____________________________________________________
 }
 void fileordir(char* thisname)
@@ -655,8 +655,8 @@ int main(int argc,char *argv[])
 			(p[3]=='h') &&
 			(p[4]=='=') )
 		{
-			printf("hash=%s\n",p+8);
-			snprintf(hashname,256,"%s",p+8);
+			printf("hash=%s\n",p+5);
+			snprintf(hashname,256,"%s",p+5);
 			continue;
 		}
 
