@@ -544,8 +544,8 @@ int main(int argc,char *argv[])
 			(p[3]=='h') &&
 			(p[4]=='=') )
 		{
-			printf("hash=%s\n",p+7);
-			snprintf(hashname,256,"%s",p+7);
+			printf("hash=%s\n",p+5);
+			snprintf(hashname,256,"%s",p+5);
 		}
 
 		//seed=
@@ -555,8 +555,8 @@ int main(int argc,char *argv[])
 			(p[3]=='d') &&
 			(p[4]=='=') )
 		{
-			printf("seed=%s\n",p+7);
-			snprintf(seedname,256,"%s",p+7);
+			printf("seed=%s\n",p+5);
+			snprintf(seedname,256,"%s",p+5);
 		}
 
 		//tree=
@@ -566,8 +566,8 @@ int main(int argc,char *argv[])
 			(p[3]=='e') &&
 			(p[4]=='=') )
 		{
-			printf("tree=%s\n",p+8);
-			snprintf(treename,256,"%s",p+8);
+			printf("tree=%s\n",p+5);
+			snprintf(treename,256,"%s",p+5);
 		}
 
 		//default treat as wanted name

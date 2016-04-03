@@ -253,12 +253,66 @@ void thisischild(int argc,char** argv)
 
 
 
+void buf2arg(BYTE* buf,int max,int* argc,BYTE** argv)
+{
+	int i;
+	int count=0;
+	int splited=0;
+	argv[0]=0;
+
+	//
+	for(i=0;i<max;i++)
+	{
+		//finished
+		if( buf[i] == 0 )break;
+
+		//blank
+		if( buf[i] <= 0x20 )
+		{
+			buf[i]=0;
+			splited=1;
+			continue;
+		}
+
+		//new?
+		if(splited != 0)
+		{
+			count++;
+			if(count>=7)break;
+
+			argv[count]=0;
+			splited=0;
+		}
+
+		//new!
+		if( argv[count]==0 )
+		{
+			argv[count]=buf+i;
+		}
+	}//for
+
+	//result
+	count+=1;
+	argv[count]=0;
+	*argc=count;
+
+/*
+	//debug
+	say("count=%x\n",count);
+	for(i=0;i<count;i++)
+	{
+		say("%x=%s\n",i,argv[i]);
+	}
+*/
+}
 void main(int argc, char *argv[])
 {
+	//
 	int ii;
-	int jj;
 	char* p;
 	char* url=0;
+	//
+	int finalargc;
 	char* finalargv[16]={0};
 	pid_t pid;
 
@@ -294,8 +348,7 @@ void main(int argc, char *argv[])
 			(p[3]=='g') &&
 			(p[4]=='=') )
 		{
-			finalargv[0]=p+5;
-			finalargv[1]=0;
+			buf2arg(p+5,256,&finalargc,finalargv);
 			break;
 		}
 		//url=
@@ -339,7 +392,7 @@ void main(int argc, char *argv[])
 	else if(pid==0)
 	{
 		//child=0
-		thisischild(2,finalargv);
+		thisischild(finalargc,finalargv);
 	}
 	else
 	{
