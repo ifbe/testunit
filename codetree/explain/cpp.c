@@ -600,32 +600,48 @@ int explaincpp(int start,int end)
 
 	return i-end;	//可能多分析了几十几百个字节
 }
-void startcpp()
+void startcpp(char* thisfile,int size)
 {
-        //init
-        prophet=prophetinsist=0;
-        doubt = chance=0;
-        countbyte=countline=0;
-        infunc = inmarco = innote = instr = 0;
+	int ret;
+
+	//infomation
+	ret=snprintf(datahome,256,"#name:	%s\n",thisfile);
+	printf("%s",datahome);
+	write(dest,datahome,ret);
+
+	ret=snprintf(datahome,256,"#size:	%d(0x%x)\n",size,size);
+	printf("%s",datahome);
+	write(dest,datahome,ret);
+
+	//init
+	chance=doubt=0;
+	countbyte=countline=0;
+	prophet=prophetinsist=0;
+	infunc = inmarco = innote = instr = 0;
 }
 void stopcpp(int where)
 {
-        printf("@%x@%d -> %d,%d,%d,%d\n\n\n\n",
-                where,
-                countline,
-                infunc,
-                inmarco,
-                innote,
-                instr
-        );
-        write(dest,"\n\n\n\n",4);
+	printf("@%x@%d -> %d,%d,%d,%d\n\n\n\n",
+		where,
+		countline,
+		infunc,
+		inmarco,
+		innote,
+		instr
+	);
+	write(dest,"\n\n\n\n",4);
 }
-void initcpp(int i,char* p)
+void initcpp(char* file,char* memory)
 {
 	//
-	dest=i;
-	datahome=p;
+	dest=open(
+		file,
+		O_CREAT|O_RDWR|O_TRUNC|O_BINARY,
+		S_IRWXU|S_IRWXG|S_IRWXO
+	);
+	datahome=memory;
 }
 void killcpp()
 {
+	close(dest);
 }

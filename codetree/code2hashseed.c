@@ -16,33 +16,33 @@
 
 //c
 int explainpurec(int,int);
-void startpurec();
+void startpurec(char*,int);
 void stoppurec(int);
-void initpurec(int,char*);
+void initpurec(char*,char*);
 void killpurec();
 //struct
 int explainstruct(int,int);
-void startstruct();
+void startstruct(char*,int);
 void stopstruct(int);
-void initstruct(int,char*);
+void initstruct(char*,char*);
 void killstruct();
 //cpp
 int explaincpp(int,int);
-void startcpp();
+void startcpp(char*,int);
 void stopcpp(int);
-void initcpp(int,char*);
+void initcpp(char*,char*);
 void killcpp();
 //class
 int explainclass(int,int);
-void startclass();
+void startclass(char*,int);
 void stopclass(int);
-void initclass(int,char*);
+void initclass(char*,char*);
 void killclass();
 //java
 int explainjava(int,int);
-void startjava();
+void startjava(char*,int);
 void stopjava(int);
-void initjava(int,char*);
+void initjava(char*,char*);
 void killjava();
 
 
@@ -103,17 +103,8 @@ void explainfile(char* thisfile,unsigned long long size)
 	codefd=open(thisfile , O_RDONLY|O_BINARY);
 	if(codefd<0){printf("open fail\n");exit(-1);}
 
-	//infomation
-	ret=snprintf(datahome,256,"#name:	%s\n",thisfile);
-	printf("%s",datahome);
-	write(seedfd,datahome,ret);
-
-	ret=snprintf(datahome,256,"#size:	%lld(0x%llx)\n",size,size);
-	printf("%s",datahome);
-	write(seedfd,datahome,ret);
-
 	//start
-	explain_start();
+	explain_start(thisfile,size);
 //_________________________________________________________
 
 
@@ -202,7 +193,7 @@ void explainfile(char* thisfile,unsigned long long size)
 		}
 
 		//do it
-		start=explain_ing(start,0x1000);
+		start=explain_ing(countbyte+start,0x1000);
 
 		//next or not
 		countbyte += 0x1000;
@@ -214,12 +205,10 @@ void explainfile(char* thisfile,unsigned long long size)
 
 
 
-//______________________stop+close___________________________
 theend:
 	explain_stop(countbyte+start);
 	close(codefd);
 	return;
-//_____________________________________________________
 }
 void fileordir(char* thisname)
 {
@@ -313,6 +302,7 @@ void generatehash()
 	unsigned long long ret=0;
 	unsigned long long percent=0;
 	unsigned long long length=0;
+	printf("hash generating................\n");
 
 	//stat
 	ret=stat( seedname , &statbuf );
@@ -434,9 +424,10 @@ void generatehash()
 		//
 		ret=1;
 	}//for
+	printf("\n");
 
 	close(hashfd);
-	printf("\n");
+	printf("hash generated\n");
 
 }//seed2hash
 void sorthash()
@@ -452,12 +443,13 @@ void sorthash()
 	unsigned int temp2;
 	unsigned int temp3;
 	unsigned int temp4;
+	printf("hash sorting..................\n");
 
 	//stat
 	ret=stat( hashname , &statbuf );
 	if(ret == -1)
 	{
-		printf("wrong seedname\n");
+		printf("wrong hashname\n");
 		return;
 	}
 
@@ -596,6 +588,7 @@ void sorthash()
 	write(hashfd,buf,hashcount);
 	close(hashfd);
 	free(buf);
+	printf("hash sorted\n");
 }
 
 
@@ -739,12 +732,6 @@ int main(int argc,char *argv[])
 	}
 	if(suffix[0]==0)
 	{
-		//种子已经有了，只想要哈希就跳过这些
-		if(strcmp(worker,"hash")==0)
-		{
-			goto hashgenerating;
-		}
-
 		//试着从codename名字里面拿到后缀名
 		p=0;
 		for(i=0;i<256;i++)
@@ -758,10 +745,28 @@ int main(int argc,char *argv[])
 			return 0;
 		}
 
-		//
+		//拿到后缀名了
 		printf("suffix=%s\n",p);
 		snprintf(suffix,16,"%s",p);
 		length=strlen(suffix);
+
+		//种子转哈希
+		if(strcmp(suffix,".seed")==0)
+		{
+			//hashname already got
+			snprintf(seedname,256,"%s",codename);
+			codename[0]=0;
+			goto hashgenerating;
+		}
+
+		//哈希排序
+		if(strcmp(suffix,".hash")==0)
+		{
+			snprintf(hashname,256,"%s",codename);
+			seedname[0]=0;
+			codename[0]=0;
+			goto hashsorting;
+		}
 	}
 	if(worker[0]==0)
 	{
@@ -808,40 +813,46 @@ int main(int argc,char *argv[])
 seedgenerating:
 	//*********************1:code2seed***********************
 	printf("seed generating.................\n");
-	seedfd=open(
-		seedname,
-		O_CREAT|O_RDWR|O_TRUNC|O_BINARY,
-		S_IRWXU|S_IRWXG|S_IRWXO
-	);
-
 	if(strcmp(worker,"purec")==0)
 	{
-		//open
-		initpurec(seedfd,datahome);
+		//init
+		initpurec(seedname,datahome);
 		explain_start=startpurec;
 		explain_stop=stoppurec;
 		explain_ing=explainpurec;
+
+		//do
+		fileordir( codename );
+
+		//kill
+		killpurec();
 	}
 	else if(strcmp(worker,"cpp")==0)
 	{
-		initcpp(seedfd,datahome);
+		initcpp(seedname,datahome);
 		explain_start=startcpp;
 		explain_stop=stopcpp;
 		explain_ing=explaincpp;
+
+		//do
+		fileordir( codename );
+
+		//kill
+		killcpp();
 	}
 	else if(strcmp(worker,"struct")==0)
 	{
-		initstruct(seedfd,datahome);
+		initstruct(seedname,datahome);
 		explain_start=startstruct;
 		explain_stop=stopstruct;
 		explain_ing=explainstruct;
+
+		//do
+		fileordir( codename );
+
+		//kill
+		killstruct();
 	}
-
-	//do it
-	fileordir( codename );
-
-	//close
-	close(seedfd);
 	printf("seed generated\n");
 	//**************************************************
 
@@ -850,9 +861,7 @@ seedgenerating:
 
 hashgenerating:
 	//**********************2.seed2hash*********************
-	printf("hash generating................\n");
 	generatehash();
-	printf("hash generated\n");
 	//****************************************************
 
 
@@ -860,8 +869,6 @@ hashgenerating:
 
 hashsorting:
 	//********************.hash sorting*******************
-	printf("hash sorting..................\n");
 	sorthash();
-	printf("hash sorted\n");
 	//****************************************************
 }

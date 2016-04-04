@@ -526,8 +526,19 @@ int explainstruct(int start,int end)
 
 	return i-end;
 }
-void startstruct()
+void startstruct(char* thisfile,int size)
 {
+	int ret;
+
+	//infomation
+	ret=snprintf(datahome,256,"#name:	%s\n",thisfile);
+	printf("%s",datahome);
+	write(dest,datahome,ret);
+
+	ret=snprintf(datahome,256,"#size:	%d(0x%x)\n",size,size);
+	printf("%s",datahome);
+	write(dest,datahome,ret);
+
 	//init
 	prophet=0;
 	countbyte=countline=0;
@@ -545,11 +556,16 @@ void stopstruct(int where)
 	);
 	write(dest,"\n\n\n\n",4);
 }
-void initstruct(int i,char* p)
+void initstruct(char* file,char* memory)
 {
-	dest=i;
-	datahome=p;
+	dest=open(
+		file,
+		O_CREAT|O_RDWR|O_TRUNC|O_BINARY,
+		S_IRWXU|S_IRWXG|S_IRWXO
+	);
+	datahome=memory;
 }
 void killstruct()
 {
+	close(dest);
 }
