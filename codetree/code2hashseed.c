@@ -192,8 +192,8 @@ void explainfile(char* thisfile,unsigned long long size)
 			}
 		}
 
-		//do it
-		start=explain_ing(countbyte+start,0x1000);
+		//这里传的第一个参数是相对buffer的偏移量
+		start=explain_ing(start,0x1000);
 
 		//next or not
 		countbyte += 0x1000;
