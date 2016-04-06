@@ -11,7 +11,7 @@
 #include<sys/stat.h>
 //
 static int childear[2];
-static int childmouse[2];
+static int childmouth[2];
 
 
 
@@ -112,14 +112,14 @@ void thisisfather(char* url)
 
 	//2.设置不阻塞，分别关掉两个单向管道的某一边
 	//non block
-	ret=fcntl(childmouse[0], F_GETFL);
-	fcntl(childmouse[0],F_SETFL,ret|O_NONBLOCK);
+	ret=fcntl(childmouth[0], F_GETFL);
+	fcntl(childmouth[0],F_SETFL,ret|O_NONBLOCK);
 
 	//parent only write to child's ear
 	close(childear[0]);
 
-	//parent only read from child's mouse
-	close(childmouse[1]);
+	//parent only read from child's mouth
+	close(childmouth[1]);
 
 
 
@@ -169,12 +169,12 @@ void thisisfather(char* url)
 		position=0;
 		while(1)
 		{
-			ret=read(childmouse[0],haha+position,0x1000);
+			ret=read(childmouth[0],haha+position,0x1000);
 			if(ret<0)
 			{
 				//printf("ret=%d,errno=%d\n",ret,errno);
 				usleep(1000);
-				fsync(childmouse[0]);
+				fsync(childmouth[0]);
 
 				failcount++;
 				if(failcount<100)continue;
@@ -232,8 +232,8 @@ void thisischild(int argc,char** argv)
 	close(childear[1]);
 
 	//子进程只输出，不输入
-	dup2(childmouse[1],1);
-	close(childmouse[0]);
+	dup2(childmouth[1],1);
+	close(childmouth[0]);
 
 	//bye bye
 	ret=execvp(argv[0],argv);
@@ -241,7 +241,7 @@ void thisischild(int argc,char** argv)
 	{
 		//printf("execv fail:%d\n",errno);
 		close(childear[0]);
-		close(childmouse[1]);
+		close(childmouth[1]);
 		exit(-1);
 	}
 }
@@ -379,7 +379,7 @@ void main(int argc, char *argv[])
 
 	//create pipe
 	pipe(childear);
-	pipe(childmouse);
+	pipe(childmouth);
 
 
 
