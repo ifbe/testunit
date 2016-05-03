@@ -7,7 +7,13 @@
 #include <softPwm.h>
 
 #define pin 37
-#define range 400
+#define range 300
+	//default	increased
+	//10->1ms	100->1ms
+	//30->3ms	300->3ms
+	//100->10ms	1000->10ms
+	//200->20ms	2000->20ms
+	//1000->100ms	10000->100ms
 
 int main(int argc,char** argv)
 {
@@ -17,8 +23,8 @@ int main(int argc,char** argv)
 	wiringPiSetupPhys();
 	softPwmCreate(pin, 0, range);
 
-	//normal mode:	160,power
-	//setup mode:	320,power,160,[160,320]
+	//normal mode:	100,power
+	//setup mode:	200,power,100,[100,200]
 	while(1)
 	{
 		scanf("%s",&input);
