@@ -7,8 +7,21 @@
 
 
 
-//
-int timedifference;
+//mpu9250.c
+extern short measuredata[6];
+
+//kalman.c
+extern float predictdata[6];
+
+//quaternion.c
+extern float eulerian[3];
+extern float eulerianbase[3];
+
+//pid.c
+extern int deltaspeed[4];
+
+//main.c
+int timeinterval;
 
 
 
@@ -16,8 +29,9 @@ int timedifference;
 static void sig_int(int num)
 {
 	killmotor();
-	killkalman();
 	killpid();
+	killquaternion();
+	killkalman();
 	killmpu9250();
 
 	exit(-1);
@@ -50,10 +64,6 @@ int main(int argc,char** argv)
 	//how to die
 	signal(SIGINT,sig_int);
 
-	//init time
-	memset(&start,0,sizeof(struct timeval));
-	memset(&end,0,sizeof(struct timeval));
-
 	//mpu9250 initialization
 	ret=initmpu9250();
 	if(ret<=0)
@@ -75,7 +85,7 @@ int main(int argc,char** argv)
 	if(ret<=0)
 	{
 		printf("fail@initquaternion\n");
-		return -2;
+		return -3;
 	}
 
 	//control flight
@@ -83,7 +93,7 @@ int main(int argc,char** argv)
 	if(ret<=0)
 	{
 		printf("fail@initpid\n");
-		return -3;
+		return -4;
 	}
 
 	//relay and esc
@@ -91,18 +101,60 @@ int main(int argc,char** argv)
 	if(ret<=0)
 	{
 		printf("fail@initmotor\n");
-		return -4;
+		return -5;
 	}
 
-	//forever
+	//wait for esc powerup
+	gettimeofday(&start,0);
+	ret=0;
 	while(1)
 	{
-		timedifference=timeval_subtract(&start,&end);
-		if(timedifference<=0)
+		//read sensor
+		mpu9250();
+
+		//kalman filter
+		kalman();
+
+		//update state
+		imuupdate();
+
+		//convert value
+		pid();
+
+		//time end
+		gettimeofday(&end,0);
+		timeinterval=timeval_subtract(&start,&end);
+		if(timeinterval<=0)
 		{
-			timedifference=3000;	//3ms?
+			printf("error@timeinternal\n",timeinterval);
+			return;
 		}
-		//printf("%d\n",timedifference);
+		else if(timeinterval>6000*1000)
+		{
+			printf("go\n");
+			break;
+		}
+		else if(timeinterval>ret)
+		{
+			printf("%ds left\n",6-ret/1000/1000);
+			ret+=1000*1000;
+		}
+	}
+	eulerianbase[0]=eulerian[0];
+	eulerianbase[1]=eulerian[1];
+	eulerianbase[2]=eulerian[2];
+
+	//forever
+	memset(&start,0,sizeof(struct timeval));
+	memset(&end,0,sizeof(struct timeval));
+	while(1)
+	{
+		timeinterval=timeval_subtract(&start,&end);
+		if(timeinterval<=0)
+		{
+			timeinterval=3000;	//3ms?
+		}
+		//printf("%d\n",timeinterval);
 
 		//time start
 		gettimeofday(&start,0);

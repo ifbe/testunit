@@ -8,14 +8,15 @@
 #include <string.h>
 #include <math.h>
 
+extern float predictdata[6];
+float eulerianbase[3];
+float eulerian[3];
+
 #define Kp 2.0f
 #define Ki 0.002f
 #define halfT 0.001f
-
-extern float predictdata[6];
 float q0 = 1, q1 = 0, q2 = 0, q3 = 0;
 float exInt = 0, eyInt = 0, ezInt = 0;
-float eulerian[3];
 
 int initquaternion()
 {
@@ -24,6 +25,9 @@ int initquaternion()
 	exInt=eyInt=ezInt=0;
 
 	return 1;
+}
+void killquaternion()
+{
 }
 void imuupdate()
 {
