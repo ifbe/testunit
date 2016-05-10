@@ -35,8 +35,8 @@ int initmotor()
 	softPwmCreate (righttail, zerospeed[3], RANGE);
 
 	//power the esc up , wait for "do-re-mi , di---"
-	//pinMode(powerrelay,OUTPUT);
-	//digitalWrite(powerrelay,1);
+	pinMode(powerrelay,OUTPUT);
+	digitalWrite(powerrelay,1);
 
 	return 1;
 }
@@ -53,16 +53,16 @@ int motor()
 	int rb=zerospeed[3]+motorspeed[3];
 
 	//min
-	if(lb>150)lb=100;
-	if(lf>150)lf=100;
-	if(rf>150)rf=100;
-	if(rb>150)rb=100;
+	if(lb<100)lb=100;
+	if(lf<100)lf=100;
+	if(rf<100)rf=100;
+	if(rb<100)rb=100;
 
 	//max
-	if(lb>150)lb=150;
-	if(lf>150)lf=150;
-	if(rf>150)rf=150;
-	if(rb>150)rb=150;
+	if(lb>150)lb=166;
+	if(lf>150)lf=166;
+	if(rf>150)rf=166;
+	if(rb>150)rb=166;
 
 	softPwmWrite(lefttail,	lb);
 	softPwmWrite(leftfront, lf);

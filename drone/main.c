@@ -43,7 +43,7 @@ static void keyboardthread()
 {
 	while(1)
 	{
-		alive=getchar();
+		scanf("%d\n",&alive);
 	}
 }
 
@@ -162,6 +162,64 @@ int main(int argc,char** argv)
 	eulerianbase[1]=eulerian[1];
 	eulerianbase[2]=eulerian[2];
 
+starting:
+	//wait for esc powerup
+	haha=0;
+	gettimeofday(&start,0);
+	while(1)
+	{
+		//time start
+		gettimeofday(&end,0);
+
+		timeinterval=timeval_subtract(&start,&end);
+		if(timeinterval<=0)
+		{
+			goto cutpower;
+		}
+		//printf("%d\n",timeinterval);
+
+		//read sensor
+		mpu9250();
+
+		//kalman filter
+		kalman();
+
+		//update state
+		imuupdate();
+
+		//convert value
+		pid();
+
+		//write pwm
+		motor();
+
+		//time end
+		gettimeofday(&end,0);
+		timeinterval=timeval_subtract(&start,&end);
+		if(timeinterval<=0)
+		{
+			printf("error@timeinternal\n",timeinterval);
+			goto cutpower;
+		}
+		else if(timeinterval>1500*1000)
+		{
+			printf("bye\n");
+			break;
+		}
+		else if(timeinterval>haha)
+		{
+			ret=haha/50/1000;
+			thresholdspeed[0]=thresholdspeed[1]=thresholdspeed[2]=thresholdspeed[3]=ret;
+			printf("speed=%d\n",ret);
+			haha+=500*1000;
+		}
+
+		//time end
+		memcpy( &end, &start, sizeof(struct timeval) );
+	}
+	thresholdspeed[0]=thresholdspeed[1]=thresholdspeed[2]=thresholdspeed[3]=40;
+
+going:
 	//forever
 	gettimeofday(&start,0);
 	while(1)
