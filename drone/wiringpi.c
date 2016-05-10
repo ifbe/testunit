@@ -17,7 +17,7 @@
 
 
 
-extern	int deltaspeed[4];
+extern	int motorspeed[4];
 
 //lefttail,leftfront,rightfront,righttail
 int zerospeed[4]={100,100,100,100};
@@ -35,20 +35,30 @@ int initmotor()
 	softPwmCreate (righttail, zerospeed[3], RANGE);
 
 	//power the esc up , wait for "do-re-mi , di---"
-	pinMode(powerrelay,OUTPUT);
-	digitalWrite(powerrelay,1);
+	//pinMode(powerrelay,OUTPUT);
+	//digitalWrite(powerrelay,1);
+
+	return 1;
 }
 int killmotor()
 {
+	pinMode(powerrelay,OUTPUT);
 	digitalWrite(powerrelay,0);
 }
 int motor()
 {
-	int lb=zerospeed[0]+deltaspeed[0];
-	int lf=zerospeed[1]+deltaspeed[1];
-	int rf=zerospeed[2]+deltaspeed[2];
-	int rb=zerospeed[3]+deltaspeed[3];
+	int lb=zerospeed[0]+motorspeed[0];
+	int lf=zerospeed[1]+motorspeed[1];
+	int rf=zerospeed[2]+motorspeed[2];
+	int rb=zerospeed[3]+motorspeed[3];
 
+	//min
+	if(lb>150)lb=100;
+	if(lf>150)lf=100;
+	if(rf>150)rf=100;
+	if(rb>150)rb=100;
+
+	//max
 	if(lb>150)lb=150;
 	if(lf>150)lf=150;
 	if(rf>150)rf=150;
@@ -58,4 +68,12 @@ int motor()
 	softPwmWrite(leftfront, lf);
 	softPwmWrite(rightfront,rf);
 	softPwmWrite(righttail,	rb);
+/*
+	printf("%d,%d,%d,%d\n",
+		lb,
+		lf,
+		rf,
+		rb
+	);
+*/
 }

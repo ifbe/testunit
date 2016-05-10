@@ -5,4 +5,4 @@ all:
 	quaternion.c \
 	pid.c \
 	wiringpi.c \
-	-lm -lwiringPi
+	-lm -lpthread -lwiringPi

@@ -77,11 +77,11 @@ void imuupdate()
 	eulerian[0] = atan2(2*(q0*q1+q2*q3),1-2*(q1*q1+q2*q2))*57.3;
 	eulerian[1] = atan2(2*(q0*q3+q1*q2),1-2*(q2*q2+q3*q3))*57.3;
 	eulerian[2] = asin(2*q0*q2 - 2*q1*q3)*57.3;
-
+/*
 	printf("%lf,%lf,%lf\n",
 		eulerian[0],
 		eulerian[1],
 		eulerian[2]
 	);
-
+*/
 }

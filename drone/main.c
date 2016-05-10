@@ -18,10 +18,12 @@ extern float eulerian[3];
 extern float eulerianbase[3];
 
 //pid.c
-extern int deltaspeed[4];
+extern int thresholdspeed[4];
+extern int motorspeed[4];
 
 //main.c
 int timeinterval;
+int alive=666666;
 
 
 
@@ -35,6 +37,14 @@ static void sig_int(int num)
 	killmpu9250();
 
 	exit(-1);
+}
+
+static void keyboardthread()
+{
+	while(1)
+	{
+		alive=getchar();
+	}
 }
 
 int timeval_subtract(struct timeval* x, struct timeval* y)   
@@ -56,13 +66,24 @@ int timeval_subtract(struct timeval* x, struct timeval* y)
  
 	return tv_usec+(tv_sec*1000000);   
 }
+
 int main(int argc,char** argv)
 {
 	int ret;
+	int haha;
+	pthread_t control=0;
 	struct timeval start,end;
 
 	//how to die
 	signal(SIGINT,sig_int);
+
+	//control thread
+	ret = pthread_create (&control, NULL, keyboardthread, NULL);
+	if (ret != 0)
+	{
+		printf("fail@pthread_create\n");
+		return 0;
+	}
 
 	//mpu9250 initialization
 	ret=initmpu9250();
@@ -101,14 +122,63 @@ int main(int argc,char** argv)
 	if(ret<=0)
 	{
 		printf("fail@initmotor\n");
-		return -5;
+		goto cutpower;
 	}
 
 	//wait for esc powerup
+	haha=0;
 	gettimeofday(&start,0);
-	ret=0;
 	while(1)
 	{
+		//read sensor
+		mpu9250();
+
+		//kalman filter
+		kalman();
+
+		//update state
+		imuupdate();
+
+		//time end
+		gettimeofday(&end,0);
+		timeinterval=timeval_subtract(&start,&end);
+		if(timeinterval<=0)
+		{
+			printf("error@timeinternal\n",timeinterval);
+			goto cutpower;
+		}
+		else if(timeinterval>6000*1000)
+		{
+			printf("go\n");
+			break;
+		}
+		else if(timeinterval>haha)
+		{
+			printf("%ds left\n",6-haha/1000/1000);
+			haha += 1000*1000;
+		}
+	}
+	eulerianbase[0]=eulerian[0];
+	eulerianbase[1]=eulerian[1];
+	eulerianbase[2]=eulerian[2];
+
+	//forever
+	gettimeofday(&start,0);
+	while(1)
+	{
+		//time start
+		gettimeofday(&end,0);
+
+		//stop?
+		if(alive != 666666)break;
+
+		timeinterval=timeval_subtract(&start,&end);
+		if(timeinterval<=0)
+		{
+			goto cutpower;
+		}
+		//printf("%d\n",timeinterval);
+
 		//read sensor
 		mpu9250();
 
@@ -121,43 +191,28 @@ int main(int argc,char** argv)
 		//convert value
 		pid();
 
-		//time end
-		gettimeofday(&end,0);
-		timeinterval=timeval_subtract(&start,&end);
-		if(timeinterval<=0)
-		{
-			printf("error@timeinternal\n",timeinterval);
-			return;
-		}
-		else if(timeinterval>6000*1000)
-		{
-			printf("go\n");
-			break;
-		}
-		else if(timeinterval>ret)
-		{
-			printf("%ds left\n",6-ret/1000/1000);
-			ret+=1000*1000;
-		}
-	}
-	eulerianbase[0]=eulerian[0];
-	eulerianbase[1]=eulerian[1];
-	eulerianbase[2]=eulerian[2];
+		//write pwm
+		motor();
 
-	//forever
-	memset(&start,0,sizeof(struct timeval));
-	memset(&end,0,sizeof(struct timeval));
+		//time end
+		memcpy( &end, &start, sizeof(struct timeval) );
+	}
+
+landing:
+	//wait for esc powerup
+	haha=0;
+	gettimeofday(&start,0);
 	while(1)
 	{
+		//time start
+		gettimeofday(&end,0);
+
 		timeinterval=timeval_subtract(&start,&end);
 		if(timeinterval<=0)
 		{
-			timeinterval=3000;	//3ms?
+			goto cutpower;
 		}
 		//printf("%d\n",timeinterval);
-
-		//time start
-		gettimeofday(&start,0);
 
 		//read sensor
 		mpu9250();
@@ -176,6 +231,30 @@ int main(int argc,char** argv)
 
 		//time end
 		gettimeofday(&end,0);
-	}
-}
+		timeinterval=timeval_subtract(&start,&end);
+		if(timeinterval<=0)
+		{
+			printf("error@timeinternal\n",timeinterval);
+			goto cutpower;
+		}
+		else if(timeinterval>1500*1000)
+		{
+			printf("bye\n");
+			break;
+		}
+		else if(timeinterval>haha)
+		{
+			ret=30-haha/50/1000;
+			thresholdspeed[0]=thresholdspeed[1]=thresholdspeed[2]=thresholdspeed[3]=ret;
+			printf("speed=%d\n",ret);
+			haha+=500*1000;
+		}
 
+		//time end
+		memcpy( &end, &start, sizeof(struct timeval) );
+	}
+
+cutpower:
+	//bye bye
+	sig_int(666666);
+}
