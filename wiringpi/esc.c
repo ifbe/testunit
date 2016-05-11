@@ -6,14 +6,18 @@
 #include <wiringPi.h>
 #include <softPwm.h>
 
-#define pin 37
-#define range 300
-	//default	increased
-	//10->1ms	100->1ms
-	//30->3ms	300->3ms
-	//100->10ms	1000->10ms
-	//200->20ms	2000->20ms
-	//1000->100ms	10000->100ms
+#define lefttail  32
+#define leftfront  36
+#define rightfront  38
+#define righttail  40
+
+#define range 3000
+	//default	10us		1us
+	//10->1ms	100->1ms	1000->1ms
+	//20->2ms	200->2ms	2000->2ms
+	//100->10ms	1000->10ms	10000->10ms
+	//200->20ms	2000->20ms	20000->20ms
+	//1000->100ms	10000->100ms	100000->100ms
 
 int main(int argc,char** argv)
 {
@@ -21,10 +25,13 @@ int main(int argc,char** argv)
 	int speed;
 
 	wiringPiSetupPhys();
-	softPwmCreate(pin, 0, range);
+	softPwmCreate(lefttail, 2000, range);
+	softPwmCreate(leftfront, 2000, range);
+	softPwmCreate(rightfront, 2000, range);
+	softPwmCreate(righttail, 2000, range);
 
-	//normal mode:	100,power
-	//setup mode:	200,power,100,[100,200]
+	//normal mode:	1000,power
+	//setup mode:	2000,power,1000,[1000,2000]
 	while(1)
 	{
 		scanf("%s",&input);

@@ -1,6 +1,4 @@
 #include <stdio.h>
-#include <linux/i2c.h>
-#include <linux/i2c-dev.h>
 #include <fcntl.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -9,7 +7,6 @@
 #include <math.h>
 
 extern float predictdata[6];
-float eulerianbase[3];
 float eulerian[3];
 
 #define Kp 2.0f

@@ -3,6 +3,8 @@ all:
 	mpu9250.c \
 	kalman.c \
 	quaternion.c \
+	control.c \
 	pid.c \
 	wiringpi.c \
 	-lm -lpthread -lwiringPi
+	#-lm -lpthread

@@ -6,11 +6,11 @@
 
 //in:	pitch,yaw,roll
 extern float eulerianbase[3];
+extern int thresholdspeed[4];
 extern float eulerian[3];
 extern int timeinterval;
 
 //out:	lefttail,leftfront,rightfront,righttail
-int thresholdspeed[4];
 int motorspeed[4];
 
 //pid's plaything
@@ -26,12 +26,6 @@ float err_sum[4];
 
 int initpid()
 {
-	//lefttail,leftfront,rightfront,righttail
-	thresholdspeed[0]=39;
-	thresholdspeed[1]=39;
-	thresholdspeed[2]=39;
-	thresholdspeed[3]=39;
-
 	//PID
 	P[0]=2.8;
 	P[1]=2.78;

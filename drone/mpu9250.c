@@ -6,6 +6,12 @@
 #include<unistd.h>
 #include<linux/i2c-dev.h>
 
+/*
+int initmpu9250(){return 1;}
+int killmpu9250(){}
+int mpu9250(){usleep(1000);}
+*/
+
 
 
 

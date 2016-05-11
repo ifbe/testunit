@@ -2,6 +2,11 @@
 #include <string.h>
 #include <errno.h>
 #include <unistd.h>
+/*
+int initmotor(){return 1;}
+int killmotor(){}
+int motor(){}
+*/
 
 #include <wiringPi.h>
 #include <softPwm.h>
