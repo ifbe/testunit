@@ -8,3 +8,5 @@ all:
 	wiringpi.c \
 	-lm -lpthread -lwiringPi
 	#-lm -lpthread
+clean:
+	rm -f *.out *.exe

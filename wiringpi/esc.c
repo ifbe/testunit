@@ -39,6 +39,9 @@ int main(int argc,char** argv)
 		else speed=atoi(input);
 
 		printf("speed=%d\n",speed);
-		softPwmWrite (pin,speed);
+		softPwmWrite (lefttail,speed);
+		softPwmWrite (leftfront,speed);
+		softPwmWrite (rightfront,speed);
+		softPwmWrite (righttail,speed);
 	}
 } 
