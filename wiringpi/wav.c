@@ -6,14 +6,16 @@
 
 
 
-//
-unsigned char* buffer=0;
+//......
 struct stat st;
-//
 int file=0;
 int size;
 int bytepersample=0;
 int samplepersecond=0;
+//44100hz->23ms, 人耳分辨时间间隔0.1s->4410个采样点->一般取2048个采样点
+unsigned char* buffer=0;
+float real[2048];
+float imag[2048];
 
 
 

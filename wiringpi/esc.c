@@ -11,37 +11,51 @@
 #define rightfront  38
 #define righttail  40
 
-#define range 3000
-	//default	10us		1us
-	//10->1ms	100->1ms	1000->1ms
-	//20->2ms	200->2ms	2000->2ms
-	//100->10ms	1000->10ms	10000->10ms
-	//200->20ms	2000->20ms	20000->20ms
-	//1000->100ms	10000->100ms	100000->100ms
+#define range 3*1000*1000
+	//default	10us		1ns
+	//10->1ms	100->1ms	1,000,000->1ms
+	//20->2ms	200->2ms	2,000,000->2ms
+	//100->10ms	1000->10ms	10,000,000->10ms
+	//200->20ms	2000->20ms	20,000,000->20ms
+	//1000->100ms	10000->100ms	100,000,000->100ms
 
+void pwmcreate(int pin,int duty_nano_second,int period_nano_second)
+{
+	softPwmCreate(pin, duty_nano_second/10000, period_nano_second/10000);
+}
+void pwmwrite(int pin,int duty_nano_second)
+{
+	softPwmWrite(pin, duty_nano_second/10000);
+}
 int main(int argc,char** argv)
 {
 	char input[128];
 	int speed;
 
+	//duty=2ms=2,000us=2,000,000ns, period=3ms=3,000us=3,000,000ns
 	wiringPiSetupPhys();
-	softPwmCreate(lefttail, 2000, range);
-	softPwmCreate(leftfront, 2000, range);
-	softPwmCreate(rightfront, 2000, range);
-	softPwmCreate(righttail, 2000, range);
+	pwmcreate(lefttail,  2*1000*1000, range);
+	pwmcreate(leftfront, 2*1000*1000, range);
+	pwmcreate(rightfront,2*1000*1000, range);
+	pwmcreate(righttail, 2*1000*1000, range);
 
-	//normal mode:	1000,power
-	//setup mode:	2000,power,1000,[1000,2000]
+	//normal mode:	duty=1ms,power
+	//setup mode:	duty=2ms,power,duty=1ms,[1ms,2ms]
 	while(1)
 	{
+		//get input
 		scanf("%s",&input);
 		if(input[0]=='q')break;
-		else speed=atoi(input);
 
+		//parse input
+		speed=atoi(input);
+		if(speed<1000*1000)speed=1000*1000;
 		printf("speed=%d\n",speed);
-		softPwmWrite (lefttail,speed);
-		softPwmWrite (leftfront,speed);
-		softPwmWrite (rightfront,speed);
-		softPwmWrite (righttail,speed);
+
+		//send output
+		pwmwrite(lefttail,speed);
+		pwmwrite(leftfront,speed);
+		pwmwrite(rightfront,speed);
+		pwmwrite(righttail,speed);
 	}
 } 
