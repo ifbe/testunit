@@ -5,13 +5,13 @@
 
 
 //in:	pitch,yaw,roll
-extern float eulerianbase[3];
-extern int thresholdspeed[4];
-extern float eulerian[3];
 extern int timeinterval;
+extern int thresholdspeed[4];
+extern float eulerianbase[3];
+extern float eulerian[3];
 
 //out:	lefttail,leftfront,rightfront,righttail
-int motorspeed[4];
+int deltaspeed[4];
 
 //pid's plaything
 float P[4];
@@ -93,37 +93,37 @@ int pid()
 	//printf("%f,%f\n",temp1,temp2);
 
 	//
-	motorspeed[0]=thresholdspeed[0];
-	motorspeed[1]=thresholdspeed[1];
-	motorspeed[2]=thresholdspeed[2];
-	motorspeed[3]=thresholdspeed[3];
+	deltaspeed[0]=thresholdspeed[0];
+	deltaspeed[1]=thresholdspeed[1];
+	deltaspeed[2]=thresholdspeed[2];
+	deltaspeed[3]=thresholdspeed[3];
 	if(temp1>0)
 	{
-		motorspeed[1] += (int)temp1;
-		motorspeed[2] += (int)temp1;
+		deltaspeed[1] += (int)temp1;
+		deltaspeed[2] += (int)temp1;
 	}
 	else
 	{
-		motorspeed[0] -= (int)temp1;
-		motorspeed[3] -= (int)temp1;
+		deltaspeed[0] -= (int)temp1;
+		deltaspeed[3] -= (int)temp1;
 	}
 
 	if(temp2>0)
 	{
-		motorspeed[0] += (int)temp2;
-		motorspeed[1] += (int)temp2;
+		deltaspeed[0] += (int)temp2;
+		deltaspeed[1] += (int)temp2;
 	}
 	else
 	{
-		motorspeed[2] -= (int)temp2;
-		motorspeed[3] -= (int)temp2;
+		deltaspeed[2] -= (int)temp2;
+		deltaspeed[3] -= (int)temp2;
 	}
 /*
 	printf("%d,%d,%d,%d\n",
-		motorspeed[0],
-		motorspeed[1],
-		motorspeed[2],
-		motorspeed[3]
+		deltaspeed[0],
+		deltaspeed[1],
+		deltaspeed[2],
+		deltaspeed[3]
         );
 */
 }

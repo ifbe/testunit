@@ -1,4 +1,5 @@
 #include<math.h>
+#include<wiringPi.h>
 #include<stdio.h>
 #include<stdlib.h>
 #include<fcntl.h>
@@ -15,9 +16,9 @@ int bytepersample=0;
 int samplepersecond=0;
 //44100hz->23ms, 人耳分辨时间间隔0.1s->4410个采样点->一般取2048个采样点
 unsigned char* buffer=0;
-int strength[2048];
 double real[2048];
 double imag[2048];
+double strength[2048];
 
 
 
@@ -97,14 +98,17 @@ void fft(double real[], double imag[], int N, int k, int inv)
 
 
 
+/*
 void pwmplay(double real[],double imag[])
 {
 	int i;
 	int maxindex=0;
 	int maxvalue=0;
+	double freq;
+	double period;
 
 	//hardwarepwmwrite(3,value);
-	for(i=0;i<2048/2;i++)
+	for(i=2;i<1000;i++)
 	{
 		strength[i]=sqrt(real[i]*real[i] + imag[i]*imag[i]);
 		if(maxvalue < strength[i])
@@ -115,8 +119,78 @@ void pwmplay(double real[],double imag[])
 
 		//printf("%d	%d\n", i*44100/2048, (int)strength[i]);
 	}
-	//printf("\n\n\n\n\n\n");
-	printf("%d\n",maxindex*44100/2048);
+	freq=maxindex*44100.0/2048.0;
+	printf("%dhz	",(int)freq);
+
+	if(freq<40) period=25000;
+	else if(freq>20000) period=100*1000;
+	else period=1000.0*1000.0*1000.0/freq;
+
+	hardwarepwmwrite( 3 , (int)(period/2) );
+	asus_pwm_set_period( 3 , (int)period );
+	printf( "%dms\n", (int)(period/1000) );
+}
+*/
+
+void pwmplay(double real[],double imag[])
+{
+	int i;
+	int j;
+	int playtime;
+	int timespent;
+	int maxindex=0;
+	int maxvalue=0;
+	double freq=0;
+	double period=0;
+	double sum=0;
+	double time=0;
+
+	for(i=2;i<1000;i++)
+	{
+		strength[i]=sqrt(real[i]*real[i] + imag[i]*imag[i]);
+		if(maxvalue < strength[i])
+		{
+			maxindex=i;
+			maxvalue=strength[i];
+		}
+	}
+
+	for(i=2;i<1000;i++)
+	{
+		if(strength[i] < 100)continue;
+		if(strength[i] * 5 < maxvalue * 4 )continue;
+
+		sum += strength[i];
+	}
+
+	//for(j=0;j<20;j++)
+	//{
+	for(i=2;i<1000;i++)
+	{
+		if(strength[i] < 100)continue;
+		if(strength[i] * 5 < maxvalue * 4 )continue;
+
+		freq=i*44100.0/2048.0;
+		printf("%dhz	",(int)freq);
+
+		if(freq<40) period=25000;
+		else if(freq>20000) period=100*1000;
+		else period=1000.0*1000.0*1000.0/freq;
+		printf( "%dms	", (int)(period/1000) );
+
+		hardwarepwmwrite( 3 , (int)(period/2) );
+		asus_pwm_set_period( 3 , (int)period );
+
+		playtime=(int)( 38000 * strength[i] / sum );
+		timespent+=playtime;
+		usleep(playtime);
+		printf("%dus\n",playtime);
+	}
+	//}
+
+	hardwarepwmwrite( 3 , 0 );
+	usleep(38000-timespent);
+	printf("----%dus\n",38000-timespent);
 }
 
 
@@ -174,6 +248,10 @@ int main(int argc,char** argv)
 	bytepersample = *(unsigned short*)(buffer+0x22);
 	bytepersample = bytepersample/8;
 
+wiringPiSetupGpio();
+pinMode (239, PWM_OUTPUT) ;
+hardwarepwmcreate(3,0,22675);
+
 	//now it begins
 	ret=44;
 	while(1)
@@ -206,7 +284,7 @@ int main(int argc,char** argv)
 		//printf("@%x\n",ret);
 
 		if(ret >= size)break;
-		usleep(46440);		//46439.90929705215us
+		//usleep(39000);	//46439.90929705215us
 	}
 
 closefile:

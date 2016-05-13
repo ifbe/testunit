@@ -23,9 +23,10 @@ int motor(){}
 
 
 
-extern	int motorspeed[4];
+//[0,1000*1000]
+extern	int deltaspeed[4];
 
-//1ms		lefttail,leftfront,rightfront,righttail
+//lefttail,leftfront,rightfront,righttail
 int zerospeed[4]={1000*1000,1000*1000,1000*1000,1000*1000};
 
 
@@ -34,24 +35,29 @@ int zerospeed[4]={1000*1000,1000*1000,1000*1000,1000*1000};
 void pwmcreate(int pin,int duty_nano_second,int period_nano_second)
 {
 	softPwmCreate(pin, duty_nano_second/10000, period_nano_second/10000);
+	//systemi2c_write(dev,reg,buf,count);
 }
 void pwmwrite(int pin,int duty_nano_second)
 {
 	softPwmWrite(pin, duty_nano_second/10000);
+	//systemi2c_write(dev,reg,buf,count);
 }
 
 int initmotor()
 {
-	//keep the min value
+	//power the esc up , wait for "do-re-mi , di---"
 	wiringPiSetupPhys () ;
+	pinMode(powerrelay,OUTPUT);
+	digitalWrite(powerrelay,1);
+
+	//softpwm(very inaccurate)
 	pwmcreate (lefttail, zerospeed[0], RANGE);
 	pwmcreate (leftfront, zerospeed[1], RANGE);
 	pwmcreate (rightfront, zerospeed[2], RANGE);
 	pwmcreate (righttail, zerospeed[3], RANGE);
 
-	//power the esc up , wait for "do-re-mi , di---"
-	pinMode(powerrelay,OUTPUT);
-	digitalWrite(powerrelay,1);
+	//hardwarepwm(pca9685)
+	//systemi2c_write(0xe0,reg,buf,count);
 
 	return 1;
 }
@@ -62,10 +68,10 @@ int killmotor()
 }
 int motor()
 {
-	int lb=zerospeed[0]+motorspeed[0];
-	int lf=zerospeed[1]+motorspeed[1];
-	int rf=zerospeed[2]+motorspeed[2];
-	int rb=zerospeed[3]+motorspeed[3];
+	int lb=zerospeed[0]+deltaspeed[0];
+	int lf=zerospeed[1]+deltaspeed[1];
+	int rf=zerospeed[2]+deltaspeed[2];
+	int rb=zerospeed[3]+deltaspeed[3];
 
 	//min=1.0ms
 	if(lb<1000*1000)lb=1000*1000;

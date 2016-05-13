@@ -5,7 +5,8 @@ all:
 	quaternion.c \
 	control.c \
 	pid.c \
-	wiringpi.c \
+	motor.c \
+	library.c \
 	-lm -lpthread -lwiringPi
 	#-lm -lpthread
 clean:
