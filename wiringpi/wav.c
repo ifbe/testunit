@@ -163,8 +163,6 @@ void pwmplay(double real[],double imag[])
 		sum += strength[i];
 	}
 
-	//for(j=0;j<20;j++)
-	//{
 	for(i=2;i<1000;i++)
 	{
 		if(strength[i] < 100)continue;
@@ -178,17 +176,16 @@ void pwmplay(double real[],double imag[])
 		else period=1000.0*1000.0*1000.0/freq;
 		printf( "%dms	", (int)(period/1000) );
 
-		hardwarepwmwrite( 3 , (int)(period/2) );
-		asus_pwm_set_period( 3 , (int)period );
+		pwmSetRange(period/207); //range at 1000 ticks (20ms)
+		pwmWrite(1,period/2/207);
 
 		playtime=(int)( 38000 * strength[i] / sum );
 		timespent+=playtime;
 		usleep(playtime);
 		printf("%dus\n",playtime);
 	}
-	//}
 
-	hardwarepwmwrite( 3 , 0 );
+	pwmWrite(1,0);
 	usleep(38000-timespent);
 	printf("----%dus\n",38000-timespent);
 }
@@ -248,9 +245,13 @@ int main(int argc,char** argv)
 	bytepersample = *(unsigned short*)(buffer+0x22);
 	bytepersample = bytepersample/8;
 
-wiringPiSetupGpio();
-pinMode (239, PWM_OUTPUT) ;
-hardwarepwmcreate(3,0,22675);
+	//
+	wiringPiSetup();
+	pinMode(1, PWM_OUTPUT);
+	pwmSetMode(PWM_MODE_MS);
+	pwmSetClock(2); //clock at 50kHz (20us tick)
+	pwmSetRange(1000); //range at 1000 ticks (20ms)
+	pwmWrite(1,0);
 
 	//now it begins
 	ret=44;

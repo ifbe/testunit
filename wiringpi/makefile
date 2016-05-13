@@ -6,3 +6,5 @@ motor:
 	gcc motor.c -lwiringPi -lm
 pwm:
 	gcc pwm.c -lwiringPi -lm
+wav:
+	gcc wav.c -lwiringPi -lm
