@@ -36,6 +36,7 @@ int timeval_subtract(struct timeval* x, struct timeval* y)
  
 	tv_sec = ( y->tv_sec-x->tv_sec );
 	tv_usec = ( y->tv_usec-x->tv_usec );
+	//printf("%d,%d\n",tv_sec,tv_usec);
 
 	if(tv_usec<0)   
 	{   
@@ -183,7 +184,8 @@ going:
 		motor();
 
 		//time end
-		memcpy( &end, &start, sizeof(struct timeval) );
+		start.tv_sec = end.tv_sec;
+		start.tv_usec = end.tv_usec;
 	}
 
 cutpower:

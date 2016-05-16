@@ -13,13 +13,30 @@ extern float eulerian[3];
 //out:	lefttail,leftfront,rightfront,righttail
 int deltaspeed[4];
 
-//pid's plaything
-float P[4];
-float I[4];
-float D[4];
-float err_now[4];
-float err_before[4];
-float err_sum[4];
+//pitch
+float pitch_P;
+float pitch_I;
+float pitch_D;
+float pitch_now;
+float pitch_before;
+float pitch_sum;
+float pitch_out;
+//yaw
+float yaw_P;
+float yaw_I;
+float yaw_D;
+float yaw_now;
+float yaw_before;
+float yaw_sum;
+float yaw_out;
+//roll
+float roll_P;
+float roll_I;
+float roll_D;
+float roll_now;
+float roll_before;
+float roll_sum;
+float roll_out;
 
 
 
@@ -27,36 +44,19 @@ float err_sum[4];
 int initpid()
 {
 	//PID
-	P[0]=280;
-	P[1]=278;
-	P[2]=230;
-	P[3]=220;
+	pitch_P=280;
+	pitch_I=0;
+	pitch_D=0;
+	pitch_now=0;
+	pitch_before=0;
+	pitch_sum=0;
 
-	I[0]=0;
-	I[1]=0;
-	I[2]=0;
-	I[3]=0;
-
-	D[0]=0;
-	D[1]=0;
-	D[2]=0;
-	D[3]=0;
-
-	//err
-	err_now[0]=0;
-	err_now[0]=0;
-	err_now[0]=0;
-	err_now[0]=0;
-
-	err_before[0]=0;
-	err_before[1]=0;
-	err_before[2]=0;
-	err_before[3]=0;
-
-	err_sum[0]=0;
-	err_sum[1]=0;
-	err_sum[2]=0;
-	err_sum[3]=0;
+	roll_P=278;
+	roll_I=0;
+	roll_D=0;
+	roll_now=0;
+	roll_before=0;
+	pitch_sum=0;
 
 	return 1;
 }
@@ -67,63 +67,65 @@ void killpid()
 //new = P*() + I*() + D*()
 int pid()
 {
-	float temp1,temp2;
-
-	//pitch
-	err_now[0]	= eulerianbase[0]-eulerian[0];
-	err_sum[0]	+=err_now[0];
-	if(err_sum[0] > 1000)err_sum[0]=1000;
-
-	temp1	= P[0]*(err_now[0])
-		+ I[0]*(err_sum[0]*timeinterval)
-		+ D[0]*(err_now[0]-err_before[0])/timeinterval;
-
-	//roll
-	err_now[1]	= eulerianbase[2]-eulerian[2];
-	err_sum[1]	+=err_now[1];
-	if(err_sum[1] > 1000)err_sum[1]=1000;
-
-	temp2	= P[1]*(err_now[1])
-		+ I[1]*(err_sum[1]*timeinterval)
-		+ D[1]*(err_now[1]-err_before[1])/timeinterval;
-
-	//
-	err_before[0]	= err_now[0];
-	err_before[1]	= err_now[1];
-	//printf("%f,%f\n",temp1,temp2);
-
-	//
+	//initial value
 	deltaspeed[0]=thresholdspeed[0];
 	deltaspeed[1]=thresholdspeed[1];
 	deltaspeed[2]=thresholdspeed[2];
 	deltaspeed[3]=thresholdspeed[3];
-	if(temp1>0)
-	{
-		deltaspeed[1] += (int)temp1;
-		deltaspeed[2] += (int)temp1;
-	}
-	else
-	{
-		deltaspeed[0] -= (int)temp1;
-		deltaspeed[3] -= (int)temp1;
-	}
 
-	if(temp2>0)
-	{
-		deltaspeed[0] += (int)temp2;
-		deltaspeed[1] += (int)temp2;
-	}
-	else
-	{
-		deltaspeed[2] -= (int)temp2;
-		deltaspeed[3] -= (int)temp2;
-	}
-/*
+
+
+
+	//pitch
+	pitch_now = eulerianbase[0]-eulerian[0];
+
+	pitch_sum += pitch_now;
+	if(pitch_sum > 1000)pitch_sum = 1000;
+
+	pitch_out	= pitch_P * pitch_now
+			+ pitch_I * pitch_sum * timeinterval
+			+ pitch_D * (pitch_now - pitch_before) / timeinterval;
+
+	pitch_before = pitch_now;
+
+	deltaspeed[1] += (int)pitch_out;
+	deltaspeed[2] += (int)pitch_out;
+	deltaspeed[0] -= (int)pitch_out;
+	deltaspeed[3] -= (int)pitch_out;
+
+
+
+
+	//roll
+	roll_now = eulerianbase[2]-eulerian[2];
+
+	roll_sum += roll_now;
+	if(roll_sum > 1000)roll_sum = 1000;
+
+	roll_out	= roll_P * roll_now
+			+ roll_I * (roll_sum * timeinterval)
+			+ roll_D * (roll_now - roll_before)/timeinterval;
+
+	roll_before = roll_now;
+
+	deltaspeed[0] += (int)roll_out;
+	deltaspeed[1] += (int)roll_out;
+	deltaspeed[2] -= (int)roll_out;
+	deltaspeed[3] -= (int)roll_out;
+
+
+
+
+
+	if(deltaspeed[0] < 0)deltaspeed[0] = 0;
+	if(deltaspeed[1] < 0)deltaspeed[1] = 0;
+	if(deltaspeed[2] < 0)deltaspeed[2] = 0;
+	if(deltaspeed[3] < 0)deltaspeed[3] = 0;
 	printf("%d,%d,%d,%d\n",
-		deltaspeed[0]/1000,
-		deltaspeed[1]/1000,
-		deltaspeed[2]/1000,
-		deltaspeed[3]/1000
+		deltaspeed[0],
+		deltaspeed[1],
+		deltaspeed[2],
+		deltaspeed[3]
         );
-*/
+
 }

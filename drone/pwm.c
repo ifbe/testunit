@@ -84,9 +84,9 @@ int killmotor()
 int motor()
 {
 	int lb=zerospeed[0] + (deltaspeed[0] / 500);
-	int lf=zerospeed[0] + (deltaspeed[0] / 500);
-	int rf=zerospeed[0] + (deltaspeed[0] / 500);
-	int rb=zerospeed[0] + (deltaspeed[0] / 500);
+	int lf=zerospeed[1] + (deltaspeed[1] / 500);
+	int rf=zerospeed[2] + (deltaspeed[2] / 500);
+	int rb=zerospeed[3] + (deltaspeed[3] / 500);
 
 	//min=1000, max=3000, limit to 2000
 	if(lb>2000)lb=2000;
