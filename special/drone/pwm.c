@@ -98,7 +98,7 @@ int motor()
 	//softPwmWrite(leftfront, lf);
 	//softPwmWrite(rightfront,rf);
 	//softPwmWrite(righttail, rb);
-
+/*
 	printf("%d,%d,%d,%d\n", lb, lf, rf, rb );
-
+*/
 }

@@ -32,12 +32,12 @@ void imuupdate()
 	float vx, vy, vz;
 	float ex, ey, ez;
 
-	float ax=predictdata[0]*9.8/16384;
-	float ay=predictdata[1]*9.8/16384;
-	float az=predictdata[2]*9.8/16384;
-	float gx=predictdata[3]*3.141592653/16384;
-	float gy=predictdata[4]*3.141592653/16384;
-	float gz=predictdata[5]*3.141592653/16384;
+	float ax=predictdata[0]*9.8/8192;
+	float ay=predictdata[1]*9.8/8192;
+	float az=predictdata[2]*9.8/8192;
+	float gx=predictdata[3]*3.141592653/8192;
+	float gy=predictdata[4]*3.141592653/8192;
+	float gz=predictdata[5]*3.141592653/8192;
 
 	norm = sqrt(ax*ax+ay*ay+az*az);
 	ax = ax/norm;

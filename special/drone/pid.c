@@ -121,6 +121,10 @@ int pid()
 	if(deltaspeed[1] < 0)deltaspeed[1] = 0;
 	if(deltaspeed[2] < 0)deltaspeed[2] = 0;
 	if(deltaspeed[3] < 0)deltaspeed[3] = 0;
+	printf("%f,%f\n",
+		pitch_out,
+		roll_out
+	);
 	printf("%d,%d,%d,%d\n",
 		deltaspeed[0],
 		deltaspeed[1],
