@@ -31,24 +31,24 @@ static void* keyboardthread(void* in)
 
 			if(ret==65)
 			{
-				if(thresholdspeed[0]<40)
+				if(thresholdspeed[0] < 400*1000)
 				{
-					thresholdspeed[0]++;
-					thresholdspeed[1]++;
-					thresholdspeed[2]++;
-					thresholdspeed[3]++;
-					printf("threshold=%d\n",thresholdspeed[0]);
+					thresholdspeed[0]+=10000;
+					thresholdspeed[1]+=10000;
+					thresholdspeed[2]+=10000;
+					thresholdspeed[3]+=10000;
+					printf("threshold=%d\n",thresholdspeed[0]/1000);
 				}
 			}
 			else if(ret==66)
 			{
 				if(thresholdspeed[0]>0)
 				{
-					thresholdspeed[0]--;
-					thresholdspeed[1]--;
-					thresholdspeed[2]--;
-					thresholdspeed[3]--;
-					printf("threshold=%d\n",thresholdspeed[0]);
+					thresholdspeed[0]-=10000;
+					thresholdspeed[1]-=10000;
+					thresholdspeed[2]-=10000;
+					thresholdspeed[3]-=10000;
+					printf("threshold=%d\n",thresholdspeed[0]/1000);
 				}
 			}
 		}

@@ -33,6 +33,15 @@ void killkalman()
 }
 int kalman()
 {
+
+	predictdata[0]=measuredata[0];
+	predictdata[1]=measuredata[1];
+	predictdata[2]=measuredata[2];
+	predictdata[3]=measuredata[3];
+	predictdata[4]=measuredata[4];
+	predictdata[5]=measuredata[5];
+	return 1;
+
 	/* Predict		p(n|n-1)=A^2*p(n-1|n-1)+q */
 	predictdata[0] = A * predictdata[0];
 	predictdata[1] = A * predictdata[1];

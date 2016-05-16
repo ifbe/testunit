@@ -5,7 +5,7 @@ all:
 	quaternion.c \
 	control.c \
 	pid.c \
-	motor.c \
+	pwm.c \
 	library.c \
 	-lm -lpthread -lwiringPi
 	#-lm -lpthread

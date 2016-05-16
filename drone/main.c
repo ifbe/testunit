@@ -21,6 +21,7 @@ static void sig_int(int num)
 	killquaternion();
 	killkalman();
 	killmpu9250();
+	killlibrary();
 
 	exit(-1);
 }
@@ -53,6 +54,21 @@ int main(int argc,char** argv)
 
 	//how to die
 	signal(SIGINT,sig_int);
+
+	ret=getuid();
+	if(ret!=0)
+	{
+		printf("please run as root\n");
+		return 0;
+	}
+
+	//system library
+	ret=initlibrary();
+	if(ret<=0)
+	{
+		printf("fail@initlibrary\n");
+		return -1;
+	}
 
 	//mpu9250 initialization
 	ret=initmpu9250();
@@ -149,7 +165,7 @@ going:
 		{
 			goto cutpower;
 		}
-		//printf("%d\n",timeinterval);
+		printf("%d\n",timeinterval);
 
 		//read sensor
 		mpu9250();

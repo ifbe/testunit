@@ -27,10 +27,10 @@ float err_sum[4];
 int initpid()
 {
 	//PID
-	P[0]=2.8;
-	P[1]=2.78;
-	P[2]=1.9;
-	P[3]=1.8;
+	P[0]=280;
+	P[1]=278;
+	P[2]=230;
+	P[3]=220;
 
 	I[0]=0;
 	I[1]=0;
@@ -72,7 +72,7 @@ int pid()
 	//pitch
 	err_now[0]	= eulerianbase[0]-eulerian[0];
 	err_sum[0]	+=err_now[0];
-	if(err_sum[0] > 1000)err_now[0]=1000;
+	if(err_sum[0] > 1000)err_sum[0]=1000;
 
 	temp1	= P[0]*(err_now[0])
 		+ I[0]*(err_sum[0]*timeinterval)
@@ -81,7 +81,7 @@ int pid()
 	//roll
 	err_now[1]	= eulerianbase[2]-eulerian[2];
 	err_sum[1]	+=err_now[1];
-	if(err_sum[1] > 1000)err_now[1]=1000;
+	if(err_sum[1] > 1000)err_sum[1]=1000;
 
 	temp2	= P[1]*(err_now[1])
 		+ I[1]*(err_sum[1]*timeinterval)
@@ -120,10 +120,10 @@ int pid()
 	}
 /*
 	printf("%d,%d,%d,%d\n",
-		deltaspeed[0],
-		deltaspeed[1],
-		deltaspeed[2],
-		deltaspeed[3]
+		deltaspeed[0]/1000,
+		deltaspeed[1]/1000,
+		deltaspeed[2]/1000,
+		deltaspeed[3]/1000
         );
 */
 }
