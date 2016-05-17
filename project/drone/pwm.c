@@ -36,32 +36,49 @@ extern	int deltaspeed[4];
 //lefttail,leftfront,rightfront,righttail
 int zerospeed[4]={1000,1000,1000,1000};
 
+//
+static unsigned char sendbuf[16];
+
 
 
 
 int initmotor()
 {
 	int ret;
-	unsigned char buf[16];
 
 	//hardwarepwm(pca9685)
-        buf[0]=0x31;		//sleep
-        systemi2c_write(0x40, 0, buf, 1);
+	sendbuf[0]=0x31;	//sleep
+	systemi2c_write(0x40, 0, sendbuf, 1);
 
-        buf[0]=0x20;		//prescale
-        systemi2c_write(0x40, 0xef, buf, 1);
+	sendbuf[0]=18;		//prescale
+	systemi2c_write(0x40, 0xfe, sendbuf, 1);
 
-        buf[0]=0xa1;		//wake
-        systemi2c_write(0x40, 0, buf, 1);
+	sendbuf[0]=0xa1;	//wake
+	systemi2c_write(0x40, 0, sendbuf, 1);
 
-        buf[0]=0x4;		//restart
-        systemi2c_write(0x40, 1, buf, 1);
+	sendbuf[0]=0x4;		//restart
+	systemi2c_write(0x40, 1, sendbuf, 1);
 
-	buf[0]=0;		//T=3ms
-	buf[1]=0;
-	buf[2]=3000&0xff;
-	buf[3]=3000>>8;
-	systemi2c_write(0x40, 6, buf, 4);
+	sendbuf[0]=0;		//T=3ms
+	sendbuf[1]=0;
+	sendbuf[2]=1000&0xff;
+	sendbuf[3]=1000>>8;
+
+	sendbuf[4]=0;		//T=3ms
+	sendbuf[5]=0;
+	sendbuf[6]=1000&0xff;
+	sendbuf[7]=1000>>8;
+
+	sendbuf[8]=0;		//T=3ms
+	sendbuf[9]=0;
+	sendbuf[10]=1000&0xff;
+	sendbuf[11]=1000>>8;
+
+	sendbuf[12]=0;		//T=3ms
+	sendbuf[13]=0;
+	sendbuf[14]=1000&0xff;
+	sendbuf[15]=1000>>8;
+	systemi2c_write(0x40, 6, sendbuf, 16);
 
 	//softpwm(very inaccurate)
 	//softPwmCreate(lefttail, zerospeed[0]/1000, RANGE/1000);
@@ -78,8 +95,13 @@ int initmotor()
 }
 int killmotor()
 {
+	int i;
+
 	pinMode(powerrelay,OUTPUT);
 	digitalWrite(powerrelay,0);
+
+	for(i=0;i<16;i++)sendbuf[i]=0;
+	systemi2c_write(0x40, 6, sendbuf, 16);
 }
 int motor()
 {
@@ -94,11 +116,26 @@ int motor()
 	if(rf>2000)rf=2000;
 	if(rb>2000)rb=2000;
 
+	//soft................
 	//softPwmWrite(lefttail,  lb);
 	//softPwmWrite(leftfront, lf);
 	//softPwmWrite(rightfront,rf);
 	//softPwmWrite(righttail, rb);
-/*
+
+	//hard..................
+	sendbuf[2]=lb&0xff;
+	sendbuf[3]=lb>>8;
+
+	sendbuf[6]=lf&0xff;
+	sendbuf[7]=lf>>8;
+
+	sendbuf[10]=rf&0xff;
+	sendbuf[11]=rf>>8;
+
+	sendbuf[14]=rb&0xff;
+	sendbuf[15]=rb>>8;
+	systemi2c_write(0x40, 8, sendbuf+2, 14);
+
 	printf("%d,%d,%d,%d\n", lb, lf, rf, rb );
-*/
+
 }

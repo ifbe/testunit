@@ -166,7 +166,7 @@ going:
 		{
 			goto cutpower;
 		}
-		//printf("%d\n",timeinterval);
+		printf("%d\n",timeinterval);
 
 		//read sensor
 		mpu9250();

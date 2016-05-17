@@ -44,14 +44,14 @@ float roll_out;
 int initpid()
 {
 	//PID
-	pitch_P=280;
+	pitch_P=2800;
 	pitch_I=0;
 	pitch_D=0;
 	pitch_now=0;
 	pitch_before=0;
 	pitch_sum=0;
 
-	roll_P=278;
+	roll_P=2780;
 	roll_I=0;
 	roll_D=0;
 	roll_now=0;
@@ -88,10 +88,16 @@ int pid()
 
 	pitch_before = pitch_now;
 
-	deltaspeed[1] += (int)pitch_out;
-	deltaspeed[2] += (int)pitch_out;
-	deltaspeed[0] -= (int)pitch_out;
-	deltaspeed[3] -= (int)pitch_out;
+	if(pitch_out>0)
+	{
+		deltaspeed[1] += (int)pitch_out;
+		deltaspeed[2] += (int)pitch_out;
+	}
+	else
+	{
+		deltaspeed[0] -= (int)pitch_out;
+		deltaspeed[3] -= (int)pitch_out;
+	}
 
 
 
@@ -108,10 +114,16 @@ int pid()
 
 	roll_before = roll_now;
 
-	deltaspeed[0] += (int)roll_out;
-	deltaspeed[1] += (int)roll_out;
-	deltaspeed[2] -= (int)roll_out;
-	deltaspeed[3] -= (int)roll_out;
+	if(roll_out>0)
+	{
+		deltaspeed[0] += (int)roll_out;
+		deltaspeed[1] += (int)roll_out;
+	}
+	else
+	{
+		deltaspeed[2] -= (int)roll_out;
+		deltaspeed[3] -= (int)roll_out;
+	}
 
 
 
@@ -121,6 +133,7 @@ int pid()
 	if(deltaspeed[1] < 0)deltaspeed[1] = 0;
 	if(deltaspeed[2] < 0)deltaspeed[2] = 0;
 	if(deltaspeed[3] < 0)deltaspeed[3] = 0;
+/*
 	printf("%f,%f\n",
 		pitch_out,
 		roll_out
@@ -131,5 +144,5 @@ int pid()
 		deltaspeed[2],
 		deltaspeed[3]
         );
-
+*/
 }

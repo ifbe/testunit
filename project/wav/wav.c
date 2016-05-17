@@ -98,7 +98,6 @@ void fft(double real[], double imag[], int N, int k, int inv)
 
 
 
-/*
 void pwmplay(double real[],double imag[])
 {
 	int i;
@@ -107,7 +106,6 @@ void pwmplay(double real[],double imag[])
 	double freq;
 	double period;
 
-	//hardwarepwmwrite(3,value);
 	for(i=2;i<1000;i++)
 	{
 		strength[i]=sqrt(real[i]*real[i] + imag[i]*imag[i]);
@@ -116,9 +114,9 @@ void pwmplay(double real[],double imag[])
 			maxindex=i;
 			maxvalue=strength[i];
 		}
-
-		//printf("%d	%d\n", i*44100/2048, (int)strength[i]);
 	}
+	printf("%d	",(int)strength[maxindex]);
+
 	freq=maxindex*44100.0/2048.0;
 	printf("%dhz	",(int)freq);
 
@@ -126,12 +124,14 @@ void pwmplay(double real[],double imag[])
 	else if(freq>20000) period=100*1000;
 	else period=1000.0*1000.0*1000.0/freq;
 
-	hardwarepwmwrite( 3 , (int)(period/2) );
-	asus_pwm_set_period( 3 , (int)period );
+	pwmSetRange(period/207); //range at 1000 ticks (20ms)
+	pwmWrite(1,period/2/207);
 	printf( "%dms\n", (int)(period/1000) );
-}
-*/
 
+	usleep(25000);
+}
+
+/*
 void pwmplay(double real[],double imag[])
 {
 	int i;
@@ -158,7 +158,7 @@ void pwmplay(double real[],double imag[])
 	for(i=2;i<1000;i++)
 	{
 		if(strength[i] < 100)continue;
-		if(strength[i] * 5 < maxvalue * 4 )continue;
+		if(strength[i] < maxvalue )continue;
 
 		sum += strength[i];
 	}
@@ -166,7 +166,7 @@ void pwmplay(double real[],double imag[])
 	for(i=2;i<1000;i++)
 	{
 		if(strength[i] < 100)continue;
-		if(strength[i] * 5 < maxvalue * 4 )continue;
+		if(strength[i] < maxvalue )continue;
 
 		freq=i*44100.0/2048.0;
 		printf("%dhz	",(int)freq);
@@ -189,6 +189,7 @@ void pwmplay(double real[],double imag[])
 	usleep(38000-timespent);
 	printf("----%dus\n",38000-timespent);
 }
+*/
 
 
 
@@ -277,6 +278,7 @@ int main(int argc,char** argv)
 
 				ret+=4;
 			}
+			ret-=4*512;
 		}
 
 		//
@@ -285,7 +287,6 @@ int main(int argc,char** argv)
 		//printf("@%x\n",ret);
 
 		if(ret >= size)break;
-		//usleep(39000);	//46439.90929705215us
 	}
 
 closefile:
