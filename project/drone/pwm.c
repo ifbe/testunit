@@ -136,6 +136,6 @@ int motor()
 	sendbuf[15]=rb>>8;
 	systemi2c_write(0x40, 8, sendbuf+2, 14);
 
-	printf("%d,%d,%d,%d\n", lb, lf, rf, rb );
+	//printf("pwm:	%d,%d,%d,%d\n", lb, lf, rf, rb );
 
 }

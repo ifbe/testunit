@@ -72,6 +72,7 @@ int pid()
 	deltaspeed[1]=thresholdspeed[1];
 	deltaspeed[2]=thresholdspeed[2];
 	deltaspeed[3]=thresholdspeed[3];
+	if(thresholdspeed[0]<100*1000)goto finishpid;
 
 
 
@@ -133,16 +134,22 @@ int pid()
 	if(deltaspeed[1] < 0)deltaspeed[1] = 0;
 	if(deltaspeed[2] < 0)deltaspeed[2] = 0;
 	if(deltaspeed[3] < 0)deltaspeed[3] = 0;
+
+
+
+
+finishpid:
 /*
-	printf("%f,%f\n",
+	printf("pid:	%f,%f\n",
 		pitch_out,
 		roll_out
 	);
-	printf("%d,%d,%d,%d\n",
+	printf("pid:	%d,%d,%d,%d\n",
 		deltaspeed[0],
 		deltaspeed[1],
 		deltaspeed[2],
 		deltaspeed[3]
         );
 */
+	return;
 }

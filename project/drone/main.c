@@ -118,44 +118,10 @@ int main(int argc,char** argv)
 		goto cutpower;
 	}
 
-	//wait for esc powerup
-	haha=0;
-	gettimeofday(&start,0);
-	while(1)
-	{
-		//read sensor
-		mpu9250();
-
-		//kalman filter
-		kalman();
-
-		//update state
-		imuupdate();
-
-		//time end
-		gettimeofday(&end,0);
-		timeinterval=timeval_subtract(&start,&end);
-		if(timeinterval<=0)
-		{
-			printf("error@timeinternal=%d\n",timeinterval);
-			goto cutpower;
-		}
-		else if(timeinterval>6000*1000)
-		{
-			printf("go\n");
-			break;
-		}
-		else if(timeinterval>haha)
-		{
-			printf("%ds left\n",6-haha/1000/1000);
-			haha += 1000*1000;
-		}
-	}
-
 going:
 	//forever
 	gettimeofday(&start,0);
-	usleep(1000);
+	usleep(5000);
 	while(1)
 	{
 		//time start
@@ -166,7 +132,7 @@ going:
 		{
 			goto cutpower;
 		}
-		printf("%d\n",timeinterval);
+		//printf("time:	%d\n",timeinterval);
 
 		//read sensor
 		mpu9250();
@@ -175,7 +141,8 @@ going:
 		kalman();
 
 		//update state
-		imuupdate();
+		//imuupdate();
+		ahrsupdate();
 
 		//convert value
 		pid();

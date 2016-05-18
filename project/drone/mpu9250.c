@@ -16,87 +16,64 @@ int mpu9250(){usleep(1000);}
 
 
 //mpu9250's plaything
-unsigned char reg[18];
+unsigned char reg[0x40];
 
-//output
-short measuredata[6];
-
-
+//(ax,ay,az),(gx,gy,gz),(mx,my,mz),(temp)
+float measuredata[10];
 
 
-unsigned char sequence[20][2]=
-{
-	// Reset Device
-	{0x80,0x6b},		//MPUREG_PWR_MGMT_1},
 
-	// Clock Source
-	{0x01,0x6b},		//MPUREG_PWR_MGMT_1},
-
-	// Enable Acc & Gyro
-	{0x00,0x6c},		//MPUREG_PWR_MGMT_2},
-
-	// Use DLPF set Gyroscope bandwidth 184Hz, temperature bandwidth     188Hz
-	{0x9,0x1d},		//MPUREG_CONFIG},
-
-	// +-2000dps
-	{0x18,0x1b},		//MPUREG_GYRO_CONFIG},
-
-	// +-4G
-	{0x08,0x1c},		//MPUREG_ACCEL_CONFIG},
-
-	// Set Acc Data Rates, Enable Acc LPF , Bandwidth 184Hz
-	{0x09,0x1d},		//MPUREG_ACCEL_CONFIG_2},
-
-	{0x30,0x37},		//MPUREG_INT_PIN_CFG},
-
-        //{0x40, MPUREG_I2C_MST_CTRL},   // I2C Speed 348 kHz
-        //{0x20, MPUREG_USER_CTRL},      // Enable AUX
-
-	// I2C Master mode
-	{0x20,0x6a},		//MPUREG_USER_CTRL},
-
-	//I2C configuration multi-master  IIC 400KHz
-	{0x0D,0x24},		//MPUREG_I2C_MST_CTRL},
-
-	//Set the I2C slave address of AK8963 and set for write.
-	{0xc,0x25},		//MPUREG_I2C_SLV0_ADDR},
-
-        //{0x09, MPUREG_I2C_SLV4_CTRL},
-        //{0x81, MPUREG_I2C_MST_DELAY_CTRL}, //Enable I2C delay
-
-	//I2C slave 0 register address from where to begin data transfer
-	{0xb,0x26},		//MPUREG_I2C_SLV0_REG},
-
-	// Reset AK8963
-	{0x01,0x63},		//MPUREG_I2C_SLV0_DO},
-
-	//Enable I2C and set 1 byte
-	{0x81,0x27},		//MPUREG_I2C_SLV0_CTRL},
-
-	//I2C slave 0 register address from where to begin data transfer
-	{0xa,0x26},		//MPUREG_I2C_SLV0_REG},
-
-	// Register value to continuous measurement in 16bit
-	{0x12,0x63},		//MPUREG_I2C_SLV0_DO},
-
-	//Enable I2C and set 1 byte
-	{0x81,0x27},		//MPUREG_I2C_SLV0_CTRL},
-
-	{0,0}
-};
 
 int initmpu9250()
 {
-	int i=0;
+	//PWR_MGMT_1	reset
+	reg[0]=0x80;
+	systemi2c_write(0x68,0x6b,reg,1);
 
-	for(i=0;i<32;i++)
-	{
-		if(sequence[i][1]==0)break;
+	//PWR_MGMT_1	clock
+	reg[0]=0x01;
+	systemi2c_write(0x68,0x6b,reg,1);
 
-		systemi2c_write(0x68,sequence[i][1],&sequence[i][0],1);
+	//PWR_MGMT_2	enable
+	reg[0]=0x00;
+	systemi2c_write(0x68,0x6c,reg,1);
 
-		usleep(10*1000);
-	}
+	//CONFIG
+	reg[0]=0x3;
+	systemi2c_write(0x68,0x1a,reg,1);
+
+	//SMPLRT_DIV
+	reg[0]=0x4;
+	systemi2c_write(0x68,0x19,reg,1);
+
+	//GYRO_CONFIG
+	systemi2c_read(0x68,0x1b,reg,1);
+	reg[0] &= 0xfd;
+	reg[0] &= 0xe7;
+	reg[0] |= (3<<3);
+	systemi2c_write(0x68,0x1b,reg,1);
+
+	//ACCEL_CONFIG
+	systemi2c_read(0x68,0x1c,reg,1);
+	reg[0] &= 0xe7;
+	reg[0] |= (1<<3);
+	systemi2c_write(0x68,0x1c,reg,1);
+
+	//ACCEL_CONFIG2
+	systemi2c_read(0x68,0x1d,reg,1);
+	reg[0] &= 0xf0;
+	reg[0] |= 0x3;
+	systemi2c_write(0x68,0x1d,reg,1);
+
+	//INT_PIN_CFG
+	reg[0]=0x22;
+	systemi2c_write(0x68,0x37,reg,1);
+
+	//INT_ENABLE
+	reg[0]=0x1;
+	systemi2c_write(0x68,0x38,reg,1);
+
+	//
 	return 1;
 }
 void killmpu9250()
@@ -108,23 +85,93 @@ void killmpu9250()
 
 int mpu9250()
 {
-	//device,register,memory,count
-	systemi2c_read(0x68,0x3b,reg+0,14);
+	int temp;
 
-	measuredata[0]=(reg[0]<<8)|reg[1];
-	measuredata[1]=(reg[2]<<8)|reg[3];
-	measuredata[2]=(reg[4]<<8)|reg[5];
-	measuredata[3]=(reg[ 8]<<8)|reg[ 9];
-	measuredata[4]=(reg[10]<<8)|reg[11];
-	measuredata[5]=(reg[12]<<8)|reg[13];
+	//0x68.0x3b -> 0x00
+	systemi2c_read(0x68, 0x3b, reg+0, 14);
+
+	//0xc.0x3b -> 0x20
+	systemi2c_read(0xc, 0x3, reg+0x20, 6);
+
+
+
+
+	//accel
+	temp=(reg[0]<<8) + reg[1];
+	if(temp>32768)temp = temp-65536;
+	measuredata[0] = temp * 9.82 / 8192.0;
+
+	temp=(reg[2]<<8) + reg[3];
+	if(temp>32768)temp = temp-65536;
+	measuredata[1] = temp * 9.82 / 8192.0;
+
+	temp=(reg[4]<<8) + reg[5];
+	if(temp>32768)temp = temp-65536;
+	measuredata[2] = temp * 9.82 / 8192.0;
+
+
+
+
+	//temp
+	temp=(reg[6]<<8) + reg[7];
+	measuredata[9] = temp / 100.0;
+
+
+
+
+	//gyro
+	temp=(reg[ 8]<<8) + reg[ 9];
+	if(temp>32768)temp = temp-65536;
+	measuredata[3] = temp * 180.0 / 32768.0;
+
+	temp=(reg[10]<<8) + reg[11];
+	if(temp>32768)temp = temp-65536;
+	measuredata[4] = temp * 180.0 / 32768.0;
+
+	temp=(reg[12]<<8) + reg[13];
+	if(temp>32768)temp = temp-65536;
+	measuredata[5] = temp * 180.0 / 32768.0;
+
+
+
+
+	//mag
+	temp=*(unsigned short*)(reg+0x20);
+	if(temp>32768)temp = temp-65536;
+	measuredata[6] = temp * 4912.0 / 32760 + 1;
+
+	temp=*(unsigned short*)(reg+0x22);
+	if(temp>32768)temp = temp-65536;
+	measuredata[7] = temp;
+
+	temp=*(unsigned short*)(reg+0x24);
+	if(temp>32768)temp = temp-65536;
+	measuredata[8] = temp;
+
+
+
+
+
 /*
-	printf("%d %d %d %d %d %d\n",
+	printf("9250:	%f	%f	%f\n",
 		measuredata[0],
 		measuredata[1],
-		measuredata[2],
+		measuredata[2]
+	);
+*/
+/*
+	printf("9250:	%f	%f	%f\n",
 		measuredata[3],
 		measuredata[4],
 		measuredata[5]
 	);
 */
+/*
+	printf("9250:	%f	%f	%f\n",
+		measuredata[6],
+		measuredata[7],
+		measuredata[8]
+	);
+*/
+	//printf("9250:	%f\n",measuredata[9]);
 }
