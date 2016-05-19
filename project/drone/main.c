@@ -53,14 +53,21 @@ int main(int argc,char** argv)
 	int haha;
 	struct timeval start,end;
 
-	//how to die
-	signal(SIGINT,sig_int);
-
 	ret=getuid();
 	if(ret!=0)
 	{
 		printf("please run as root\n");
 		return 0;
+	}
+
+	//how to die
+	signal(SIGINT,sig_int);
+
+	//user control
+	ret=initcontrol();
+	if(ret<=0)
+	{
+		printf("fail@initcontrol\n");
 	}
 
 	//system library
@@ -93,13 +100,6 @@ int main(int argc,char** argv)
 	{
 		printf("fail@initquaternion\n");
 		return -3;
-	}
-
-	//user control
-	ret=initcontrol();
-	if(ret<=0)
-	{
-		printf("fail@initcontrol\n");
 	}
 
 	//keep stable
@@ -142,7 +142,8 @@ going:
 
 		//update state
 		//imuupdate();
-		ahrsupdate();
+		//madgwickahrsupdate();
+		mahonyahrsupdate();
 
 		//convert value
 		pid();

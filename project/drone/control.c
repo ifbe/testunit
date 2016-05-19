@@ -21,6 +21,26 @@ static struct termios stored_settings;
 static void* keyboardthread(void* in)
 {
 	int ret;
+
+	printf("6s left\n");
+	sleep(1);
+
+	printf("5s left\n");
+	sleep(1);
+
+	printf("4s left\n");
+	sleep(1);
+
+	printf("3s left\n");
+	sleep(1);
+
+	printf("2s left\n");
+	sleep(1);
+
+	printf("1s left\n");
+	sleep(1);
+
+	printf("now go\n");
 	while(1)
 	{
 		ret=getchar();

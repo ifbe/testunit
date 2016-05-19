@@ -57,8 +57,12 @@ int kalman()
 	predictdata[6]=measuredata[6];
 	predictdata[7]=measuredata[7];
 	predictdata[8]=measuredata[8];
-	return 1;
+	goto printdata;
 */
+
+
+
+
 	/* Predict		p(n|n-1)=A^2*p(n-1|n-1)+q */
 	predictdata[0] = A * predictdata[0];
 	predictdata[1] = A * predictdata[1];
@@ -124,7 +128,7 @@ int kalman()
 	predictp[8] = (1 - H*kalmangain[8]) * predictp[8];
 
 
-
+printdata:
 /*
 	printf("kalman:	%f	%f	%f\n",
 		predictdata[0],
@@ -142,4 +146,5 @@ int kalman()
 		predictdata[8]
 	);
 */
+	return 0;
 }
