@@ -75,29 +75,41 @@ int systemi2c_read(BYTE dev,BYTE reg,BYTE* buf,BYTE count)
 void initpca9685()
 {
 	unsigned char buf[16];
+	int ret;
 
-	//sleep
-	buf[0]=0x31;
+	//hardwarepwm(pca9685)
+	buf[0]=0x31;	//sleep
 	systemi2c_write(0x40, 0, buf, 1);
 
-	//prescale
-	buf[0]=0x20;
-	systemi2c_write(0x40, 0xef, buf, 1);
+	buf[0]=18;		//prescale
+	systemi2c_write(0x40, 0xfe, buf, 1);
 
-	//wake
-	buf[0]=0xa1;
+	buf[0]=0xa1;	//wake
 	systemi2c_write(0x40, 0, buf, 1);
 
-	//restart
-	buf[0]=0x4;
+	buf[0]=0x4;		//restart
 	systemi2c_write(0x40, 1, buf, 1);
 
-	//default value
-	buf[0]=0;
+	buf[0]=0;		//T=3ms
 	buf[1]=0;
-	buf[2]=3000&0xff;
-	buf[3]=3000>>8;
-	systemi2c_write(0x40, 6, buf, 4);
+	buf[2]=3000 & 0xff;
+	buf[3]=3000 >> 8;
+
+	buf[4]=0;		//T=3ms
+	buf[5]=0;
+	buf[6]=buf[2];
+	buf[7]=buf[3];
+
+	buf[8]=0;		//T=3ms
+	buf[9]=0;
+	buf[10]=buf[2];
+	buf[11]=buf[3];
+
+	buf[12]=0;		//T=3ms
+	buf[13]=0;
+	buf[14]=buf[2];
+	buf[15]=buf[3];
+	systemi2c_write(0x40, 6, buf, 16);
 
 	int x,y;
 	for(y=0;y<16;y++)
@@ -113,7 +125,8 @@ void initpca9685()
 
 void main()
 {
-	unsigned char buf[18];
+	int ret;
+	unsigned char buf[16];
 
 	//open
 	fp = open("/dev/i2c-1",O_RDWR);
@@ -126,9 +139,27 @@ void main()
 
 	while(1)
 	{
-		scanf("%d",(int*)buf);
-		printf("%d,%d\n",buf[0],buf[1]);
-		systemi2c_write(0x40,0x8,buf+0,2);
+		scanf("%d",&ret);
+		buf[2]=ret & 0xff;
+		buf[3]=ret >> 8;
+
+		buf[4]=0;		//T=3ms
+		buf[5]=0;
+		buf[6]=buf[2];
+		buf[7]=buf[3];
+
+		buf[8]=0;		//T=3ms
+		buf[9]=0;
+		buf[10]=buf[2];
+		buf[11]=buf[3];
+
+		buf[12]=0;		//T=3ms
+		buf[13]=0;
+		buf[14]=buf[2];
+		buf[15]=buf[3];
+
+		printf("%d,%d\n",buf[2],buf[3]);
+		systemi2c_write(0x40,0x8,buf+2,14);
 	}
 }
 
