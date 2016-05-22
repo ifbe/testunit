@@ -11,19 +11,12 @@ int initmpu9250(){return 1;}
 int killmpu9250(){}
 int mpu9250(){usleep(1000);}
 */
-short xmin=-139;
-short xmax=243;
-short ymin=87;
-short ymax=472;
-short zmin=-146;
-short zmax=294;
-
 
 
 
 
 //mpu9250's plaything
-unsigned char reg[0x40];
+unsigned char reg[0x20];
 
 //(ax,ay,az),(gx,gy,gz),(mx,my,mz),(temp)
 float measuredata[10];
@@ -82,17 +75,6 @@ int initmpu9250()
 
 
 
-	//AK8963_CNT2
-	reg[0]=0x1;
-	systemi2c_write(0xc,0xb,reg,1);
-
-	//AK8963_CNT2
-	reg[0]=0x16;
-	systemi2c_write(0xc,0xa,reg,1);
-
-
-
-
 	//
 	return 1;
 }
@@ -109,16 +91,6 @@ int mpu9250()
 
 	//0x68.0x3b -> 0x00
 	systemi2c_read(0x68, 0x3b, reg+0, 14);
-
-	//0xc.0x3b -> 0x20
-	systemi2c_read(0xc, 3, reg+0x23, 7);
-/*
-	for(temp=0;temp<6;temp++)
-	{
-		printf("%x ",reg[0x23+temp]);
-	}
-	printf("\n");
-*/
 
 
 
@@ -162,38 +134,6 @@ int mpu9250()
 
 
 
-	//mag
-	temp = *(short*)(reg+0x23);
-	//if(temp<zmin)zmin=temp;
-	//if(temp>zmax)zmax=temp;
-	temp = temp - (xmin+xmax)/2;
-	measuredata[6] = temp * 4912.0 / 32760.0;
-
-	temp=*(short*)(reg+0x25);
-	//if(temp<zmin)zmin=temp;
-	//if(temp>zmax)zmax=temp;
-	temp = temp - (ymin+ymax)/2;
-	measuredata[7] = temp * 4912.0 / 32760.0;
-
-	temp=*(short*)(reg+0x27)	+1;	//ensure not 0
-	//if(temp<zmin)zmin=temp;
-	//if(temp>zmax)zmax=temp;
-	temp = temp - (zmin+zmax)/2;
-	measuredata[8] = temp * 4912.0 / 32760.0;
-/*
-	printf("%d	%d	%d	%d	%d	%d\n",
-		xmin,
-		xmax,
-		ymin,
-		ymax,
-		zmin,
-		zmax
-	);
-*/
-
-
-
-
 /*
 	printf("9250:	%f	%f	%f\n",
 		measuredata[0],
@@ -206,13 +146,6 @@ int mpu9250()
 		measuredata[3],
 		measuredata[4],
 		measuredata[5]
-	);
-*/
-/*
-	printf("9250:	%f	%f	%f\n",
-		measuredata[6],
-		measuredata[7],
-		measuredata[8]
 	);
 */
 	//printf("9250:	%f\n",measuredata[9]);

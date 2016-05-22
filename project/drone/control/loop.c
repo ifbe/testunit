@@ -15,11 +15,12 @@ int timeinterval;
 
 static void sig_int(int num)
 {
-	killmotor();
+	killpwm();
 	killpid();
 	killcontrol();
 	killquaternion();
 	killkalman();
+	killak8963();
 	killmpu9250();
 	killlibrary();
 
@@ -86,6 +87,14 @@ int main(int argc,char** argv)
 		return -1;
 	}
 
+	//ak8963 initialization
+	ret=initak8963();
+	if(ret<=0)
+	{
+		printf("fail@initak8963\n");
+		return -1;
+	}
+
 	//data filter
 	ret=initkalman();
 	if(ret<=0)
@@ -111,10 +120,10 @@ int main(int argc,char** argv)
 	}
 
 	//relay and esc
-	ret=initmotor();
+	ret=initpwm();
 	if(ret<=0)
 	{
-		printf("fail@initmotor\n");
+		printf("fail@initpwm\n");
 		goto cutpower;
 	}
 
@@ -136,6 +145,7 @@ going:
 
 		//read sensor
 		mpu9250();
+		ak8963();
 
 		//kalman filter
 		kalman();
@@ -149,7 +159,7 @@ going:
 		pid();
 
 		//write pwm
-		motor();
+		pwm();
 
 		//time end
 		start.tv_sec = end.tv_sec;

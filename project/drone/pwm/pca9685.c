@@ -10,22 +10,16 @@ int systemi2c_write(BYTE dev,BYTE reg,BYTE* buf,BYTE count);
 
 
 /*
-int initmotor(){return 1;}
-int killmotor(){}
-int motor(){}
+int initpwm(){return 1;}
+int killpwm(){}
+int pwm(){}
 */
 
-#include <wiringPi.h>
-#include <softPwm.h>
-
-#define lefttail  32
-#define leftfront  36
-#define rightfront  38
-#define righttail  40
+//#include <wiringPi.h>
 #define powerrelay 37
 
-//3ms=3,000us=3,000,000ns
-#define RANGE 3*1000*1000
+//3ms=3,000us=3,000,000us
+#define RANGE 3*1000
 
 
 
@@ -42,7 +36,7 @@ static unsigned char sendbuf[16];
 
 
 
-int initmotor()
+int initpwm()
 {
 	int ret;
 
@@ -80,30 +74,24 @@ int initmotor()
 	sendbuf[15]=1000>>8;
 	systemi2c_write(0x40, 6, sendbuf, 16);
 
-	//softpwm(very inaccurate)
-	//softPwmCreate(lefttail, zerospeed[0]/1000, RANGE/1000);
-	//softPwmCreate(leftfront, zerospeed[1]/1000, RANGE/1000);
-	//softPwmCreate(rightfront, zerospeed[2]/1000, RANGE/1000);
-	//softPwmCreate(righttail, zerospeed[3]/1000, RANGE/1000);
-
 	//power the esc up , wait for "do-re-mi , di---"
-	wiringPiSetupPhys () ;
-	pinMode(powerrelay,OUTPUT);
-	digitalWrite(powerrelay,1);
+	//wiringPiSetupPhys () ;
+	//pinMode(powerrelay,OUTPUT);
+	//digitalWrite(powerrelay,1);
 
 	return 1;
 }
-int killmotor()
+int killpwm()
 {
 	int i;
 
-	pinMode(powerrelay,OUTPUT);
-	digitalWrite(powerrelay,0);
+	//pinMode(powerrelay,OUTPUT);
+	//digitalWrite(powerrelay,0);
 
 	for(i=0;i<16;i++)sendbuf[i]=0;
 	systemi2c_write(0x40, 6, sendbuf, 16);
 }
-int motor()
+int pwm()
 {
 	int lb=zerospeed[0] + (deltaspeed[0] / 500);
 	int lf=zerospeed[1] + (deltaspeed[1] / 500);
@@ -115,12 +103,6 @@ int motor()
 	if(lf>2000)lf=2000;
 	if(rf>2000)rf=2000;
 	if(rb>2000)rb=2000;
-
-	//soft................
-	//softPwmWrite(lefttail,  lb);
-	//softPwmWrite(leftfront, lf);
-	//softPwmWrite(rightfront,rf);
-	//softPwmWrite(righttail, rb);
 
 	//hard..................
 	sendbuf[2]=lb&0xff;
