@@ -8,7 +8,7 @@
 
 //out1:		pitch,yaw,roll
 //out2:		basespeed
-float eulerianbase[3];
+float ebase[3];
 int thresholdspeed[4];
 
 //............
@@ -102,9 +102,9 @@ int initcontrol()
 	tcsetattr(0,TCSANOW,&new_settings);
 
 	//angle
-	eulerianbase[0]=0;
-	eulerianbase[1]=0;
-	eulerianbase[2]=0;
+	ebase[0]=0;
+	ebase[1]=0;
+	ebase[2]=0;
 
         //speed
 	thresholdspeed[0]=0;

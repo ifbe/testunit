@@ -6,11 +6,6 @@
 #include<unistd.h>
 #include<linux/i2c-dev.h>
 
-/*
-int initak8963(){return 1;}
-int killak8963(){}
-int ak8963(){usleep(1000);}
-*/
 short xmin=-139;
 short xmax=243;
 short ymin=87;
@@ -23,10 +18,10 @@ short zmax=294;
 
 
 //mpu9250's plaything
-unsigned char magreg[0x10];
+static unsigned char magreg[0x10];
 
 //(ax,ay,az),(gx,gy,gz),(mx,my,mz),(temp)
-extern float measuredata[10];
+extern float measure[20];
 
 
 
@@ -36,10 +31,12 @@ int initak8963()
 	//AK8963_CNT2
 	magreg[0]=0x1;
 	systemi2c_write(0xc,0xb,magreg,1);
+	usleep(1000);
 
 	//AK8963_CNT2
 	magreg[0]=0x16;
 	systemi2c_write(0xc,0xa,magreg,1);
+	usleep(1000);
 
 
 
@@ -54,7 +51,7 @@ void killak8963()
 
 
 
-int ak8963()
+int readak8963()
 {
 	int temp;
 
@@ -76,19 +73,19 @@ int ak8963()
 	//if(temp<zmin)zmin=temp;
 	//if(temp>zmax)zmax=temp;
 	temp = temp - (xmin+xmax)/2;
-	measuredata[6] = temp * 4912.0 / 32760.0;
+	measure[6] = temp * 4912.0 / 32760.0;
 
 	temp=*(short*)(magreg+0x5);
 	//if(temp<zmin)zmin=temp;
 	//if(temp>zmax)zmax=temp;
 	temp = temp - (ymin+ymax)/2;
-	measuredata[7] = temp * 4912.0 / 32760.0;
+	measure[7] = temp * 4912.0 / 32760.0;
 
 	temp=*(short*)(magreg+0x7)	+1;	//ensure not 0
 	//if(temp<zmin)zmin=temp;
 	//if(temp>zmax)zmax=temp;
 	temp = temp - (zmin+zmax)/2;
-	measuredata[8] = temp * 4912.0 / 32760.0;
+	measure[8] = temp * 4912.0 / 32760.0;
 /*
 	printf("%d	%d	%d	%d	%d	%d\n",
 		xmin,
@@ -105,9 +102,9 @@ int ak8963()
 
 /*
 	printf("8963:	%f	%f	%f\n",
-		measuredata[6],
-		measuredata[7],
-		measuredata[8]
+		measure[6],
+		measure[7],
+		measure[8]
 	);
 */
 }

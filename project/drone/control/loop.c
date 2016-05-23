@@ -18,10 +18,12 @@ static void sig_int(int num)
 	killpwm();
 	killpid();
 	killcontrol();
-	killquaternion();
 	killkalman();
+	killmahony();
+	killimuupdate();
 	killak8963();
 	killmpu9250();
+	killmpu6050();
 	killlibrary();
 
 	exit(-1);
@@ -79,6 +81,14 @@ int main(int argc,char** argv)
 		return -1;
 	}
 
+	//mpu6050 initialization
+	ret=initmpu6050();
+	if(ret<=0)
+	{
+		printf("fail@initmpu6050\n");
+		return -1;
+	}
+
 	//mpu9250 initialization
 	ret=initmpu9250();
 	if(ret<=0)
@@ -95,7 +105,7 @@ int main(int argc,char** argv)
 		return -1;
 	}
 
-	//data filter
+	//kalman filter
 	ret=initkalman();
 	if(ret<=0)
 	{
@@ -103,12 +113,20 @@ int main(int argc,char** argv)
 		return -2;
 	}
 
-	//calculate state
-	ret=initquaternion();
+	//imuupdate
+	ret=initimuupdate();
 	if(ret<=0)
 	{
-		printf("fail@initquaternion\n");
+		printf("fail@initimuupdate\n");
 		return -3;
+	}
+
+	//mahony
+	ret=initmahony();
+	if(ret<=0)
+	{
+		printf("fail@initmahony\n");
+		return -2;
 	}
 
 	//keep stable
@@ -144,22 +162,24 @@ going:
 		//printf("time:	%d\n",timeinterval);
 
 		//read sensor
-		mpu9250();
-		ak8963();
+		readmpu6050();
+		readmpu9250();
+		readak8963();
 
 		//kalman filter
 		kalman();
 
 		//update state
-		//imuupdate();
+		imuupdate();
 		//madgwickahrsupdate();
 		mahonyahrsupdate();
+		state();
 
 		//convert value
 		pid();
 
 		//write pwm
-		pwm();
+		//pwm();
 
 		//time end
 		start.tv_sec = end.tv_sec;

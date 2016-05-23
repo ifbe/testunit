@@ -7,7 +7,7 @@
 //in:	pitch,yaw,roll
 extern int timeinterval;
 extern int thresholdspeed[4];
-extern float eulerianbase[3];
+extern float ebase[3];
 extern float eulerian[3];
 
 //out:	lefttail,leftfront,rightfront,righttail
@@ -78,7 +78,7 @@ int pid()
 
 
 	//pitch
-	pitch_now = eulerianbase[0]-eulerian[0];
+	pitch_now = ebase[0]-eulerian[0];
 
 	pitch_sum += pitch_now;
 	if(pitch_sum > 1000)pitch_sum = 1000;
@@ -104,7 +104,7 @@ int pid()
 
 
 	//roll
-	roll_now = eulerianbase[2]-eulerian[2];
+	roll_now = ebase[2]-eulerian[2];
 
 	roll_sum += roll_now;
 	if(roll_sum > 1000)roll_sum = 1000;
