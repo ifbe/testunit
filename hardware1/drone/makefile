@@ -1,7 +1,7 @@
 all:
 	gcc \
 	control/loop.c control/input.c \
-	sensor/sensor.c sensor/mpu6050.c sensor/mpu9250.c sensor/ak8963.c \
+	sensor/sensor.c sensor/l3gd20.c sensor/lsm303d.c sensor/mpu9250.c sensor/ak8963.c \
 	filter/kalman.c \
 	state/state.c state/imuupdate.c state/mahony.c \
 	motor/pid.c motor/pca9685.c \

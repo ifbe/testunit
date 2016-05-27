@@ -5,7 +5,7 @@
 #include <sys/ioctl.h>
 #include <string.h>
 #include <math.h>
-#define Kp 100.0f
+#define Kp 2.0f
 #define Ki 0.005f
 
 //
@@ -118,29 +118,15 @@ void mahonyahrsupdate()
 	halfey = (az * halfvx - ax * halfvz) + (mz * halfwx - mx * halfwz);
 	halfez = (ax * halfvy - ay * halfvx) + (mx * halfwy - my * halfwx);
 
-	// Compute and apply integral feedback if enabled
-	if(Ki > 0.0f)
-	{
-		// integral error scaled by Ki
-		integralx += Ki * halfex * T;
-		integraly += Ki * halfey * T;
-		integralz += Ki * halfez * T;
+	// integral error scaled by Ki
+	integralx += Ki * halfex * T;
+	integraly += Ki * halfey * T;
+	integralz += Ki * halfez * T;
 
-		gx += integralx;	// apply integral feedback
-		gy += integraly;
-		gz += integralz;
-	}
-	else
-	{
-		integralx = 0.0f;	// prevent integral windup
-		integraly = 0.0f;
-		integralz = 0.0f;
-	}
-
-	// Apply proportional feedback
-	gx += Kp * halfex;
-	gy += Kp * halfey;
-	gz += Kp * halfez;
+	// proportional + integral
+	gx += Kp * halfex + integralx;
+	gy += Kp * halfey + integraly;
+	gz += Kp * halfez + integralz;
 	
 
 	// Integrate rate of change of quaternion

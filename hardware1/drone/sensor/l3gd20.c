@@ -10,7 +10,7 @@
 static unsigned char reg[0x10];
 
 //(ax,ay,az),(gx,gy,gz),(mx,my,mz),(temp)
-extern float measure2[20];
+extern float measure[20];
 
 
 
@@ -45,7 +45,12 @@ int readl3gd20()
 	int temp;
 
 	//0xc.0x3b -> 0x20
-	systemi2c_read(0x6b, 0x28, reg, 6);
+	systemi2c_read(0x6b, 0x28, reg, 1);
+	systemi2c_read(0x6b, 0x29, reg+1, 1);
+	systemi2c_read(0x6b, 0x2a, reg+2, 1);
+	systemi2c_read(0x6b, 0x2b, reg+3, 1);
+	systemi2c_read(0x6b, 0x2c, reg+4, 1);
+	systemi2c_read(0x6b, 0x2d, reg+5, 1);
 /*
 	for(temp=0;temp<6;temp++)
 	{
@@ -57,24 +62,25 @@ int readl3gd20()
 
 
 
+
 	//mag
 	temp = *(short*)(reg+0x0);
-	measure2[3] = temp * 4912.0 / 32760.0;
+	measure[13] = temp / 16.4 / 57.3;	//2000dps?
 
 	temp=*(short*)(reg+0x2);
-	measure2[4] = temp * 4912.0 / 32760.0;
+	measure[14] = temp / 16.4 / 57.3;
 
-	temp=*(short*)(reg+0x4);	//ensure not 0
-	measure2[5] = temp * 4912.0 / 32760.0;
+	temp=*(short*)(reg+0x4);
+	measure[15] = temp / 16.4 / 57.3;
 
 
 
 
 /*
 	printf("l3gd20:	%f	%f	%f\n",
-		measure2[3],
-		measure2[4],
-		measure2[5]
+		measure[13],
+		measure[14],
+		measure[15]
 	);
 */
 }

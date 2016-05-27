@@ -23,7 +23,9 @@ static void sig_int(int num)
 	killimuupdate();
 	killak8963();
 	killmpu9250();
-	killmpu6050();
+	//killmpu6050();
+	killl3gd20();
+	killlsm303d();
 	killlibrary();
 
 	exit(-1);
@@ -78,6 +80,20 @@ int main(int argc,char** argv)
 	if(ret<=0)
 	{
 		printf("fail@initlibrary\n");
+		return -1;
+	}
+
+	ret=initl3gd20();
+	if(ret<=0)
+	{
+		printf("fail@initl3gd20\n");
+		return -1;
+	}
+
+	ret=initlsm303d();
+	if(ret<=0)
+	{
+		printf("fail@initlsm303d\n");
 		return -1;
 	}
 
@@ -159,9 +175,11 @@ going:
 		{
 			goto cutpower;
 		}
-		//printf("time:	%d\n",timeinterval);
+		printf("time:	%d\n",timeinterval);
 
 		//read sensor
+		readl3gd20();
+		readlsm303d();
 		//readmpu6050();
 		readmpu9250();
 		readak8963();
@@ -170,7 +188,7 @@ going:
 		kalman();
 
 		//update state
-		//imuupdate();
+		imuupdate();
 		//madgwickahrsupdate();
 		mahonyahrsupdate();
 		state();

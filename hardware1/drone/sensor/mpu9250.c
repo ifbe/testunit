@@ -126,15 +126,15 @@ int readmpu9250()
 	//gyro
 	temp=(reg[ 8]<<8) + reg[ 9];
 	if(temp>32768)temp = temp-65536;
-	measure[3] = temp * 180.0 / 32768.0;
+	measure[3] = temp / 57.3  / 16.4;		//2000dps?
 
 	temp=(reg[10]<<8) + reg[11];
 	if(temp>32768)temp = temp-65536;
-	measure[4] = temp * 180.0 / 32768.0;
+	measure[4] = temp / 57.3 / 16.4;
 
 	temp=(reg[12]<<8) + reg[13];
 	if(temp>32768)temp = temp-65536;
-	measure[5] = temp * 180.0 / 32768.0;
+	measure[5] = temp / 57.3 / 16.4;
 
 
 
@@ -145,12 +145,12 @@ int readmpu9250()
 		measure[1],
 		measure[2]
 	);
-*/
-/*
+
 	printf("9250:	%f	%f	%f\n",
 		measure[3],
 		measure[4],
 		measure[5]
 	);
+
 */
 }
