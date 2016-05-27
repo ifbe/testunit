@@ -171,11 +171,11 @@ void mahonyahrsupdate()
 	mahony[0] = atan2(2*(q0*q1+q2*q3),1-2*(q1*q1+q2*q2))*180/3.141592653;
 	mahony[1] = atan2(2*(q0*q3+q1*q2),1-2*(q2*q2+q3*q3))*180/3.141592653;
 	mahony[2] = asin(2*q0*q2 - 2*q1*q3)*180/3.141592653;
-/*
+
 	printf("ahrs:	%f	%f	%f\n",
 		mahony[0],
 		mahony[1],
 		mahony[2]
 	);
-*/
+
 }

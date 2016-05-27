@@ -82,12 +82,12 @@ int main(int argc,char** argv)
 	}
 
 	//mpu6050 initialization
-	ret=initmpu6050();
-	if(ret<=0)
-	{
-		printf("fail@initmpu6050\n");
-		return -1;
-	}
+	//ret=initmpu6050();
+	//if(ret<=0)
+	//{
+	//	printf("fail@initmpu6050\n");
+	//	return -1;
+	//}
 
 	//mpu9250 initialization
 	ret=initmpu9250();
@@ -162,7 +162,7 @@ going:
 		//printf("time:	%d\n",timeinterval);
 
 		//read sensor
-		readmpu6050();
+		//readmpu6050();
 		readmpu9250();
 		readak8963();
 
@@ -170,7 +170,7 @@ going:
 		kalman();
 
 		//update state
-		imuupdate();
+		//imuupdate();
 		//madgwickahrsupdate();
 		mahonyahrsupdate();
 		state();
