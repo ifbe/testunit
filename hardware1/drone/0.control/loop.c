@@ -17,16 +17,24 @@ static void sig_int(int num)
 {
 	killpwm();
 	killpid();
-	killcontrol();
-	killkalman();
+
 	killmahony();
 	killimuupdate();
+
+	killkalman();
+
+	//killmpu6050();
+
+	killbmp280();
 	killak8963();
 	killmpu9250();
-	//killmpu6050();
+
+	killbmp180();
 	killl3gd20();
 	killlsm303d();
+
 	killlibrary();
+	killcontrol();
 
 	exit(-1);
 }
@@ -83,21 +91,7 @@ int main(int argc,char** argv)
 		return -1;
 	}
 
-	ret=initl3gd20();
-	if(ret<=0)
-	{
-		printf("fail@initl3gd20\n");
-		return -1;
-	}
-
-	ret=initlsm303d();
-	if(ret<=0)
-	{
-		printf("fail@initlsm303d\n");
-		return -1;
-	}
-
-	//mpu6050 initialization
+	//mpu6050
 	//ret=initmpu6050();
 	//if(ret<=0)
 	//{
@@ -105,7 +99,7 @@ int main(int argc,char** argv)
 	//	return -1;
 	//}
 
-	//mpu9250 initialization
+	//(accel@0 + gyro@3)mpu9250
 	ret=initmpu9250();
 	if(ret<=0)
 	{
@@ -113,11 +107,43 @@ int main(int argc,char** argv)
 		return -1;
 	}
 
-	//ak8963 initialization
+	//(mag@6)ak8963
 	ret=initak8963();
 	if(ret<=0)
 	{
 		printf("fail@initak8963\n");
+		return -1;
+	}
+
+	//(baro@9)bmp280
+	ret=initbmp280();
+	if(ret<=0)
+	{
+		printf("fail@initbmp280\n");
+		return -1;
+	}
+
+	//(accel@10+mag@16)lsm303
+	ret=initlsm303d();
+	if(ret<=0)
+	{
+		printf("fail@initlsm303d\n");
+		return -1;
+	}
+
+	//(gyro@13)l3gd20
+	ret=initl3gd20();
+	if(ret<=0)
+	{
+		printf("fail@initl3gd20\n");
+		return -1;
+	}
+
+	//(baro@19)bmp180
+	ret=initbmp180();
+	if(ret<=0)
+	{
+		printf("fail@initbmp180\n");
 		return -1;
 	}
 
@@ -175,22 +201,23 @@ going:
 		{
 			goto cutpower;
 		}
-		printf("time:	%d\n",timeinterval);
+		//printf("time:	%d\n",timeinterval);
 
 		//read sensor
-		readl3gd20();
-		readlsm303d();
 		//readmpu6050();
 		readmpu9250();
 		readak8963();
+		readbmp280();
+		readl3gd20();
+		readlsm303d();
+		readbmp180();
 
 		//kalman filter
 		kalman();
 
 		//update state
-		imuupdate();
-		//madgwickahrsupdate();
-		mahonyahrsupdate();
+		imuupdate(0);
+		imuupdate(1);
 		state();
 
 		//convert value

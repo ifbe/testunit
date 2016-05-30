@@ -24,7 +24,7 @@ int initlsm303d()
 
 	//LSM303_REGISTER_MAG_MR_REG_M
 	//reg[0]=0;
-	//systemi2c_write(0x6b,0x2,reg,1);
+	//systemi2c_write(0x1d,0x2,reg,1);
 	//usleep(1000);
 
 

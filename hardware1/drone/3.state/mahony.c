@@ -8,23 +8,21 @@
 #define Kp 2.0f
 #define Ki 0.005f
 
-//
+//input
 extern int timeinterval;
 extern float smooth[20];
 
-//????
+//memory
 static float integralx;
 static float integraly;
 static float integralz;
-
-//....
 static float q0;
 static float q1;
 static float q2;
 static float q3;
 
-//...
-float mahony[3];
+//output
+float eulerian[6];
 
 
 
@@ -46,7 +44,7 @@ void killmahony()
 
 
 //accel + gyro + mag
-void mahonyahrsupdate()
+void mahonyahrsupdate(int N)
 {
 	float norm,T;
 	float q0q0, q0q1, q0q2, q0q3, q1q1, q1q2, q1q3, q2q2, q2q3, q3q3;  
@@ -154,14 +152,7 @@ void mahonyahrsupdate()
 	);
 */
 
-	mahony[0] = atan2(2*(q0*q1+q2*q3),1-2*(q1*q1+q2*q2))*180/3.141592653;
-	mahony[1] = atan2(2*(q0*q3+q1*q2),1-2*(q2*q2+q3*q3))*180/3.141592653;
-	mahony[2] = asin(2*q0*q2 - 2*q1*q3)*180/3.141592653;
-
-	printf("ahrs:	%f	%f	%f\n",
-		mahony[0],
-		mahony[1],
-		mahony[2]
-	);
-
+	eulerian[3*N + 0] = atan2(2*(q0*q1+q2*q3),1-2*(q1*q1+q2*q2))*180/3.141592653;
+	eulerian[3*N + 1] = atan2(2*(q0*q3+q1*q2),1-2*(q2*q2+q3*q3))*180/3.141592653;
+	eulerian[3*N + 2] = asin(2*q0*q2 - 2*q1*q3)*180/3.141592653;
 }

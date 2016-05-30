@@ -69,17 +69,19 @@ int kalman()
 	}
 
 printdata:
-/*
-	printf("kalman:	%f	%f	%f\n",
+	printf("kalman:	%f	%f	%f	%f\n",
 		smooth[0],
 		smooth[1],
-		smooth[2]
+		smooth[2],
+		smooth[9]
 	);
-	printf("kalman:	%f	%f	%f\n",
+
+	printf("kalman:	%f	%f	%f	%f\n",
 		smooth[10],
 		smooth[11],
-		smooth[12]
+		smooth[12],
+		smooth[19]
 	);
-*/
+
 	return 0;
 }

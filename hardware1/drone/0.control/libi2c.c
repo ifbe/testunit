@@ -33,7 +33,7 @@ int systemi2c_read(BYTE dev,BYTE reg,BYTE* buf,BYTE count)
 	packets.nmsgs     = 2;
 	if(ioctl(fp, I2C_RDWR, &packets) < 0)
 	{
-		perror("Unable to send data");
+		printf("Unable to send data:0x%x,0x%x\n",dev,reg);
 		return 1;
 	}
 
@@ -64,7 +64,7 @@ int systemi2c_write(BYTE dev,BYTE reg,BYTE* buf,BYTE count)
 	ret=ioctl(fp, I2C_RDWR, &packets);
 	if(ret<0)
 	{
-		perror("Unable to send data");
+		printf("Unable to send data:0x%x,0x%x\n",dev,reg);
 		return -1;
 	}
 

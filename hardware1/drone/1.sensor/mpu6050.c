@@ -13,7 +13,7 @@
 static unsigned char reg[0x20];
 
 //
-extern float measure[20];
+extern float measure[30];
 
 
 
@@ -102,15 +102,15 @@ int readmpu6050()
 	//accel
 	temp=(reg[0]<<8) + reg[1];
 	if(temp>32768)temp = temp-65536;
-	measure[10] = temp * 9.8 / 8192.0;
+	measure[20] = temp * 9.8 / 8192.0;
 
 	temp=(reg[2]<<8) + reg[3];
 	if(temp>32768)temp = temp-65536;
-	measure[11] = temp * 9.8 / 8192.0;
+	measure[21] = temp * 9.8 / 8192.0;
 
 	temp=(reg[4]<<8) + reg[5] +1;		//ensure not 0
 	if(temp>32768)temp = temp-65536;
-	measure[12] = temp * 9.8 / 8192.0;
+	measure[22] = temp * 9.8 / 8192.0;
 
 
 
@@ -125,31 +125,31 @@ int readmpu6050()
 	//gyro
 	temp=(reg[ 8]<<8) + reg[ 9];
 	if(temp>32768)temp = temp-65536;
-	measure[13] = temp * 180.0 / 32768.0;
+	measure[23] = temp / 16.4 / 57.3;
 
 	temp=(reg[10]<<8) + reg[11];
 	if(temp>32768)temp = temp-65536;
-	measure[14] = temp * 180.0 / 32768.0;
+	measure[24] = temp / 16.4 / 57.3;
 
 	temp=(reg[12]<<8) + reg[13];
 	if(temp>32768)temp = temp-65536;
-	measure[15] = temp * 180.0 / 32768.0;
+	measure[25] = temp / 16.4 / 57.3;
 
 
 
 
 /*
 	printf("6050:	%f	%f	%f\n",
-		measure[10],
-		measure[11],
-		measure[12]
+		measure[20],
+		measure[21],
+		measure[22]
 	);
 */
 /*
 	printf("6050:	%f	%f	%f\n",
-		measure[13],
-		measure[14],
-		measure[15]
+		measure[23],
+		measure[24],
+		measure[25]
 	);
 */
 }
