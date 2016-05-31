@@ -129,7 +129,7 @@ usleep(1000);
 	//ACCEL_CONFIG
 	systemi2c_read(0x68,0x1c,reg,1);
 	reg[0] &= 0xe7;
-	reg[0] |= (1<<3);
+	reg[0] |= (0<<3);
 	systemi2c_write(0x68,0x1c,reg,1);
 //system("i2cdump -y 1 0x68");
 usleep(1000);
@@ -180,15 +180,15 @@ int mpu9250()
 	//accel
 	temp=(reg[0]<<8) + reg[1];
 	if(temp>32768)temp = temp-65536;
-	measuredata[0] = temp * 9.80 / 8192.0;
+	measuredata[0] = temp * 9.8 / 16384.0;
 
 	temp=(reg[2]<<8) + reg[3];
 	if(temp>32768)temp = temp-65536;
-	measuredata[1] = temp * 9.80 / 8192.0;
+	measuredata[1] = temp * 9.8 / 16384.0;
 
 	temp=(reg[4]<<8) + reg[5] +1;		//ensure not 0
 	if(temp>32768)temp = temp-65536;
-	measuredata[2] = temp * 9.80 / 8192.0;
+	measuredata[2] = temp * 9.8 / 16384.0;
 
 
 

@@ -14,7 +14,7 @@ unsigned char outbuf[16];
 //
 static unsigned char reg[12];
 
-//(ax,ay,az),(gx,gy,gz),(mx,my,mz),(temp)
+//
 float measure[6];
 
 
@@ -87,14 +87,28 @@ int systemi2c_read(BYTE dev,BYTE reg,BYTE* buf,BYTE count)
 
 int initlsm303d()
 {
+/*
+        write(0x57, CTRL_REG1);  // 0x57 = ODR=50hz, all accel axes on
+        write((3<<6)|(0<<3), CTRL_REG2);  // set full-scale
+        write(0x00, CTRL_REG3);  // no interrupt
+        write(0x00, CTRL_REG4);  // no interrupt
+        write((4<<2), CTRL_REG5);  // 0x10 = mag 50Hz output rate
+        write(MAG_SCALE_2, CTRL_REG6); //magnetic scale = +/-1.3Gauss
+        write(0x00, CTRL_REG7);  // 0x00 = continouous conversion mode
+*/
 	//LSM303_CTRL1
-	reg[0]=0xc7;
+	reg[0]=0x57;
 	systemi2c_write(0x1d,0x20,reg,1);
 	usleep(1000);
 
 	//LSM303_CTRL2
-	reg[0]=0x08;
+	reg[0]=0x00;
 	systemi2c_write(0x1d,0x21,reg,1);
+	usleep(1000);
+
+	//LSM303_CTRL4
+	reg[0]=4<<2;
+	systemi2c_write(0x1d,0x23,reg,1);
 	usleep(1000);
 
 	//LSM303_CTRL5
@@ -144,28 +158,26 @@ int readlsm303d()
 	systemi2c_read(0x1d, 0xb, reg+9, 1);
 	systemi2c_read(0x1d, 0xc, reg+10, 1);
 	systemi2c_read(0x1d, 0xd, reg+11, 1);
-
-
+/*
 	for(temp=0;temp<12;temp++)
 	{
 		printf("%.2x ",reg[temp]);
 	}
 	printf("\n");
-
-
+*/
 
 
 
 
 	//
 	temp = *(short*)(reg+0x0);
-	measure[0] = temp *2* 9.8 / 16384;
+	measure[0] = temp * 9.8 / 16384;
 
 	temp=*(short*)(reg+0x2);
-	measure[1] = temp *2* 9.8 / 16384;
+	measure[1] = temp * 9.8 / 16384;
 
 	temp=*(short*)(reg+0x4);
-	measure[2] = temp *2* 9.8 / 16384;
+	measure[2] = temp * 9.8 / 16384;
 
 	//
 	temp=*(short*)(reg+0x6);

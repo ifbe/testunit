@@ -16,7 +16,7 @@ static float gain[10+10];
 static float predictp[10+10];
 
 //output
-float smooth[10+10];
+extern float smooth[10+10];
 
 
 

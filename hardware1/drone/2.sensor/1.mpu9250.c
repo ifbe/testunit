@@ -56,7 +56,7 @@ int initmpu9250()
 	//ACCEL_CONFIG
 	systemi2c_read(0x68,0x1c,reg,1);
 	reg[0] &= 0xe7;
-	reg[0] |= (1<<3);
+	reg[0] |= (0<<3);
 	systemi2c_write(0x68,0x1c,reg,1);
 	usleep(1000);
 
@@ -103,15 +103,15 @@ int readmpu9250()
 	//accel
 	temp=(reg[0]<<8) + reg[1];
 	if(temp>32768)temp = temp-65536;
-	measure[0] = temp * 9.82 / 8192.0;
+	measure[0] = temp * 9.8 / 16384.0;
 
 	temp=(reg[2]<<8) + reg[3];
 	if(temp>32768)temp = temp-65536;
-	measure[1] = temp * 9.82 / 8192.0;
+	measure[1] = temp * 9.8 / 16384.0;
 
 	temp=(reg[4]<<8) + reg[5] +1;		//ensure not 0
 	if(temp>32768)temp = temp-65536;
-	measure[2] = temp * 9.82 / 8192.0;
+	measure[2] = temp * 9.8 / 16384.0;
 
 
 

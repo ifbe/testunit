@@ -17,15 +17,35 @@ extern float measure[20];
 
 int initlsm303d()
 {
-	//LSM303_REGISTER_ACCEL_CTRL_REG1_A
-	reg[0]=0x27;
+	//CTRL1
+	reg[0]=0x57;
 	systemi2c_write(0x1d,0x20,reg,1);
 	usleep(1000);
 
-	//LSM303_REGISTER_MAG_MR_REG_M
-	//reg[0]=0;
-	//systemi2c_write(0x1d,0x2,reg,1);
-	//usleep(1000);
+        //LSM303_CTRL2
+        reg[0]=0x00;
+        systemi2c_write(0x1d,0x21,reg,1);
+        usleep(1000);
+
+        //LSM303_CTRL4
+        reg[0]=4<<2;
+        systemi2c_write(0x1d,0x23,reg,1);
+        usleep(1000);
+
+        //LSM303_CTRL5
+        reg[0]=0x64;
+        systemi2c_write(0x1d,0x24,reg,1);
+        usleep(1000);
+
+        //LSM303_CTRL6
+        reg[0]=0x20;
+        systemi2c_write(0x1d,0x25,reg,1);
+        usleep(1000);
+
+        //LSM303_CTRL7
+        reg[0]=0x0;
+        systemi2c_write(0x1d,0x26,reg,1);
+        usleep(1000);
 
 
 
@@ -65,13 +85,13 @@ int readlsm303d()
 
 	//
 	temp = *(short*)(reg+0x0);
-	measure[10] = temp *2* 9.8 / 32768;
+	measure[10] = temp * 9.8 / 16384.0;
 
 	temp=*(short*)(reg+0x2);
-	measure[11] = temp *2* 9.8 / 32768;
+	measure[11] = temp * 9.8 / 16384.0;
 
 	temp=*(short*)(reg+0x4);
-	measure[12] = temp *2* 9.8 / 32768;
+	measure[12] = temp * 9.8 / 16384.0;
 
 
 

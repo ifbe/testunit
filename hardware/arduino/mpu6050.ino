@@ -22,83 +22,93 @@ void setup()
     Wire.write(0x6b);
     Wire.write(0x80);
     Wire.endTransmission();  
-  delay(1);
+    delay(1);
   
     Wire.beginTransmission(0x68);
     Wire.write(0x6b);
     Wire.write(0x01);
     Wire.endTransmission();
-      delay(1);
+    delay(1);
     
     Wire.beginTransmission(0x68);
     Wire.write(0x6c);
     Wire.write(0x00);
     Wire.endTransmission();
-      delay(1);
-    
+    delay(1);
+
     Wire.beginTransmission(0x68);
     Wire.write(0x1a);
     Wire.write(0x03);
     Wire.endTransmission();
-      delay(1);
+    delay(1);
     
     Wire.beginTransmission(0x68);
     Wire.write(0x19);
     Wire.write(0x04);
     Wire.endTransmission();
-      delay(1);
-    
+    delay(1);
+
     
     
     
     Wire.beginTransmission(0x68);
     Wire.write(0x1b);
-    c = Wire.read();
     Wire.endTransmission();
-      delay(1);
+    Wire.requestFrom(0x68, 1);
+    while(Wire.available())
+    {
+        c = Wire.read();
+    }
+    delay(1);
     
     Wire.beginTransmission(0x68);
     Wire.write(0x1b);
     Wire.write(c & (0xe5) | (3<<3));
     Wire.endTransmission();
-      delay(1);
+    delay(1);
+
     
     
-    
-    
+
     Wire.beginTransmission(0x68);
     Wire.write(0x1c);
-    c = Wire.read();
     Wire.endTransmission();
-      delay(1);
-    
+    Wire.requestFrom(0x68, 1);
+    while(Wire.available())
+    {
+        c = Wire.read();
+    }
+
     Wire.beginTransmission(0x68);
     Wire.write(0x1c);
-    Wire.write(c & (0xe7) | (1<<3));
+    Wire.write(c & (0xe7) | (0<<3));
     Wire.endTransmission();
-      delay(1);
-    
-    
-    
-    
+    delay(1);
+
+
+
+
     Wire.beginTransmission(0x68);
     Wire.write(0x1d);
-    c = Wire.read();
     Wire.endTransmission();
-      delay(1);
-    
+    Wire.requestFrom(0x68, 1);
+    while(Wire.available())
+    {
+        c = Wire.read();
+    }
+
     Wire.beginTransmission(0x68);
     Wire.write(0x1d);
     Wire.write(c & 0xf0 | 0x3);
     Wire.endTransmission();
-      delay(1);
-    
+    delay(1);
 }
 
 void loop()
 {
     char i;
     unsigned char c[14];
+    long temp;
   
     Wire.beginTransmission(0x68);
     Wire.write(0x3b);
@@ -111,17 +121,31 @@ void loop()
         c[i] = Wire.read(); // receive a byte as character
         i++;
     }
-    Serial.print( (c[0]<<8) + (c[1]) );
+
+    
+    temp=(c[0]<<8) + c[1];
+    Serial.print( temp );
     Serial.print(' ');
-    Serial.print( (c[2]<<8) + (c[3]) );
+    
+    temp=(c[2]<<8) + c[3];
+    Serial.print( temp );
     Serial.print(' ');
-    Serial.print( (c[4]<<8) + (c[5]) );
+    
+    temp=(c[4]<<8) + c[5];
+    Serial.print( temp );
     Serial.print(' ');
-    Serial.print( (c[8]<<8) + (c[8]) );
+    
+    temp=(c[8]<<8) + c[9];
+    Serial.print( temp );
     Serial.print(' ');
-    Serial.print( (c[10]<<8) + (c[11]) );
+    
+    temp=(c[10]<<8) + c[11];
+    Serial.print( temp );
     Serial.print(' ');
-    Serial.print( (c[12]<<8) + (c[13]) );
+    
+    temp=(c[12]<<8) + c[13];
+    Serial.print( temp );
     Serial.print(' ');
+    
     Serial.println("");
 }
