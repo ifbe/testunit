@@ -97,7 +97,7 @@ int initlsm303d()
         write(0x00, CTRL_REG7);  // 0x00 = continouous conversion mode
 */
 	//LSM303_CTRL1
-	reg[0]=0x57;
+	reg[0]=0x77;
 	systemi2c_write(0x1d,0x20,reg,1);
 	usleep(1000);
 
@@ -106,13 +106,18 @@ int initlsm303d()
 	systemi2c_write(0x1d,0x21,reg,1);
 	usleep(1000);
 
+	//LSM303_CTRL3
+	reg[0]=0x4;
+	systemi2c_write(0x1d,0x22,reg,1);
+	usleep(1000);
+
 	//LSM303_CTRL4
-	reg[0]=4<<2;
+	reg[0]=0x4;
 	systemi2c_write(0x1d,0x23,reg,1);
 	usleep(1000);
 
 	//LSM303_CTRL5
-	reg[0]=0x64;
+	reg[0]=0xf4;
 	systemi2c_write(0x1d,0x24,reg,1);
 	usleep(1000);
 

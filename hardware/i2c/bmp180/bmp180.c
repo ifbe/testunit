@@ -184,6 +184,7 @@ int readbmp180()
 
 	comp = (reg[0]<<16) + (reg[1]<<8) + (reg[2]);
 	comp >>= (8 - _bmp085Mode);
+printf("%d	%d	%d\n",reg[0],reg[1],reg[2]);
 
 	ii = ( (temp - ac6) * ac5 ) >> 15;
 	jj = (mc << 11) / (ii + md) - 4000;
