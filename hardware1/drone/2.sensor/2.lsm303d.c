@@ -7,6 +7,14 @@
 #include<linux/i2c-dev.h>
 
 //
+static float xmin=0;
+static float xmax=0;
+static float ymin=0;
+static float ymax=0;
+static float zmin=0;
+static float zmax=0;
+
+//
 static unsigned char reg[0x10];
 
 //(ax,ay,az),(gx,gy,gz),(mx,my,mz),(temp)
@@ -65,12 +73,18 @@ int readlsm303d()
 	int temp;
 
 	//0xc.0x3b -> 0x20
-	systemi2c_read(0x1d, 0x28, reg, 1);
-	systemi2c_read(0x1d, 0x29, reg+1, 1);
-	systemi2c_read(0x1d, 0x2a, reg+2, 1);
-	systemi2c_read(0x1d, 0x2b, reg+3, 1);
-	systemi2c_read(0x1d, 0x2c, reg+4, 1);
-	systemi2c_read(0x1d, 0x2d, reg+5, 1);
+	systemi2c_read(0x1d, 0x8, reg+0, 1);
+	systemi2c_read(0x1d, 0x9, reg+1, 1);
+	systemi2c_read(0x1d, 0xa, reg+2, 1);
+	systemi2c_read(0x1d, 0xb, reg+3, 1);
+	systemi2c_read(0x1d, 0xc, reg+4, 1);
+	systemi2c_read(0x1d, 0xd, reg+5, 1);
+	systemi2c_read(0x1d, 0x28, reg+6, 1);
+	systemi2c_read(0x1d, 0x29, reg+7, 1);
+	systemi2c_read(0x1d, 0x2a, reg+8, 1);
+	systemi2c_read(0x1d, 0x2b, reg+9, 1);
+	systemi2c_read(0x1d, 0x2c, reg+10, 1);
+	systemi2c_read(0x1d, 0x2d, reg+11, 1);
 /*
 	for(temp=0;temp<6;temp++)
 	{
@@ -84,20 +98,29 @@ int readlsm303d()
 
 
 	//
-	temp = *(short*)(reg+0x0);
+	temp = *(short*)(reg+0x6);
 	measure[10] = temp * 9.8 / 16384.0;
 
-	temp=*(short*)(reg+0x2);
+	temp=*(short*)(reg+0x8);
 	measure[11] = temp * 9.8 / 16384.0;
 
-	temp=*(short*)(reg+0x4);
+	temp=*(short*)(reg+0xa);
 	measure[12] = temp * 9.8 / 16384.0;
+
+	temp = *(short*)(reg+0x0);
+	measure[16] = temp;
+
+	temp=*(short*)(reg+0x2);
+	measure[17] = temp;
+
+	temp=*(short*)(reg+0x4);
+	measure[18] = temp;
 
 
 
 
 /*
-	printf("lsm:	%f	%f	%f\n",
+	printf("lsm:	%f	%f	%f	%f	%f	%f\n",
 		measure[10],
 		measure[11],
 		measure[12]

@@ -197,7 +197,7 @@ int readlsm303d()
 
 
 
-	printf("%1.3f	%1.3f	%1.3f	%1.3f	%1.3f	%1.3f\n",
+	printf("%1.1f	%1.1f	%1.1f	%1.1f	%1.1f	%1.1f\n",
 		measure[0],
 		measure[1],
 		measure[2],

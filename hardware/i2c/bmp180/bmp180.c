@@ -184,7 +184,7 @@ int readbmp180()
 
 	comp = (reg[0]<<16) + (reg[1]<<8) + (reg[2]);
 	comp >>= (8 - _bmp085Mode);
-printf("%d	%d	%d\n",reg[0],reg[1],reg[2]);
+//printf("%d	%d	%d\n",reg[0],reg[1],reg[2]);
 
 	ii = ( (temp - ac6) * ac5 ) >> 15;
 	jj = (mc << 11) / (ii + md) - 4000;
@@ -210,7 +210,7 @@ printf("%d	%d	%d\n",reg[0],reg[1],reg[2]);
 	jj = p + ((x1 + x2 + 3791) >> 4);
 
 	measure[0] = jj;
-	//measure[0] = 44330 * ( 1.0 - pow(jj / 256.0 / 101325.0 , 0.1903) );
+	measure[0] = 44330 * ( 1.0 - pow(jj / 256.0 / 101325.0 , 0.1903) );
 
 
 
