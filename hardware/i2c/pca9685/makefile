@@ -1,2 +1,2 @@
 all:
-	gcc esc.c
+	gcc ../libi2c.c esc.c

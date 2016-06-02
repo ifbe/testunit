@@ -1,0 +1,18 @@
+master:
+AT+NAME=master		#蓝牙主机名称为master
+AT+ROLE=1		#蓝牙模式为主模式
+AT+CMODE=1		#蓝牙连接模式为任意地址连接模式
+AT+PSWD=1234		#蓝牙配对密码为1234
+#AT+UART=9600,0,0	#蓝牙通信串口波特率为115200，停止位1位，无校验位
+AT+RMAAD		#清空配对列表
+
+
+
+
+slave:
+AT+NAME=slave		#蓝牙从机名称为slave
+AT+ROLE=0		#蓝牙模式为从模式
+AT+CMODE=1		#蓝牙连接模式为任意地址连接模式
+AT+PSWD=1234		#蓝牙配对密码为1234
+#AT+UART=9600,0,0	#蓝牙通信串口波特率为115200，停止位1位，无校验位
+AT+RMAAD		#清空配对列表

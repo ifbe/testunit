@@ -1,2 +1,2 @@
 all:
-	gcc bmp280.c -lm
+	gcc ../libi2c.c bmp280.c -lm

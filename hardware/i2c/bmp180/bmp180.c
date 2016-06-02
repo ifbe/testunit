@@ -5,12 +5,6 @@
 #include<errno.h>
 #include<fcntl.h>
 #include<unistd.h>
-#include<linux/i2c.h>
-#include<linux/i2c-dev.h>
-
-//
-int fp;
-unsigned char outbuf[16];
 
 //
 static int ac1;
@@ -37,70 +31,6 @@ float temperature;
 #define BMP085_HIGHRES       2
 #define BMP085_ULTRAHIGHRES  3
 #define _bmp085Mode BMP085_STANDARD
-
-
-
-int systemi2c_write(BYTE dev,BYTE reg,BYTE* buf,BYTE count)
-{
-	int ret;
-	struct i2c_msg messages[1];
-	struct i2c_rdwr_ioctl_data packets;
-
-	//which,what0,what1,what2......
-	outbuf[0] = reg;
-	for(ret=0;ret<count;ret++)
-	{
-		outbuf[ret+1] = buf[ret];
-	}
-
-	//message
-	messages[0].addr  = dev;
-	messages[0].flags = 0;
-	messages[0].len   = count+1;
-	messages[0].buf   = outbuf;
-
-	//transfer
-	packets.msgs  = messages;
-	packets.nmsgs = 1;
-	ret=ioctl(fp, I2C_RDWR, &packets);
-	if(ret<0)
-	{
-		perror("Unable to send data");
-		return -1;
-	}
-
-	return 1;
-}
-
-int systemi2c_read(BYTE dev,BYTE reg,BYTE* buf,BYTE count)
-{
-	struct i2c_msg messages[2];
-	struct i2c_rdwr_ioctl_data packets;
-
-	//out
-	outbuf[0] = reg;
-	messages[0].addr  = dev;
-	messages[0].flags = 0;
-	messages[0].len   = 1;
-	messages[0].buf   = outbuf;
-
-	//in
-	messages[1].addr  = dev;
-	messages[1].flags = I2C_M_RD;
-	messages[1].len   = count;
-	messages[1].buf   = buf;
-
-	//send
-	packets.msgs      = messages;
-	packets.nmsgs     = 2;
-	if(ioctl(fp, I2C_RDWR, &packets) < 0)
-	{
-		perror("Unable to send data");
-		return 1;
-	}
-
-	return 1;
-}
 
 
 
@@ -168,6 +98,7 @@ int readbmp180()
 	systemi2c_read(0x77, 0xf6, reg, 2);
 
 	temp = (reg[0]<<8) + (reg[1]);
+	temp >>= (8 - _bmp085Mode);
 
 
 
@@ -185,6 +116,9 @@ int readbmp180()
 	comp = (reg[0]<<16) + (reg[1]<<8) + (reg[2]);
 	comp >>= (8 - _bmp085Mode);
 //printf("%d	%d	%d\n",reg[0],reg[1],reg[2]);
+
+
+
 
 	ii = ( (temp - ac6) * ac5 ) >> 15;
 	jj = (mc << 11) / (ii + md) - 4000;
@@ -210,24 +144,19 @@ int readbmp180()
 	jj = p + ((x1 + x2 + 3791) >> 4);
 
 	measure[0] = jj;
-	measure[0] = 44330 * ( 1.0 - pow(jj / 256.0 / 101325.0 , 0.1903) );
+	//measure[0] = 44330 * ( 1.0 - pow(jj / 256.0 / 101325.0 , 0.1903) );
 
 
 
 
 print:
-	printf("%lld	%1.3f\n",temp,measure[0]);
+	printf("%lld	%1.1f\n",temp,measure[0]);
 	return;
 }
 
 void main()
 {
-	fp = open("/dev/i2c-1",O_RDWR);
-	if(fp<0)
-	{
-		printf("error open\n");
-		return;
-	}
+	systemi2c_init();
 	initbmp180();
 
 	while(1)

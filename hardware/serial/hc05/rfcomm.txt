@@ -1,0 +1,5 @@
+sudo bluetoothctl
+agent on
+pair 98:d3:32:20:50:69
+sudo rfcomm connect 0 98:d3:32:20:50:69
+screen /dev/rfcomm0 115200

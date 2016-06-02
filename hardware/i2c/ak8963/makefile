@@ -1,2 +1,2 @@
 all:
-	gcc ak8963.c
+	gcc ../libi2c.c ak8963.c

@@ -1,2 +1,2 @@
 all:
-	gcc mpu6050.c
+	gcc ../libi2c.c mpu6050.c

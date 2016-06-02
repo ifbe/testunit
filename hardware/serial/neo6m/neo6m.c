@@ -78,7 +78,7 @@ void main()
 			buffer[where+1]=0;
 			where=0;
 
-			printf("%s\n",buffer);
+			printf("%s",buffer);
 			continue;
 		}
 

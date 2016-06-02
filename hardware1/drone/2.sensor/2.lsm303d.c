@@ -7,12 +7,12 @@
 #include<linux/i2c-dev.h>
 
 //
-static float xmin=0;
-static float xmax=0;
-static float ymin=0;
-static float ymax=0;
-static float zmin=0;
-static float zmax=0;
+static int xmin=0;
+static int xmax=0;
+static int ymin=0;
+static int ymax=0;
+static int zmin=0;
+static int zmax=0;
 
 //
 static unsigned char reg[0x10];

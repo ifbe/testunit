@@ -1,2 +1,2 @@
 all:
-	gcc l3gd20.c
+	gcc ../libi2c.c l3gd20.c

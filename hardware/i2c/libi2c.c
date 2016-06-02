@@ -72,7 +72,7 @@ int systemi2c_read(BYTE dev,BYTE reg,BYTE* buf,BYTE count)
 	if(ioctl(fp, I2C_RDWR, &packets) < 0)
 	{
 		perror("Unable to send data");
-		return 1;
+		return -1;
 	}
 
 	return 1;

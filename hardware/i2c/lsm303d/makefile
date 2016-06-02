@@ -1,2 +1,2 @@
 all:
-	gcc lsm303d.c
+	gcc ../libi2c.c lsm303d.c
