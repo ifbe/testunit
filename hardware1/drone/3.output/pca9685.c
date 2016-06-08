@@ -18,7 +18,7 @@ int pwm(){}
 //#include <wiringPi.h>
 #define powerrelay 37
 
-//3ms=3,000us=3,000,000us
+//3ms=3,000us
 #define RANGE 3*1000
 
 
@@ -93,16 +93,16 @@ int killpwm()
 }
 int pwm()
 {
-	int lb=zerospeed[0] + (deltaspeed[0] / 500);
-	int lf=zerospeed[1] + (deltaspeed[1] / 500);
-	int rf=zerospeed[2] + (deltaspeed[2] / 500);
-	int rb=zerospeed[3] + (deltaspeed[3] / 500);
+	int lb=zerospeed[0] + (deltaspeed[0]);
+	int lf=zerospeed[1] + (deltaspeed[1]);
+	int rf=zerospeed[2] + (deltaspeed[2]);
+	int rb=zerospeed[3] + (deltaspeed[3]);
 
-	//min=1000, max=3000, limit to 2000
-	if(lb>2000)lb=2000;
-	if(lf>2000)lf=2000;
-	if(rf>2000)rf=2000;
-	if(rb>2000)rb=2000;
+	//min=1000, max=2000, limit to 1500
+	if(lb>1666)lb=1666;
+	if(lf>1666)lf=1666;
+	if(rf>1666)rf=1666;
+	if(rb>1666)rb=1566;
 
 	//hard..................
 	sendbuf[2]=lb&0xff;
@@ -116,7 +116,7 @@ int pwm()
 
 	sendbuf[14]=rb&0xff;
 	sendbuf[15]=rb>>8;
-	systemi2c_write(0x40, 8, sendbuf+2, 14);
+	//systemi2c_write(0x40, 8, sendbuf+2, 14);
 
 	//printf("pwm:	%d,%d,%d,%d\n", lb, lf, rf, rb );
 

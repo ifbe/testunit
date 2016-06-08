@@ -44,14 +44,14 @@ float roll_out;
 int initpid()
 {
 	//PID
-	pitch_P=2800;
+	pitch_P=2.8;
 	pitch_I=0;
 	pitch_D=0;
 	pitch_now=0;
 	pitch_before=0;
 	pitch_sum=0;
 
-	roll_P=2780;
+	roll_P=2.7;
 	roll_I=0;
 	roll_D=0;
 	roll_now=0;
@@ -72,7 +72,7 @@ int pid()
 	deltaspeed[1]=thresholdspeed[1];
 	deltaspeed[2]=thresholdspeed[2];
 	deltaspeed[3]=thresholdspeed[3];
-	if(thresholdspeed[0]<100*1000)goto finishpid;
+	if(thresholdspeed[0]<100)goto finishpid;
 
 
 
@@ -144,7 +144,9 @@ finishpid:
 		pitch_out,
 		roll_out
 	);
-	printf("pid:	%d,%d,%d,%d\n",
+*/
+/*
+	printf("pid:	%d	%d	%d	%d\n",
 		deltaspeed[0],
 		deltaspeed[1],
 		deltaspeed[2],

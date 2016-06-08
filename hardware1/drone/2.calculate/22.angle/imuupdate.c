@@ -5,7 +5,7 @@
 #include <sys/ioctl.h>
 #include <string.h>
 #include <math.h>
-#define Kp 100.0f
+#define Kp 2.0f
 #define Ki 0.005f
 
 //input

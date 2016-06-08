@@ -224,7 +224,7 @@ going:
 		pid();
 
 		//write pwm
-		//pwm();
+		pwm();
 
 		//time end
 		start.tv_sec = end.tv_sec;

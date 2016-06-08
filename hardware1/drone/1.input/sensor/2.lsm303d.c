@@ -107,14 +107,14 @@ int readlsm303d()
 	temp=*(short*)(reg+0xa);
 	measure[12] = temp * 9.8 / 16384.0;
 
-	temp = *(short*)(reg+0x0);
-	measure[16] = temp;
+	temp = *(short*)(reg+0x0) + 1;
+	measure[16] = temp * 40000.0 / 32768.0;
 
-	temp=*(short*)(reg+0x2);
-	measure[17] = temp;
+	temp=*(short*)(reg+0x2) + 1;
+	measure[17] = temp * 40000.0 / 32768.0;
 
-	temp=*(short*)(reg+0x4);
-	measure[18] = temp;
+	temp=*(short*)(reg+0x4) + 1;
+	measure[18] = temp * 40000.0 / 32768.0;
 
 
 

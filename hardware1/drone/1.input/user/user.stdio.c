@@ -8,8 +8,8 @@
 
 //out1:		pitch,yaw,roll
 //out2:		basespeed
-float ebase[3];
-int thresholdspeed[4];
+extern float ebase[3];
+extern int thresholdspeed[4];
 
 //............
 static struct termios stored_settings;
@@ -41,6 +41,9 @@ static void* keyboardthread(void* in)
 	sleep(1);
 
 	printf("now go\n");
+	tcdrain(0);
+	tcflush(0, TCIFLUSH);
+
 	while(1)
 	{
 		ret=getchar();
@@ -51,24 +54,24 @@ static void* keyboardthread(void* in)
 
 			if(ret==65)
 			{
-				if(thresholdspeed[0] < 400*1000)
+				if(thresholdspeed[0] < 500)
 				{
-					thresholdspeed[0]+=10000;
-					thresholdspeed[1]+=10000;
-					thresholdspeed[2]+=10000;
-					thresholdspeed[3]+=10000;
-					printf("threshold=%d\n",thresholdspeed[0]/1000);
+					thresholdspeed[0]+=10;
+					thresholdspeed[1]+=10;
+					thresholdspeed[2]+=10;
+					thresholdspeed[3]+=10;
+					printf("threshold=%d\n",thresholdspeed[0]);
 				}
 			}
 			else if(ret==66)
 			{
 				if(thresholdspeed[0]>0)
 				{
-					thresholdspeed[0]-=10000;
-					thresholdspeed[1]-=10000;
-					thresholdspeed[2]-=10000;
-					thresholdspeed[3]-=10000;
-					printf("threshold=%d\n",thresholdspeed[0]/1000);
+					thresholdspeed[0]-=10;
+					thresholdspeed[1]-=10;
+					thresholdspeed[2]-=10;
+					thresholdspeed[3]-=10;
+					printf("threshold=%d\n",thresholdspeed[0]);
 				}
 			}
 		}
