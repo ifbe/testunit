@@ -4,6 +4,7 @@
 #include<stdlib.h>
 #include<fcntl.h>
 #include<unistd.h>
+#include<signal.h>
 #include<sys/stat.h>
 
 
@@ -194,6 +195,13 @@ void pwmplay(double real[],double imag[])
 
 
 
+static void sig_int(int a)
+{
+	pwmSetClock(2); //clock at 50kHz (20us tick)
+	pwmSetRange(1000); //range at 1000 ticks (20ms)
+	pwmWrite(1,0);
+	exit(-1);
+}
 int main(int argc,char** argv)
 {
 	int ii;
@@ -250,6 +258,8 @@ int main(int argc,char** argv)
 	wiringPiSetup();
 	pinMode(1, PWM_OUTPUT);
 	pwmSetMode(PWM_MODE_MS);
+
+	signal(SIGINT,sig_int);
 	pwmSetClock(2); //clock at 50kHz (20us tick)
 	pwmSetRange(1000); //range at 1000 ticks (20ms)
 	pwmWrite(1,0);
