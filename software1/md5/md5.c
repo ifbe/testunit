@@ -1,6 +1,6 @@
 #include <string.h>  
 
-typedef unsigned long UINT4;  
+typedef unsigned int UINT4;  
 typedef unsigned char *POINTER;  
  
 #define S11 7  
