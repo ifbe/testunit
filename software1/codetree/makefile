@@ -1,24 +1,24 @@
 .PHONY:all
 all:
 	################code->seed->hash##################
-	gcc code2hashseed.c \
+	gcc code2seed.c \
 	explain/purec.c \
 	explain/cpp.c \
 	explain/struct.c \
-	-o code2hashseed.exe
+	-o code2seed.exe
 	################seed+hash=tree####################
-	gcc hashseed2tree.c -o hashseed2tree.exe
+	gcc seed2tree.c -o seed2tree.exe
 .PHONY:fun
 fun:
 	################seed2table2txt##################
 	gcc fun/seed2table.c -o seed2table.exe
 	gcc fun/table2txt.c -o table2txt.exe
 install:
-	-cp code2hashseed.exe /bin/
-	-cp hashseed2tree.exe /bin/
+	-cp code2seed.exe /bin/
+	-cp seed2tree.exe /bin/
 uninstall:
-	-rm -f /bin/code2hashseed.exe
-	-rm -f /bin/hashseed2tree.exe
+	-rm -f /bin/code2seed.exe
+	-rm -f /bin/seed2tree.exe
 clean:
 	rm -f *.exe *.out
 	rm -f *.seed *.tree
