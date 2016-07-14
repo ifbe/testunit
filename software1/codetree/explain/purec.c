@@ -84,11 +84,16 @@ int purec_copyname(unsigned char* p,unsigned char* q)
 		}
 	}
 
-	//4byte:	else
+	//4byte:	else,free
 	if(p[4]==' ' | p[4]=='(' | p[4]==0x9)
 	{
 		temp=*(unsigned int*)p;
 		if(temp==0x65736c65)
+		{
+			i=4;
+			goto decide;
+		}
+		else if(temp==0x65657266)
 		{
 			i=4;
 			goto decide;
@@ -106,18 +111,11 @@ int purec_copyname(unsigned char* p,unsigned char* q)
 		}
 	}
 
-	//6byte:	printf,return,sizeof,switch
+	//6byte:	return,sizeof,switch,printf,malloc
 	if(p[6]==' ' | p[6]=='(' | p[6]==0x9)
 	{
 		temp=0xffffffffffff & (*(unsigned long long*)p);
-/*
-		//printf
-		if(temp==0x66746e697270)
-		{
-			i=6;
-			goto decide;
-		}
-*/
+
 		//return
 		if(temp==0x6e7275746572)
 		{
@@ -138,6 +136,21 @@ int purec_copyname(unsigned char* p,unsigned char* q)
 			i=6;
 			goto decide;
 		}
+
+		//printf
+		else if(temp==0x66746e697270)
+		{
+			i=6;
+			goto decide;
+		}
+
+		//malloc
+		else if(temp==0x636f6c6c616d)
+		{
+			i=6;
+			goto decide;
+		}
+
 	}
 decide:
 	if(i!=0)

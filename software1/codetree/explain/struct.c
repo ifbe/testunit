@@ -134,7 +134,7 @@ int struct_printprophet(unsigned char* p)
 		o=1;
 		strbuf[0]=0x9;
 		o += struct_pickname(p , strbuf+1);
-		o += snprintf(strbuf+o,0x80,"\n",countline+1);
+		o += snprintf(strbuf+o,0x80,"\n");
 		//o += snprintf(strbuf+o,0x80,"	@%d\n",countline+1);
 	}
 
