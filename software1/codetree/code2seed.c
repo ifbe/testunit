@@ -14,6 +14,12 @@
 
 
 
+//header
+int explainheader(int,int);
+void startheader(char*,int);
+void stopheader(int);
+void initheader(char*,char*);
+void killheader();
 //c
 int explainpurec(int,int);
 void startpurec(char*,int);
@@ -52,11 +58,6 @@ void killjava();
 static int codefd=-1;
 static char codename[256]={0};
 
-//hash
-static int hashfd=-1;
-static char hashname[256]={0};
-static unsigned long long hashcount=0;
-
 //seed
 static int seedfd=-1;
 static char seedname[256]={0};
@@ -73,15 +74,8 @@ void (*explain_stop)(int);
 int (*explain_ing)(int,int);
 
 //
-static unsigned int lineoffset=0;
-static unsigned int byteoffset=0;
-static unsigned int badhash=0;
-static unsigned int goodhash=0;
-
-//
 static struct stat statbuf;
 static unsigned char datahome[0x2000];	//4k+4k
-static unsigned char* buf;
 
 
 
@@ -282,323 +276,6 @@ void fileordir(char* thisname)
 
 
 
-void whathash(int start , int size)
-{
-	int i;
-	badhash=0;
-	goodhash=5381;
-	for(i=start;i<start+size;i++)
-	{
-		badhash=badhash+buf[i];
-		goodhash=(goodhash<<5)+goodhash+buf[i];
-	}
-	badhash=(badhash&0xffff)+(size<<16);
-}
-//(char* , int) -> (int* , int)
-void generatehash()
-{
-	//数据特别大，用int会溢出
-	unsigned long long i=0;
-	unsigned long long ret=0;
-	unsigned long long percent=0;
-	unsigned long long length=0;
-	printf("hash generating................\n");
-
-	//stat
-	ret=stat( seedname , &statbuf );
-	if(ret == -1)
-	{
-		printf("wrong seedname\n");
-		exit(-1);
-	}
-
-	//malloc
-	buf=(char*)malloc( (statbuf.st_size) + 0x1000 );
-	if(buf==NULL)
-	{
-		printf("malloc failed1\n");
-		exit(-1);
-	}
-
-	//open
-	hashfd=open(hashname,O_CREAT|O_RDWR|O_TRUNC|O_BINARY,S_IRWXU|S_IRWXG|S_IRWXO);
-	seedfd=open(seedname , O_RDONLY|O_BINARY);
-	if(seedfd<0)
-	{
-		printf("open failed\n");
-		free(buf);
-		exit(-1);
-	}
-
-	//read
-	seedcount=read(seedfd,buf,statbuf.st_size);
-	if(seedcount!=statbuf.st_size)
-	{
-		printf("read failed\n");
-		close(seedfd);
-		free(buf);
-		exit(-1);
-	}
-
-
-
-
-	//start generating
-	percent=1;
-	for(i=0;i<seedcount;i++)
-	{
-		if( ( (i*100) / seedcount ) >= percent)
-		{
-			printf("%llx/%llx(%lld%%)..............\r",i,seedcount,percent);
-			fflush(stdout);
-			percent++;
-		}
-
-		//linux
-		if( (buf[i]==0xa) | (buf[i]==0xd) )
-		{
-			//deal with mac and windows problem
-			if(buf[i]==0xd)
-			{
-				if(buf[i+1]==0xa)i++;
-			}
-
-			//line number
-			lineoffset++;
-			if(ret==0)continue;
-
-			//hash
-			whathash(byteoffset,length);
-
-			//write
-			write(hashfd,&lineoffset,4);
-			write(hashfd,&byteoffset,4);
-			write(hashfd,&badhash,4);
-			write(hashfd,&goodhash,4);
-
-			//next
-			ret=0;
-			continue;
-		}
-
-		//不要的全吃掉
-		else if((buf[i]=='#') |
-				(buf[i]=='{') |
-				(buf[i]=='}') |
-				(buf[i]==0x9) )
-		{
-			while(1)
-			{
-				if(buf[i+1]==0)break;
-				else if(buf[i+1]==0xa)break;
-				else if(buf[i+1]==0xd)break;
-
-				i++;
-			}
-			continue;
-		}
-		//if(buf[i]==0x9)i++;
-
-		byteoffset=i;
-		while(1)
-		{
-			if(buf[i+1]==0)break;
-			else if(buf[i+1]==0x9)break;
-			else if(buf[i+1]==0x20)break;
-			else if(buf[i+1]==0xa)break;
-			else if(buf[i+1]==0xd)break;
-			i++;
-		}
-		length=i-byteoffset+1;
-
-		//
-		while(1)
-		{
-			if(buf[i+1]==0)break;
-			else if(buf[i+1]==0xa)break;
-			else if(buf[i+1]==0xd)break;
-
-			i++;
-		}
-
-		//
-		ret=1;
-	}//for
-	printf("\n");
-
-	close(hashfd);
-	printf("hash generated\n");
-
-}//seed2hash
-void sorthash()
-{
-	//数据特别大，用int会溢出
-	unsigned long long ii=0;
-	unsigned long long jj=0;
-	unsigned long long min=0;
-	unsigned long long max=0;
-	unsigned long long ret=0;
-	unsigned long long percent=0;
-	unsigned int temp1;
-	unsigned int temp2;
-	unsigned int temp3;
-	unsigned int temp4;
-	printf("hash sorting..................\n");
-
-	//stat
-	ret=stat( hashname , &statbuf );
-	if(ret == -1)
-	{
-		printf("wrong hashname\n");
-		return;
-	}
-
-	//malloc
-	buf=(char*)malloc( (statbuf.st_size) + 0x1000 );
-	if(buf==NULL)
-	{
-		printf("malloc failed1\n");
-		return;
-	}
-
-	//open
-	hashfd=open(hashname , O_RDONLY|O_BINARY);
-	if(hashfd<0)
-	{
-		printf("open failed\n");
-		free(buf);
-		return;
-	}
-
-	//read
-	hashcount=read(hashfd,buf,statbuf.st_size);
-	if(hashcount!=statbuf.st_size)
-	{
-		printf("read failed\n");
-		close(hashfd);
-		free(buf);
-		return;
-	}
-
-	//close
-	close(hashfd);
-
-
-
-
-	//open
-	hashfd=open(hashname,O_CREAT|O_RDWR|O_TRUNC|O_BINARY,S_IRWXU|S_IRWXG|S_IRWXO);
-
-
-
-
-	//sort "goodhash"
-	percent=1;
-	for(ii=0;ii<hashcount;ii+=0x10)
-	{
-		if( ( (ii*100) / hashcount ) >= percent)
-		{
-			printf("%llx/%llx(%lld%%).............\r",ii,hashcount,percent);
-			fflush(stdout);
-			percent++;
-		}
-
-		//min address , min value
-		ret=ii;
-		temp1=*(unsigned int*)(buf+ii+0xc);
-
-		//search smaller
-		for(jj=ii+0x10;jj<hashcount;jj+=0x10)
-		{
-			temp2=*(unsigned int*)(buf+jj+0xc);
-			if(temp2<temp1)
-			{
-				ret=jj;
-				temp1=temp2;
-			}
-		}
-
-		//swap(this,smallest)
-		//printf("%x\n",temp1);
-		temp1=*(unsigned int*)(buf+ii+0x0);
-		temp2=*(unsigned int*)(buf+ii+0x4);
-		temp3=*(unsigned int*)(buf+ii+0x8);
-		temp4=*(unsigned int*)(buf+ii+0xc);
-		*(unsigned int*)(buf+ii+0x0)=*(unsigned int*)(buf+ret+0x0);
-		*(unsigned int*)(buf+ii+0x4)=*(unsigned int*)(buf+ret+0x4);
-		*(unsigned int*)(buf+ii+0x8)=*(unsigned int*)(buf+ret+0x8);
-		*(unsigned int*)(buf+ii+0xc)=*(unsigned int*)(buf+ret+0xc);
-		*(unsigned int*)(buf+ret+0x0)=temp1;
-		*(unsigned int*)(buf+ret+0x4)=temp2;
-		*(unsigned int*)(buf+ret+0x8)=temp3;
-		*(unsigned int*)(buf+ret+0xc)=temp4;
-	}
-	printf("\n");
-
-
-
-
-	//sort "badhash"
-	for(min=0;min<hashcount;min+=0x10)
-	{
-		temp1=*(unsigned int*)(buf+min+0xc);
-		for(max=min;max<hashcount;max+=0x10)
-		{
-			temp2=*(unsigned int*)(buf+max+0xc);
-			if(temp2!=temp1)break;
-		}
-		if(max==min+0x10)continue;
-
-		//sort
-		for(ii=min;ii<max;ii+=0x10)
-		{
-			ret=ii;
-			temp1=*(unsigned int*)(buf+ii+0x8);
-			for(jj=ii+0x10;jj<max;jj+=0x10)
-			{
-				temp2=*(unsigned int*)(buf+jj+0x8);
-				if(temp2<temp1)
-				{
-					ret=jj;
-					temp1=temp2;
-				}
-			}
-
-			//swap(this,smallest)
-			//printf("%x\n",temp1);
-			temp1=*(unsigned int*)(buf+ii+0x0);
-			temp2=*(unsigned int*)(buf+ii+0x4);
-			temp3=*(unsigned int*)(buf+ii+0x8);
-			temp4=*(unsigned int*)(buf+ii+0xc);
-			*(unsigned int*)(buf+ii+0x0)=*(unsigned int*)(buf+ret+0x0);
-			*(unsigned int*)(buf+ii+0x4)=*(unsigned int*)(buf+ret+0x4);
-			*(unsigned int*)(buf+ii+0x8)=*(unsigned int*)(buf+ret+0x8);
-			*(unsigned int*)(buf+ii+0xc)=*(unsigned int*)(buf+ret+0xc);
-			*(unsigned int*)(buf+ret+0x0)=temp1;
-			*(unsigned int*)(buf+ret+0x4)=temp2;
-			*(unsigned int*)(buf+ret+0x8)=temp3;
-			*(unsigned int*)(buf+ret+0xc)=temp4;
-		}
-	}
-
-
-
-
-	//write,close,free
-	write(hashfd,buf,hashcount);
-	close(hashfd);
-	free(buf);
-	printf("hash sorted\n");
-}
-
-
-
-
-
-
-
-
-
 int main(int argc,char *argv[])  
 {
 	int i;
@@ -638,18 +315,6 @@ int main(int argc,char *argv[])
 		{
 			printf("code=%s\n",p+5);
 			snprintf(codename,256,"%s",p+5);
-			continue;
-		}
-
-		//hash=
-		else if((p[0]=='h') &&
-			(p[1]=='a') &&
-			(p[2]=='s') &&
-			(p[3]=='h') &&
-			(p[4]=='=') )
-		{
-			printf("hash=%s\n",p+5);
-			snprintf(hashname,256,"%s",p+5);
 			continue;
 		}
 
@@ -720,11 +385,6 @@ int main(int argc,char *argv[])
 		printf("code=.\n");
 		snprintf(codename,256,".");
 	}
-	if(hashname[0]==0)
-	{
-		printf("hash=code.hash\n");
-		snprintf(hashname,256,"code.hash");
-	}
 	if(seedname[0]==0)
 	{
 		printf("seed=code.seed\n");
@@ -749,24 +409,6 @@ int main(int argc,char *argv[])
 		printf("suffix=%s\n",p);
 		snprintf(suffix,16,"%s",p);
 		length=strlen(suffix);
-
-		//种子转哈希
-		if(strcmp(suffix,".seed")==0)
-		{
-			//hashname already got
-			snprintf(seedname,256,"%s",codename);
-			codename[0]=0;
-			goto hashgenerating;
-		}
-
-		//哈希排序
-		if(strcmp(suffix,".hash")==0)
-		{
-			snprintf(hashname,256,"%s",codename);
-			seedname[0]=0;
-			codename[0]=0;
-			goto hashsorting;
-		}
 	}
 	if(worker[0]==0)
 	{
@@ -811,7 +453,6 @@ int main(int argc,char *argv[])
 
 
 seedgenerating:
-	//*********************1:code2seed***********************
 	printf("seed generating.................\n");
 	if(strcmp(worker,"purec")==0)
 	{
@@ -853,22 +494,19 @@ seedgenerating:
 		//kill
 		killstruct();
 	}
+	else if(strcmp(worker,"header")==0)
+	{
+		initheader(seedname,datahome);
+		explain_start=startheader;
+		explain_stop=stopheader;
+		explain_ing=explainheader;
+
+		//do
+		fileordir( codename );
+
+		//kill
+		killheader();
+	}
 	printf("seed generated\n");
 	//**************************************************
-
-
-
-
-hashgenerating:
-	//**********************2.seed2hash*********************
-	generatehash();
-	//****************************************************
-
-
-
-
-hashsorting:
-	//********************.hash sorting*******************
-	sorthash();
-	//****************************************************
 }

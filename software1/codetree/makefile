@@ -5,6 +5,7 @@ all:
 	explain/purec.c \
 	explain/cpp.c \
 	explain/struct.c \
+	explain/header.c \
 	-o code2seed.exe
 	################seed+hash=tree####################
 	gcc seed2tree.c -o seed2tree.exe

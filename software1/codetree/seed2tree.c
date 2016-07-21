@@ -34,15 +34,396 @@ static int stack[16]={0};
 static int depthnow=0;
 static int depthmax=8;
 //
+static unsigned char* buf;
+static unsigned int lineoffset=0;
+static unsigned int byteoffset=0;
 static unsigned int badhash=0;
 static unsigned int goodhash=0;
 
 
 
 
-void readall()
+
+
+
+
+//(char* , int) -> (int* , int)
+void generatehash()
+{
+	//数据特别大，用int会溢出
+	int ret;
+	unsigned long long i=0;
+	unsigned long long temp=0;
+	unsigned long long percent=0;
+	unsigned long long length=0;
+	printf("hash generating................\n");
+
+	//stat
+	ret=stat( seedname , &statbuf );
+	if(ret == -1)
+	{
+		printf("wrong seedname\n");
+		exit(-1);
+	}
+
+	//malloc
+	buf=(char*)malloc( (statbuf.st_size) + 0x1000 );
+	if(buf==NULL)
+	{
+		printf("malloc failed1\n");
+		exit(-1);
+	}
+
+	//open
+	hashfd=open(hashname,O_CREAT|O_RDWR|O_TRUNC|O_BINARY,S_IRWXU|S_IRWXG|S_IRWXO);
+	seedfd=open(seedname , O_RDONLY|O_BINARY);
+	if(seedfd<0)
+	{
+		printf("open failed\n");
+		free(buf);
+		exit(-1);
+	}
+
+	//read
+	seedcount=read(seedfd,buf,statbuf.st_size);
+	if(seedcount!=statbuf.st_size)
+	{
+		printf("read failed\n");
+		close(seedfd);
+		free(buf);
+		exit(-1);
+	}
+
+
+
+
+	//start generating
+	percent=1;
+	for(i=0;i<seedcount;i++)
+	{
+		if( ( (i*100) / seedcount ) >= percent)
+		{
+			printf("%llx/%llx(%lld%%)..............\r",i,seedcount,percent);
+			fflush(stdout);
+			percent++;
+		}
+
+		//linux
+		if( (buf[i]==0xa) | (buf[i]==0xd) )
+		{
+			//deal with mac and windows problem
+			if(buf[i]==0xd)
+			{
+				if(buf[i+1]==0xa)i++;
+			}
+
+			//line number
+			lineoffset++;
+			if(temp==0)continue;
+
+			//hash
+			badhash=0;
+			goodhash=5381;
+			for(ret=byteoffset;ret<byteoffset+length;ret++)
+			{
+				badhash=badhash+buf[ret];
+				goodhash=(goodhash<<5)+goodhash+buf[ret];
+			}
+			badhash=(badhash&0xffff)+(length<<16);
+
+			//write
+			write(hashfd,&lineoffset,4);
+			write(hashfd,&byteoffset,4);
+			write(hashfd,&badhash,4);
+			write(hashfd,&goodhash,4);
+
+			//next
+			temp=0;
+			continue;
+		}
+
+		//不要的全吃掉
+		else if((buf[i]=='#') |
+				(buf[i]=='{') |
+				(buf[i]=='}') |
+				(buf[i]==0x9) )
+		{
+			while(1)
+			{
+				if(buf[i+1]==0)break;
+				else if(buf[i+1]==0xa)break;
+				else if(buf[i+1]==0xd)break;
+
+				i++;
+			}
+			continue;
+		}
+		//if(buf[i]==0x9)i++;
+
+		byteoffset=i;
+		while(1)
+		{
+			if(buf[i+1]==0)break;
+			else if(buf[i+1]==0x9)break;
+			else if(buf[i+1]==0x20)break;
+			else if(buf[i+1]==0xa)break;
+			else if(buf[i+1]==0xd)break;
+			i++;
+		}
+		length=i-byteoffset+1;
+
+		//
+		while(1)
+		{
+			if(buf[i+1]==0)break;
+			else if(buf[i+1]==0xa)break;
+			else if(buf[i+1]==0xd)break;
+
+			i++;
+		}
+
+		//
+		temp=1;
+	}//for
+	printf("\n");
+
+	close(hashfd);
+	printf("hash generated\n");
+
+}//seed2hash
+void sorthash()
+{
+	//数据特别大，用int会溢出
+	unsigned long long ii=0;
+	unsigned long long jj=0;
+	unsigned long long min=0;
+	unsigned long long max=0;
+	unsigned long long ret=0;
+	unsigned long long percent=0;
+	unsigned int temp1;
+	unsigned int temp2;
+	unsigned int temp3;
+	unsigned int temp4;
+	printf("hash sorting..................\n");
+
+	//stat
+	ret=stat( hashname , &statbuf );
+	if(ret == -1)
+	{
+		printf("wrong hashname\n");
+		return;
+	}
+
+	//malloc
+	buf=(char*)malloc( (statbuf.st_size) + 0x1000 );
+	if(buf==NULL)
+	{
+		printf("malloc failed1\n");
+		return;
+	}
+
+	//open
+	hashfd=open(hashname , O_RDONLY|O_BINARY);
+	if(hashfd<0)
+	{
+		printf("open failed\n");
+		free(buf);
+		return;
+	}
+
+	//read
+	hashcount=read(hashfd,buf,statbuf.st_size);
+	if(hashcount!=statbuf.st_size)
+	{
+		printf("read failed\n");
+		close(hashfd);
+		free(buf);
+		return;
+	}
+
+	//close
+	close(hashfd);
+
+
+
+
+	//open
+	hashfd=open(hashname,O_CREAT|O_RDWR|O_TRUNC|O_BINARY,S_IRWXU|S_IRWXG|S_IRWXO);
+
+
+
+
+	//sort "goodhash"
+	percent=1;
+	for(ii=0;ii<hashcount;ii+=0x10)
+	{
+		if( ( (ii*100) / hashcount ) >= percent)
+		{
+			printf("%llx/%llx(%lld%%).............\r",ii,hashcount,percent);
+			fflush(stdout);
+			percent++;
+		}
+
+		//min address , min value
+		ret=ii;
+		temp1=*(unsigned int*)(buf+ii+0xc);
+
+		//search smaller
+		for(jj=ii+0x10;jj<hashcount;jj+=0x10)
+		{
+			temp2=*(unsigned int*)(buf+jj+0xc);
+			if(temp2<temp1)
+			{
+				ret=jj;
+				temp1=temp2;
+			}
+		}
+
+		//swap(this,smallest)
+		//printf("%x\n",temp1);
+		temp1=*(unsigned int*)(buf+ii+0x0);
+		temp2=*(unsigned int*)(buf+ii+0x4);
+		temp3=*(unsigned int*)(buf+ii+0x8);
+		temp4=*(unsigned int*)(buf+ii+0xc);
+		*(unsigned int*)(buf+ii+0x0)=*(unsigned int*)(buf+ret+0x0);
+		*(unsigned int*)(buf+ii+0x4)=*(unsigned int*)(buf+ret+0x4);
+		*(unsigned int*)(buf+ii+0x8)=*(unsigned int*)(buf+ret+0x8);
+		*(unsigned int*)(buf+ii+0xc)=*(unsigned int*)(buf+ret+0xc);
+		*(unsigned int*)(buf+ret+0x0)=temp1;
+		*(unsigned int*)(buf+ret+0x4)=temp2;
+		*(unsigned int*)(buf+ret+0x8)=temp3;
+		*(unsigned int*)(buf+ret+0xc)=temp4;
+	}
+	printf("\n");
+
+
+
+
+	//sort "badhash"
+	for(min=0;min<hashcount;min+=0x10)
+	{
+		temp1=*(unsigned int*)(buf+min+0xc);
+		for(max=min;max<hashcount;max+=0x10)
+		{
+			temp2=*(unsigned int*)(buf+max+0xc);
+			if(temp2!=temp1)break;
+		}
+		if(max==min+0x10)continue;
+
+		//sort
+		for(ii=min;ii<max;ii+=0x10)
+		{
+			ret=ii;
+			temp1=*(unsigned int*)(buf+ii+0x8);
+			for(jj=ii+0x10;jj<max;jj+=0x10)
+			{
+				temp2=*(unsigned int*)(buf+jj+0x8);
+				if(temp2<temp1)
+				{
+					ret=jj;
+					temp1=temp2;
+				}
+			}
+
+			//swap(this,smallest)
+			//printf("%x\n",temp1);
+			temp1=*(unsigned int*)(buf+ii+0x0);
+			temp2=*(unsigned int*)(buf+ii+0x4);
+			temp3=*(unsigned int*)(buf+ii+0x8);
+			temp4=*(unsigned int*)(buf+ii+0xc);
+			*(unsigned int*)(buf+ii+0x0)=*(unsigned int*)(buf+ret+0x0);
+			*(unsigned int*)(buf+ii+0x4)=*(unsigned int*)(buf+ret+0x4);
+			*(unsigned int*)(buf+ii+0x8)=*(unsigned int*)(buf+ret+0x8);
+			*(unsigned int*)(buf+ii+0xc)=*(unsigned int*)(buf+ret+0xc);
+			*(unsigned int*)(buf+ret+0x0)=temp1;
+			*(unsigned int*)(buf+ret+0x4)=temp2;
+			*(unsigned int*)(buf+ret+0x8)=temp3;
+			*(unsigned int*)(buf+ret+0xc)=temp4;
+		}
+	}
+
+
+
+
+	//write,close,free
+	write(hashfd,buf,hashcount);
+	close(hashfd);
+	free(buf);
+	printf("hash sorted\n");
+}
+
+
+
+
+
+
+
+
+void preparesearch()
 {
 	int ret=0;
+
+
+
+
+//***********************seed*****************************
+	//stat
+	ret=stat( seedname , &statbuf );
+	if(ret == -1)
+	{
+		printf("(error)seed name\n");
+		exit(-1);
+	}
+	if(statbuf.st_size<16)
+	{
+		printf("(error)seed size\n");
+		exit(-1);
+	}
+
+	//malloc
+	seedbuf=(char*)malloc( (statbuf.st_size) + 0x1000 );
+	if(seedbuf==NULL)
+	{
+		printf("(error)seed malloc\n");
+		exit(-1);
+	}
+
+	//open
+	seedfd=open(seedname , O_RDONLY|O_BINARY);
+	if(seedfd<0)
+	{
+		printf("(error)seed open\n");
+		free(seedbuf);
+		exit(-1);
+	}
+
+	//read
+	seedcount=read(seedfd,seedbuf,statbuf.st_size);
+	if(seedcount!=statbuf.st_size)
+	{
+		printf("(error)read\n");
+		close(seedfd);
+		free(seedbuf);
+		exit(-1);
+	}
+
+	printf("%s has %d bytes\n",seedname,seedcount);
+	close(seedfd);
+//********************************************************
+
+
+
+
+//**********************generate***************************
+	ret=stat( hashname , &statbuf );
+	if( (ret == -1)|
+		(statbuf.st_size<16)|
+		( (statbuf.st_size%16) != 0 ) )
+	{
+		generatehash();
+		sorthash();
+	}
+//********************************************************
 
 
 
@@ -95,54 +476,6 @@ void readall()
 
 	printf("%s has %d functions\n",hashname,hashcount>>4);
 	close(hashfd);
-//********************************************************
-
-
-
-
-//***********************seed*****************************
-	//stat
-	ret=stat( seedname , &statbuf );
-	if(ret == -1)
-	{
-		printf("(error)seed name\n");
-		exit(-1);
-	}
-	if(statbuf.st_size<16)
-	{
-		printf("(error)seed size\n");
-		exit(-1);
-	}
-
-	//malloc
-	seedbuf=(char*)malloc( (statbuf.st_size) + 0x1000 );
-	if(seedbuf==NULL)
-	{
-		printf("(error)seed malloc\n");
-		exit(-1);
-	}
-
-	//open
-	seedfd=open(seedname , O_RDONLY|O_BINARY);
-	if(seedfd<0)
-	{
-		printf("(error)seed open\n");
-		free(seedbuf);
-		exit(-1);
-	}
-
-	//read
-	seedcount=read(seedfd,seedbuf,statbuf.st_size);
-	if(seedcount!=statbuf.st_size)
-	{
-		printf("(error)read\n");
-		close(seedfd);
-		free(seedbuf);
-		exit(-1);
-	}
-
-	printf("%s has %d bytes\n",seedname,seedcount);
-	close(seedfd);
 //********************************************************
 }
 
@@ -238,10 +571,6 @@ int searchhash(char* p , int size)
 	//not found
 	return -1;
 }
-
-
-
-
 void createtree(char* p,int sz)
 {
 	int i;
@@ -595,7 +924,7 @@ int main(int argc,char *argv[])
 	}
 
 	//read.........................
-	readall();
+	preparesearch();
 	//******************************************
 
 
