@@ -14,11 +14,12 @@
 
 
 
-//fp
+//
 static int dest=-1;
-
-//给read用，给snprintf用，以及强退的时候保存东西用
 static unsigned char* datahome;		//4k+4k
+
+//
+static int strwhere=0;
 static unsigned char strbuf[256];
 
 //count
@@ -46,7 +47,7 @@ static int instr=0;
 
 
 
-int explainheader(int start,int end)
+int explaindts(int start,int end)
 {
 	int i=0;
 	unsigned char ch=0;
@@ -78,6 +79,7 @@ int explainheader(int start,int end)
 		//强退(代码里绝不会有真正的0，都是ascii的0x30)
 		if(ch==0)
 		{
+			//printf("@%x\n",i);
 			break;
 		}
 
@@ -95,7 +97,6 @@ int explainheader(int start,int end)
 
 			//字符串，换行清零
 			if(instr==1)instr=0;
-
 		}
 
 		//0xd:		mac或是windows的换行符
@@ -113,7 +114,6 @@ int explainheader(int start,int end)
 
 			//字符串，换行清零
 			if(instr==1)instr=0;
-
 		}
 
 		//.....................
@@ -136,22 +136,6 @@ int explainheader(int start,int end)
 			//吃一个，然后换行
 			i++;
 			continue;
-		}
-
-		//prophets' guess
-		else if(
-			(ch>='a' && ch<='z') |
-			(ch>='A' && ch<='Z') |
-			(ch>='0' && ch<='9') |
-			ch=='_' )
-		{
-			if(inmarco>=2|innote>0|instr>0)continue;
-		}
-
-		//prophets' doubt
-		else if( (ch==' ')|(ch==0x9) )
-		{
-			if(inmarco>=2|innote>0|instr>0)continue;
 		}
 
 		else if(ch=='\"')
@@ -183,15 +167,15 @@ int explainheader(int start,int end)
 			//在这三种情况下什么都不能干
 			if(innote>0|instr>0)continue;
 
-			//单行注释很好解决
-			if(datahome[i+1]=='/')	//    //
+			//单行注释:		//
+			if(datahome[i+1]=='/')
 			{
 				innote=1;
 				i++;
 			}
 
-			//多行注释
-			else if(datahome[i+1]=='*')	//    /*
+			//多行注释:		/*
+			else if(datahome[i+1]=='*')
 			{
 				innote=9;
 				i++;
@@ -212,101 +196,53 @@ int explainheader(int start,int end)
 			}
 		}
 
-		else if(ch=='#')
+		else if( (ch>=0x20) && (ch==0x8) )
 		{
-			//不在注释里面,也不在字符串里的时候
-			if(innote>0|instr>0)continue;
+			if(inmarco>=2|innote>0|instr>0)continue;
+		}
 
-			//吃掉所有空格和tab
-			while(1)
+		else if(
+			(ch>='a' && ch<='z') |
+			(ch>='0' && ch<='9') |
+			(ch=='_') )
+		{
+			if(inmarco>=2|innote>0|instr>0)continue;
+		}
+
+		else if(ch==':')
+		{
+			if(inmarco>=2|innote>0|instr>0)continue;
+		}
+
+		else if(ch=='&')
+		{
+			if(inmarco>=2|innote>0|instr>0)continue;
+		}
+
+		else if(ch=='{')
+		{
+			if(inmarco>=2|innote>0|instr>0)continue;
+
+			//已经在函数里
+			if(infunc!=0)infunc++;
+
+			//确认这即将是个函数
+			else
 			{
-				if( (datahome[i+1]==' ') | (datahome[i+1]==0x9) )i++;
-				else break;
-			}
+			}//infunc
+		}
 
-			//宏外面碰到#号
-			if(inmarco==0)
-			{
-				//#define
-				if( (*(unsigned short*)(datahome+i+1) )==0x6564 )
-				{
-					if( (*(unsigned int*)(datahome+i+3) )==0x656e6966 )
-					{
-						i+=6;
-						inmarco='d';
-					}
-				}
-
-				//#else 这里是为了暂时不管宏嵌套的问题...
-				else if( (*(unsigned int*)(datahome+i+1) )==0x65736c65 )
-				{
-
-					inmarco='e';
-					i+=4;
-				}
-
-				//#if
-				else if( (*(unsigned short*)(datahome+i+1) )==0x6669 )
-				{
-					inmarco=1;
-					i+=2;
-				}
-			}
-
-			//普通宏里又碰到了#号
-			else if(inmarco==1)
-			{
-/*
-				//嵌套在#if里面的#define,这种解法不对
-				if( (*(unsigned short*)(datahome+i+1) )==0x6564 )
-				{
-					if( (*(unsigned int*)(datahome+i+3) )==0x656e6966 )
-					{
-						i+=6;
-						inmarco='d';
-					}
-				}
-*/
-				//#else -> 升级
-				if( (*(unsigned int*)(datahome+i+1) )==0x65736c65 )
-				{
-					inmarco='e';
-					i+=4;
-				}
-
-				//#endif -> 降级
-				else if( (datahome[i+1]=='e') &&
-				    (datahome[i+2]=='n') &&
-				    (datahome[i+3]=='d') &&
-				    (datahome[i+4]=='i') &&
-				    (datahome[i+5]=='f') )
-				{
-					inmarco=0;
-					i+=5;
-				}
-			}
-
-			//else里面碰到endif
-			else if(inmarco=='e')
-			{
-				if( (datahome[i+1]=='e') &&
-				    (datahome[i+2]=='n') &&
-				    (datahome[i+3]=='d') &&
-				    (datahome[i+4]=='i') &&
-				    (datahome[i+5]=='f') )
-				{
-					inmarco=0;
-					i+=5;
-				}
-			}
-		}//#marco
+		else if(ch=='}')
+		{
+			if(inmarco>=2|innote>0|instr>0)continue;
+		}
 
 	}//for
 
 	countbyte += 0x1000;
 	return i-end;	//可能多分析了几十几百个字节
 }
-void startheader(char* thisfile,int size)
+void startdts(char* thisfile,int size)
 {
 	int ret;
 
@@ -320,10 +256,11 @@ void startheader(char* thisfile,int size)
 	write(dest,datahome,ret);
 
 	//init
+	strwhere=0;
 	countbyte=countline=0;
 	infunc = inmarco = innote = instr = 0;
 }
-void stopheader(int where)
+void stopdts(int where)
 {
 	printf("@%x@%d -> %d,%d,%d,%d\n",
 		where,
@@ -336,7 +273,7 @@ void stopheader(int where)
 	printf("\n\n\n\n");
 	write(dest,"\n\n\n\n",4);
 }
-void initheader(char* file,char* memory)
+void initdts(char* file,char* memory)
 {
 	//
 	dest=open(
@@ -346,7 +283,7 @@ void initheader(char* file,char* memory)
 	);
 	datahome=memory;
 }
-void killheader()
+void killdts()
 {
 	close(dest);
 }

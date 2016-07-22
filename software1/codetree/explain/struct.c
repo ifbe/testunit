@@ -528,6 +528,7 @@ int explainstruct(int start,int end)
 
 	}//for
 
+	countbyte += 0x1000;
 	return i-end;
 }
 void startstruct(char* thisfile,int size)
@@ -550,7 +551,7 @@ void startstruct(char* thisfile,int size)
 }
 void stopstruct(int where)
 {
-	printf("@%x@%d -> %d,%d,%d,%d\n\n\n\n",
+	printf("@%x@%d -> %d,%d,%d,%d\n",
 		where,
 		countline,
 		instruct,
@@ -558,6 +559,7 @@ void stopstruct(int where)
 		innote,
 		instr
 	);
+	printf("\n\n\n\n");
 	write(dest,"\n\n\n\n",4);
 }
 void initstruct(char* file,char* memory)

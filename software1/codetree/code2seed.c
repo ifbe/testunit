@@ -14,24 +14,12 @@
 
 
 
-//header
-int explainheader(int,int);
-void startheader(char*,int);
-void stopheader(int);
-void initheader(char*,char*);
-void killheader();
 //c
 int explainpurec(int,int);
 void startpurec(char*,int);
 void stoppurec(int);
 void initpurec(char*,char*);
 void killpurec();
-//struct
-int explainstruct(int,int);
-void startstruct(char*,int);
-void stopstruct(int);
-void initstruct(char*,char*);
-void killstruct();
 //cpp
 int explaincpp(int,int);
 void startcpp(char*,int);
@@ -44,19 +32,43 @@ void startclass(char*,int);
 void stopclass(int);
 void initclass(char*,char*);
 void killclass();
+//none(example)
+int explainnone(int,int);
+void startnone(char*,int);
+void stopnone(int);
+void initnone(char*,char*);
+void killnone();
+//dts
+int explaindts(int,int);
+void startdts(char*,int);
+void stopdts(int);
+void initdts(char*,char*);
+void killdts();
+//header
+int explainheader(int,int);
+void startheader(char*,int);
+void stopheader(int);
+void initheader(char*,char*);
+void killheader();
 //java
 int explainjava(int,int);
 void startjava(char*,int);
 void stopjava(int);
 void initjava(char*,char*);
 void killjava();
+//struct
+int explainstruct(int,int);
+void startstruct(char*,int);
+void stopstruct(int);
+void initstruct(char*,char*);
+void killstruct();
 
 
 
 
-//code
-static int codefd=-1;
-static char codename[256]={0};
+//target
+static int targetfd=-1;
+static char targetname[256]={0};
 
 //seed
 static int seedfd=-1;
@@ -94,8 +106,8 @@ void explainfile(char* thisfile,unsigned long long size)
 
 //_______________________open+start___________________________
 	//open
-	codefd=open(thisfile , O_RDONLY|O_BINARY);
-	if(codefd<0){printf("open fail\n");exit(-1);}
+	targetfd=open(thisfile , O_RDONLY|O_BINARY);
+	if(targetfd<0){printf("open fail\n");exit(-1);}
 
 	//start
 	explain_start(thisfile,size);
@@ -109,7 +121,7 @@ void explainfile(char* thisfile,unsigned long long size)
 	if(size<=0x1000)
 	{
 		//printf("@[%x,%llx):\n",0,size);
-		ret=read(codefd,datahome,size);
+		ret=read(targetfd,datahome,size);
 		if(ret<0)
 		{
 			printf("readfail1\n");
@@ -132,7 +144,7 @@ void explainfile(char* thisfile,unsigned long long size)
 		//如果首次进来，那么读8k
 		if(countbyte==0)
 		{
-			ret=read(codefd,datahome,0x2000);
+			ret=read(targetfd,datahome,0x2000);
 			if(ret<0)
 			{
 				printf("readfail2\n");
@@ -156,7 +168,7 @@ void explainfile(char* thisfile,unsigned long long size)
 			//文件还剩很多没读
 			if( end > 0x2000 )
 			{
-				ret=read(codefd,datahome+0x1000,0x1000);
+				ret=read(targetfd,datahome+0x1000,0x1000);
 				if(ret<0)
 				{
 					printf("readfail3\n");
@@ -167,7 +179,7 @@ void explainfile(char* thisfile,unsigned long long size)
 			//文件还剩最后一点没读
 			else if( end > 0x1000 )
 			{
-				ret=read(codefd,datahome+0x1000,end-0x1000);
+				ret=read(targetfd,datahome+0x1000,end-0x1000);
 				if(ret<0)
 				{
 					printf("readfail4\n");
@@ -201,7 +213,7 @@ void explainfile(char* thisfile,unsigned long long size)
 
 theend:
 	explain_stop(countbyte+start);
-	close(codefd);
+	close(targetfd);
 	return;
 }
 void fileordir(char* thisname)
@@ -216,7 +228,7 @@ void fileordir(char* thisname)
 	i=stat( thisname , &statbuf );
 	if(i == -1)
 	{
-		printf("wrong codename!!!!!!!!!!\n");
+		printf("wrong targetname!!!!!!!!!!\n");
 		return;
 	}
 
@@ -280,7 +292,7 @@ int main(int argc,char *argv[])
 {
 	int i;
 	char* p;
-	codename[0]=seedname[0]=suffix[0]=worker[0]=0;
+	targetname[0]=seedname[0]=suffix[0]=worker[0]=0;
 
 
 
@@ -288,10 +300,12 @@ int main(int argc,char *argv[])
 	//***********************help*************************
 	if(argc==1)
 	{
-		printf("code2seed(code=? seed=? suffix=? worker=?)\n{\n");
-		printf("	code2seed.exe 1.c\n");
-		printf("	code2seed.exe .cpp\n");
-		printf("	code2seed.exe code=/usr/src/linux seed=2.txt suffix=.c worker=purec\n");
+		printf("code2seed(target=? seed=? suffix=? worker=?)\n{\n");
+		printf("	code2seed.exe .\n");
+		printf("	code2seed.exe 1.cpp\n");
+		printf("	code2seed.exe target=. suffix=.dts\n");
+		printf("	code2seed.exe target=/your/dir suffix=.h worker=header\n");
+		printf("	code2seed.exe target=/usr/src/linux seed=2.txt suffix=.c worker=purec\n");
 		printf("}\n");
 		return 0;
 	}
@@ -306,15 +320,17 @@ int main(int argc,char *argv[])
 		p=argv[i];
 		if(p==0)break;
 
-		//code=
-		if(	(p[0]=='c') &&
-			(p[1]=='o') &&
-			(p[2]=='d') &&
-			(p[3]=='e') &&
-			(p[4]=='=') )
+		//target=
+		if(	(p[0]=='t') &&
+			(p[1]=='a') &&
+			(p[2]=='r') &&
+			(p[3]=='g') &&
+			(p[4]=='e') &&
+			(p[5]=='t') &&
+			(p[6]=='=') )
 		{
-			printf("code=%s\n",p+5);
-			snprintf(codename,256,"%s",p+5);
+			printf("code=%s\n",p+7);
+			snprintf(targetname,256,"%s",p+7);
 			continue;
 		}
 
@@ -359,19 +375,19 @@ int main(int argc,char *argv[])
 		}
 
 		//treat this as suffix
-		else if(p[0]=='.')
+		else if( (p[0]=='.') && (p[1]!=0) )
 		{
 			printf("suffix=%s\n",p);
 			snprintf(suffix,16,"%s",p);
 			length=strlen(suffix);
 		}
 
-		//treat this as codename
+		//treat this as targetname
 		else
 		{
 			//.c	.cpp	.h
-			printf("code=%s\n",p);
-			snprintf(codename,256,"%s",p);
+			printf("target=%s\n",p);
+			snprintf(targetname,256,"%s",p);
 		}
 	}
 	//*******************分析输入结束******************
@@ -380,10 +396,10 @@ int main(int argc,char *argv[])
 
 
 	//********************检查开始********************
-	if(codename[0]==0)
+	if(targetname[0]==0)
 	{
-		printf("code=.\n");
-		snprintf(codename,256,".");
+		printf("target=.\n");
+		snprintf(targetname,256,".");
 	}
 	if(seedname[0]==0)
 	{
@@ -392,59 +408,57 @@ int main(int argc,char *argv[])
 	}
 	if(suffix[0]==0)
 	{
-		//试着从codename名字里面拿到后缀名
+		//试着从targetname名字里面拿到后缀名
 		p=0;
 		for(i=0;i<256;i++)
 		{
-			if(codename==0)break;
-			if(codename[i]=='.')p=codename+i;
-		}
-		if( (p==0) | (p[1]==0) )
-		{
-			printf("invalid suffix!!!!!!!!!!!\n");
-			return 0;
+			if(targetname==0)break;
+			if(targetname[i]=='.')p=targetname+i;
 		}
 
-		//拿到后缀名了
+		if( (p==0) | (p[1]==0) )
+		{
+			snprintf(suffix,16,".c");
+			length=2;
+		}
+		else
+		{
+			snprintf(suffix,16,"%s",p);
+			length=strlen(suffix);
+		}
 		printf("suffix=%s\n",p);
-		snprintf(suffix,16,"%s",p);
-		length=strlen(suffix);
 	}
 	if(worker[0]==0)
 	{
-		//set up default worker
-		/*
-		if(.c)purec
-		if(.cc)cpp
-		if(.cpp)cpp
-		if(.h)struct
-		if(.hh)class
-		if(.java)java
-		*/
 		if(strcmp(suffix,".c")==0)
 		{
 			printf("worker=purec\n");
-			snprintf(worker,16,"purec");
+			snprintf(worker,16,"purec");	//c
 		}
 		else if(strcmp(suffix,".cc")==0)
 		{
 			printf("worker=cpp\n");
-			snprintf(worker,16,"cpp");
+			snprintf(worker,16,"cpp");	//c++
 		}
 		else if(strcmp(suffix,".cpp")==0)
 		{
 			printf("worker=cpp\n");
-			snprintf(worker,16,"cpp");
+			snprintf(worker,16,"cpp");	//c++
+		}
+		else if(strcmp(suffix,".dts")==0)
+		{
+			printf("worker=dts\n");
+			snprintf(worker,16,"dts");	//device tree
 		}
 		else if(strcmp(suffix,".h")==0)
 		{
 			printf("worker=struct\n");
-			snprintf(worker,16,"struct");
+			snprintf(worker,16,"struct");	//header(mostly struct?)
 		}
 		else
 		{
-			printf("invalid worker!!!!!!!!!!\n");
-			return 0;
+			printf("worker=none\n");
+			snprintf(worker,16,"none");	//byte offset & line number
 		}
 	}
 	//********************检查结束**********************
@@ -463,7 +477,7 @@ seedgenerating:
 		explain_ing=explainpurec;
 
 		//do
-		fileordir( codename );
+		fileordir( targetname );
 
 		//kill
 		killpurec();
@@ -476,23 +490,36 @@ seedgenerating:
 		explain_ing=explaincpp;
 
 		//do
-		fileordir( codename );
+		fileordir( targetname );
 
 		//kill
 		killcpp();
 	}
-	else if(strcmp(worker,"struct")==0)
+	else if(strcmp(worker,"none")==0)
 	{
-		initstruct(seedname,datahome);
-		explain_start=startstruct;
-		explain_stop=stopstruct;
-		explain_ing=explainstruct;
+		initnone(seedname,datahome);
+		explain_start=startnone;
+		explain_stop=stopnone;
+		explain_ing=explainnone;
 
 		//do
-		fileordir( codename );
+		fileordir( targetname );
 
 		//kill
-		killstruct();
+		killnone();
+	}
+	else if(strcmp(worker,"dts")==0)
+	{
+		initdts(seedname,datahome);
+		explain_start=startdts;
+		explain_stop=stopdts;
+		explain_ing=explaindts;
+
+		//do
+		fileordir( targetname );
+
+		//kill
+		killdts();
 	}
 	else if(strcmp(worker,"header")==0)
 	{
@@ -502,10 +529,23 @@ seedgenerating:
 		explain_ing=explainheader;
 
 		//do
-		fileordir( codename );
+		fileordir( targetname );
 
 		//kill
 		killheader();
+	}
+	else if(strcmp(worker,"struct")==0)
+	{
+		initstruct(seedname,datahome);
+		explain_start=startstruct;
+		explain_stop=stopstruct;
+		explain_ing=explainstruct;
+
+		//do
+		fileordir( targetname );
+
+		//kill
+		killstruct();
 	}
 	printf("seed generated\n");
 	//**************************************************

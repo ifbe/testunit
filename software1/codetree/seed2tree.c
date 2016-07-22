@@ -18,12 +18,12 @@
 static char hashname[256]={0};
 static int hashfd=-1;
 static unsigned char* hashbuf=0;
-static int hashcount=0;
+static unsigned long long hashcount=0;
 //seed
 static char seedname[256]={0};
 static int seedfd=-1;
 static unsigned char* seedbuf=0;
-static int seedcount=0;
+static unsigned long long seedcount=0;
 //tree
 static char treename[256]={0};
 static int treefd=-1;
@@ -52,7 +52,7 @@ void generatehash()
 {
 	//数据特别大，用int会溢出
 	int ret;
-	unsigned long long i=0;
+	unsigned long long j=0;
 	unsigned long long temp=0;
 	unsigned long long percent=0;
 	unsigned long long length=0;
@@ -99,22 +99,22 @@ void generatehash()
 
 	//start generating
 	percent=1;
-	for(i=0;i<seedcount;i++)
+	for(j=0;j<seedcount;j++)
 	{
-		if( ( (i*100) / seedcount ) >= percent)
+		if( ( (j*100) / seedcount ) >= percent)
 		{
-			printf("%llx/%llx(%lld%%)..............\r",i,seedcount,percent);
+			printf("%llx/%llx(%lld%%)..............\r",j,seedcount,percent);
 			fflush(stdout);
 			percent++;
 		}
 
 		//linux
-		if( (buf[i]==0xa) | (buf[i]==0xd) )
+		if( (buf[j]==0xa) | (buf[j]==0xd) )
 		{
 			//deal with mac and windows problem
-			if(buf[i]==0xd)
+			if(buf[j]==0xd)
 			{
-				if(buf[i+1]==0xa)i++;
+				if(buf[j+1]==0xa)j++;
 			}
 
 			//line number
@@ -143,43 +143,43 @@ void generatehash()
 		}
 
 		//不要的全吃掉
-		else if((buf[i]=='#') |
-				(buf[i]=='{') |
-				(buf[i]=='}') |
-				(buf[i]==0x9) )
+		else if((buf[j]=='#') |
+				(buf[j]=='{') |
+				(buf[j]=='}') |
+				(buf[j]==0x9) )
 		{
 			while(1)
 			{
-				if(buf[i+1]==0)break;
-				else if(buf[i+1]==0xa)break;
-				else if(buf[i+1]==0xd)break;
+				if(buf[j+1]==0)break;
+				else if(buf[j+1]==0xa)break;
+				else if(buf[j+1]==0xd)break;
 
-				i++;
+				j++;
 			}
 			continue;
 		}
-		//if(buf[i]==0x9)i++;
+		//if(buf[j]==0x9)j++;
 
-		byteoffset=i;
+		byteoffset=j;
 		while(1)
 		{
-			if(buf[i+1]==0)break;
-			else if(buf[i+1]==0x9)break;
-			else if(buf[i+1]==0x20)break;
-			else if(buf[i+1]==0xa)break;
-			else if(buf[i+1]==0xd)break;
-			i++;
+			if(buf[j+1]==0)break;
+			else if(buf[j+1]==0x9)break;
+			else if(buf[j+1]==0x20)break;
+			else if(buf[j+1]==0xa)break;
+			else if(buf[j+1]==0xd)break;
+			j++;
 		}
-		length=i-byteoffset+1;
+		length=j-byteoffset+1;
 
 		//
 		while(1)
 		{
-			if(buf[i+1]==0)break;
-			else if(buf[i+1]==0xa)break;
-			else if(buf[i+1]==0xd)break;
+			if(buf[j+1]==0)break;
+			else if(buf[j+1]==0xa)break;
+			else if(buf[j+1]==0xd)break;
 
-			i++;
+			j++;
 		}
 
 		//
@@ -407,7 +407,7 @@ void preparesearch()
 		exit(-1);
 	}
 
-	printf("%s has %d bytes\n",seedname,seedcount);
+	printf("%s has %lld bytes\n",seedname,seedcount);
 	close(seedfd);
 //********************************************************
 
@@ -474,7 +474,7 @@ void preparesearch()
 		exit(-1);
 	}
 
-	printf("%s has %d functions\n",hashname,hashcount>>4);
+	printf("%s has %lld functions\n",hashname,hashcount>>4);
 	close(hashfd);
 //********************************************************
 }

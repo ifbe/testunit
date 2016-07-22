@@ -2,10 +2,12 @@
 all:
 	################code->seed->hash##################
 	gcc code2seed.c \
-	explain/purec.c \
+	explain/c.c \
 	explain/cpp.c \
-	explain/struct.c \
+	explain/dts.c \
 	explain/header.c \
+	explain/none.c \
+	explain/struct.c \
 	-o code2seed.exe
 	################seed+hash=tree####################
 	gcc seed2tree.c -o seed2tree.exe

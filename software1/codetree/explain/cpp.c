@@ -602,6 +602,7 @@ int explaincpp(int start,int end)
 
 	}//for
 
+	countbyte += 0x1000;
 	return i-end;	//可能多分析了几十几百个字节
 }
 void startcpp(char* thisfile,int size)
@@ -625,7 +626,7 @@ void startcpp(char* thisfile,int size)
 }
 void stopcpp(int where)
 {
-	printf("@%x@%d -> %d,%d,%d,%d\n\n\n\n",
+	printf("@%x@%d -> %d,%d,%d,%d\n",
 		where,
 		countline,
 		infunc,
@@ -633,6 +634,7 @@ void stopcpp(int where)
 		innote,
 		instr
 	);
+	printf("\n\n\n\n");
 	write(dest,"\n\n\n\n",4);
 }
 void initcpp(char* file,char* memory)
