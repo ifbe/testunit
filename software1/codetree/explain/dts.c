@@ -19,7 +19,15 @@ static int dest=-1;
 static unsigned char* datahome;		//4k+4k
 
 //
-static int strwhere=0;
+static int inleaf=0;
+static char leafstack[16];
+
+//
+static int lastname=0;
+static int thisname=0;
+
+//
+static int signal=0;
 static unsigned char strbuf[256];
 
 //count
@@ -50,6 +58,7 @@ static int instr=0;
 int explaindts(int start,int end)
 {
 	int i=0;
+	int ret=0;
 	unsigned char ch=0;
 	printf(
 		"@%x@%d -> %d,%d,%d,%d\n",
@@ -70,9 +79,7 @@ int explaindts(int start,int end)
 		//软退
 		if(i>end)
 		{
-			if(ch==' ')break;
-			else if(ch==0x9)break;
-			else if(ch==0xa)break;
+			if(ch==0xa)break;
 			else if(ch==0xd)break;
 		}
 
@@ -97,6 +104,8 @@ int explaindts(int start,int end)
 
 			//字符串，换行清零
 			if(instr==1)instr=0;
+
+			thisname=lastname=-1;
 		}
 
 		//0xd:		mac或是windows的换行符
@@ -114,6 +123,8 @@ int explaindts(int start,int end)
 
 			//字符串，换行清零
 			if(instr==1)instr=0;
+
+			thisname=lastname=-1;
 		}
 
 		//.....................
@@ -180,6 +191,21 @@ int explaindts(int start,int end)
 				innote=9;
 				i++;
 			}
+
+			//根节点
+			else if( 
+				( (datahome[i+1]==' ') && (datahome[i+2]=='{') ) |
+				  (datahome[i+1]=='{') )
+			{
+				signal=1;
+
+				for(ret=0;ret<inleaf;ret++)strbuf[ret]=0x9;
+				ret=snprintf(strbuf+inleaf,200,"/\n");
+
+				//printf("%s",strbuf);
+				write(dest,strbuf,strlen(strbuf));
+			}
+
 		}
 
 		else if(datahome[i]=='*')
@@ -196,47 +222,121 @@ int explaindts(int start,int end)
 			}
 		}
 
-		else if( (ch>=0x20) && (ch==0x8) )
+		else if( (ch==0x20) | (ch==0x9) )
 		{
-			if(inmarco>=2|innote>0|instr>0)continue;
+			if(innote>0|instr>0)continue;
+
+			lastname=thisname;
+			thisname=-1;
 		}
 
-		else if(
-			(ch>='a' && ch<='z') |
-			(ch>='0' && ch<='9') |
-			(ch=='_') )
+		else if(	(ch>='0' && ch<='9') |
+					(ch>='a' && ch<='z') |
+					(ch>='A' && ch<='Z') |
+					(ch=='_') |(ch==',') )
 		{
-			if(inmarco>=2|innote>0|instr>0)continue;
+			if(innote>0|instr>0)continue;
+
+			if(thisname<0)thisname=i;
 		}
 
 		else if(ch==':')
 		{
-			if(inmarco>=2|innote>0|instr>0)continue;
+			if(innote>0|instr>0)continue;
+			if(infunc>9)continue;
+			if(thisname<0)continue;
+
+			signal=1;
+
+			for(ret=0;ret<inleaf;ret++)
+			{
+				strbuf[ret]=0x9;
+			}
+			for(ret=0;ret<99;ret++)
+			{
+				if( (datahome[thisname+ret]== 0x9) |
+					(datahome[thisname+ret]==0x20) |
+					(datahome[thisname+ret]== ':') )
+				{
+					strbuf[inleaf+ret]='\n';
+					strbuf[inleaf+ret+1]=0;
+					break;
+				}
+				else strbuf[inleaf+ret]=datahome[thisname+ret];
+			}
+			//printf("%s",strbuf);
+			write(dest,strbuf,strlen(strbuf));
 		}
 
 		else if(ch=='&')
 		{
-			if(inmarco>=2|innote>0|instr>0)continue;
+			if(innote>0|instr>0)continue;
+			if(infunc>0)continue;
+
+			signal=1;
+			i++;
+			for(ret=0;ret<inleaf;ret++)
+			{
+				strbuf[ret=0x9];
+			}
+			for(ret=0;ret<99;ret++)
+			{
+				if( (datahome[i+ret]== 0x9) |
+					(datahome[i+ret]==0x20) |
+					(datahome[i+ret]== ':') )
+				{
+					strbuf[inleaf+ret]='\n';
+					strbuf[inleaf+ret+1]=0;
+					break;
+				}
+				else strbuf[inleaf+ret]=datahome[i+ret];
+			}
+			//printf("%s",strbuf);
+			write(dest,strbuf,strlen(strbuf));
 		}
 
 		else if(ch=='{')
 		{
-			if(inmarco>=2|innote>0|instr>0)continue;
+			if(innote>0|instr>0)continue;
+			if(infunc>9)continue;
 
-			//已经在函数里
-			if(infunc!=0)infunc++;
-
-			//确认这即将是个函数
-			else
+			if(signal==1)
 			{
-			}//infunc
+				signal=0;
+
+				for(ret=0;ret<inleaf;ret++)
+				{
+					strbuf[ret]=0x9;
+				}
+				ret=snprintf(strbuf+inleaf,200,"{\n",thisname);
+
+				//printf("%s",strbuf);
+				write(dest,strbuf,strlen(strbuf));
+
+				inleaf++;
+				leafstack[inleaf]=infunc;
+			}
+			infunc++;
 		}
 
 		else if(ch=='}')
 		{
-			if(inmarco>=2|innote>0|instr>0)continue;
-		}
+			if(innote>0|instr>0)continue;
+			if(infunc>9)continue;
+			infunc--;
 
+			if(inleaf==0)continue;
+			if(infunc==leafstack[inleaf])
+			{
+				inleaf--;
+
+				for(ret=0;ret<inleaf;ret++)strbuf[ret]=0x9;
+				ret=snprintf(strbuf+inleaf,200,"}\n",thisname);
+
+				//printf("%s",strbuf);
+				write(dest,strbuf,strlen(strbuf));
+			}
+		}
 	}//for
 
 	countbyte += 0x1000;
@@ -256,7 +356,7 @@ void startdts(char* thisfile,int size)
 	write(dest,datahome,ret);
 
 	//init
-	strwhere=0;
+	thisname=lastname=-1;
 	countbyte=countline=0;
 	infunc = inmarco = innote = instr = 0;
 }
