@@ -46,7 +46,7 @@ static int instr=0;
 
 
 
-int explainnone(int start,int end)
+int none_explain(int start,int end)
 {
 	int i=0;
 	unsigned char ch=0;
@@ -141,7 +141,7 @@ int explainnone(int start,int end)
 	countbyte += 0x1000;
 	return i-end;	//可能多分析了几十几百个字节
 }
-void startnone(char* thisfile,int size)
+int none_start(char* thisfile,int size)
 {
 	int ret;
 
@@ -158,7 +158,7 @@ void startnone(char* thisfile,int size)
 	countbyte=countline=0;
 	infunc = inmarco = innote = instr = 0;
 }
-void stopnone(int where)
+int none_stop(int where)
 {
 	printf("@%x@%d -> %d,%d,%d,%d\n",
 		where,
@@ -171,7 +171,7 @@ void stopnone(int where)
 	printf("\n\n\n\n");
 	write(dest,"\n\n\n\n",4);
 }
-void initnone(char* file,char* memory)
+int none_init(char* file,char* memory)
 {
 /*
 	dest=open(
@@ -182,7 +182,7 @@ void initnone(char* file,char* memory)
 */
 	datahome=memory;
 }
-void killnone()
+int none_kill()
 {
 	//close(dest);
 }

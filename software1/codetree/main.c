@@ -1,67 +1,4 @@
-#include <stdio.h>  
-#include <stdlib.h>  
-#include <string.h> 
-#include <dirent.h>  
-#include <unistd.h>  
-#include <fcntl.h>
-#include <sys/stat.h>  
-#include <sys/types.h> 
-#ifndef O_BINARY
-	//mingw64 compatiable
-	#define O_BINARY 0x0
-#endif
-
-
-
-
-//c
-int explainpurec(int,int);
-void startpurec(char*,int);
-void stoppurec(int);
-void initpurec(char*,char*);
-void killpurec();
-//cpp
-int explaincpp(int,int);
-void startcpp(char*,int);
-void stopcpp(int);
-void initcpp(char*,char*);
-void killcpp();
-//class
-int explainclass(int,int);
-void startclass(char*,int);
-void stopclass(int);
-void initclass(char*,char*);
-void killclass();
-//none(example)
-int explainnone(int,int);
-void startnone(char*,int);
-void stopnone(int);
-void initnone(char*,char*);
-void killnone();
-//dts
-int explaindts(int,int);
-void startdts(char*,int);
-void stopdts(int);
-void initdts(char*,char*);
-void killdts();
-//header
-int explainheader(int,int);
-void startheader(char*,int);
-void stopheader(int);
-void initheader(char*,char*);
-void killheader();
-//java
-int explainjava(int,int);
-void startjava(char*,int);
-void stopjava(int);
-void initjava(char*,char*);
-void killjava();
-//struct
-int explainstruct(int,int);
-void startstruct(char*,int);
-void stopstruct(int);
-void initstruct(char*,char*);
-void killstruct();
+#include "main.h"
 
 
 
@@ -81,8 +18,8 @@ static char suffix[256]={0};
 
 //file worker
 static char worker[256]={0};
-void (*explain_start)();
-void (*explain_stop)(int);
+int (*explain_start)();
+int (*explain_stop)(int);
 int (*explain_ing)(int,int);
 
 //
@@ -304,7 +241,7 @@ int main(int argc,char *argv[])
 		printf("	code2seed.exe .\n");
 		printf("	code2seed.exe 1.cpp\n");
 		printf("	code2seed.exe target=. suffix=.dts\n");
-		printf("	code2seed.exe target=/your/dir suffix=.h worker=header\n");
+		printf("	code2seed.exe target=/your/dir suffix=.h worker=dts\n");
 		printf("	code2seed.exe target=/usr/src/linux seed=2.txt suffix=.c worker=purec\n");
 		printf("}\n");
 		return 0;
@@ -453,7 +390,7 @@ int main(int argc,char *argv[])
 		else if(strcmp(suffix,".h")==0)
 		{
 			printf("worker=struct\n");
-			snprintf(worker,16,"struct");	//header(mostly struct?)
+			snprintf(worker,16,"struct");	//structure
 		}
 		else
 		{
@@ -470,82 +407,69 @@ seedgenerating:
 	printf("seed generating.................\n");
 	if(strcmp(worker,"purec")==0)
 	{
-		//init
-		initpurec(seedname,datahome);
-		explain_start=startpurec;
-		explain_stop=stoppurec;
-		explain_ing=explainpurec;
+		c_init(seedname,datahome);
 
-		//do
+		explain_start= c_start;
+		explain_stop = c_stop;
+		explain_ing  = c_explain;
 		fileordir( targetname );
 
-		//kill
-		killpurec();
+		c_kill();
 	}
 	else if(strcmp(worker,"cpp")==0)
 	{
-		initcpp(seedname,datahome);
-		explain_start=startcpp;
-		explain_stop=stopcpp;
-		explain_ing=explaincpp;
+		cpp_init(seedname,datahome);
 
-		//do
+		explain_start= cpp_start;
+		explain_stop = cpp_stop;
+		explain_ing  = cpp_explain;
 		fileordir( targetname );
 
-		//kill
-		killcpp();
+		cpp_kill();
 	}
 	else if(strcmp(worker,"none")==0)
 	{
-		initnone(seedname,datahome);
-		explain_start=startnone;
-		explain_stop=stopnone;
-		explain_ing=explainnone;
+		none_init(seedname,datahome);
 
-		//do
+		explain_start= none_start;
+		explain_stop = none_stop;
+		explain_ing  = none_explain;
 		fileordir( targetname );
 
-		//kill
-		killnone();
+		none_kill();
 	}
 	else if(strcmp(worker,"dts")==0)
 	{
-		initdts(seedname,datahome);
-		explain_start=startdts;
-		explain_stop=stopdts;
-		explain_ing=explaindts;
+		dts_init(seedname,datahome);
 
-		//do
+		explain_start= dts_start;
+		explain_stop = dts_stop;
+		explain_ing  = dts_explain;
 		fileordir( targetname );
 
-		//kill
-		killdts();
+		dts_kill();
 	}
-	else if(strcmp(worker,"header")==0)
+	else if(strcmp(worker,"include")==0)
 	{
-		initheader(seedname,datahome);
-		explain_start=startheader;
-		explain_stop=stopheader;
-		explain_ing=explainheader;
+		include_init(seedname,datahome);
 
-		//do
+		explain_start= include_start;
+		explain_stop = include_stop;
+		explain_ing  = include_explain;
 		fileordir( targetname );
 
-		//kill
-		killheader();
+		include_kill();
 	}
 	else if(strcmp(worker,"struct")==0)
 	{
-		initstruct(seedname,datahome);
-		explain_start=startstruct;
-		explain_stop=stopstruct;
-		explain_ing=explainstruct;
+		struct_init(seedname,datahome);
 
-		//do
+		explain_start= struct_start;
+		explain_stop = struct_stop;
+		explain_ing  = struct_explain;
 		fileordir( targetname );
 
-		//kill
-		killstruct();
+		struct_kill();
 	}
 	printf("seed generated\n");
 	//**************************************************

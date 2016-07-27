@@ -14,11 +14,20 @@
 
 
 
-//fp
+//
 static int dest=-1;
-
-//给read用，给snprintf用，以及强退的时候保存东西用
 static unsigned char* datahome;		//4k+4k
+
+//
+static int inleaf=0;
+static char leafstack[16];
+
+//
+static int lastname=0;
+static int thisname=0;
+
+//
+static int signal=0;
 static unsigned char strbuf[256];
 
 //count
@@ -46,9 +55,10 @@ static int instr=0;
 
 
 
-int explainheader(int start,int end)
+int dts_explain(int start,int end)
 {
 	int i=0;
+	int ret=0;
 	unsigned char ch=0;
 	printf(
 		"@%x@%d -> %d,%d,%d,%d\n",
@@ -69,15 +79,14 @@ int explainheader(int start,int end)
 		//软退
 		if(i>end)
 		{
-			if(ch==' ')break;
-			else if(ch==0x9)break;
-			else if(ch==0xa)break;
+			if(ch==0xa)break;
 			else if(ch==0xd)break;
 		}
 
 		//强退(代码里绝不会有真正的0，都是ascii的0x30)
 		if(ch==0)
 		{
+			//printf("@%x\n",i);
 			break;
 		}
 
@@ -96,6 +105,7 @@ int explainheader(int start,int end)
 			//字符串，换行清零
 			if(instr==1)instr=0;
 
+			thisname=lastname=-1;
 		}
 
 		//0xd:		mac或是windows的换行符
@@ -114,6 +124,7 @@ int explainheader(int start,int end)
 			//字符串，换行清零
 			if(instr==1)instr=0;
 
+			thisname=lastname=-1;
 		}
 
 		//.....................
@@ -136,22 +147,6 @@ int explainheader(int start,int end)
 			//吃一个，然后换行
 			i++;
 			continue;
-		}
-
-		//prophets' guess
-		else if(
-			(ch>='a' && ch<='z') |
-			(ch>='A' && ch<='Z') |
-			(ch>='0' && ch<='9') |
-			ch=='_' )
-		{
-			if(inmarco>=2|innote>0|instr>0)continue;
-		}
-
-		//prophets' doubt
-		else if( (ch==' ')|(ch==0x9) )
-		{
-			if(inmarco>=2|innote>0|instr>0)continue;
 		}
 
 		else if(ch=='\"')
@@ -183,19 +178,34 @@ int explainheader(int start,int end)
 			//在这三种情况下什么都不能干
 			if(innote>0|instr>0)continue;
 
-			//单行注释很好解决
-			if(datahome[i+1]=='/')	//    //
+			//单行注释:		//
+			if(datahome[i+1]=='/')
 			{
 				innote=1;
 				i++;
 			}
 
-			//多行注释
-			else if(datahome[i+1]=='*')	//    /*
+			//多行注释:		/*
+			else if(datahome[i+1]=='*')
 			{
 				innote=9;
 				i++;
 			}
+
+			//根节点
+			else if( 
+				( (datahome[i+1]==' ') && (datahome[i+2]=='{') ) |
+				  (datahome[i+1]=='{') )
+			{
+				signal=1;
+
+				for(ret=0;ret<inleaf;ret++)strbuf[ret]=0x9;
+				ret=snprintf(strbuf+inleaf,200,"/\n");
+
+				//printf("%s",strbuf);
+				write(dest,strbuf,strlen(strbuf));
+			}
+
 		}
 
 		else if(datahome[i]=='*')
@@ -212,101 +222,127 @@ int explainheader(int start,int end)
 			}
 		}
 
-		else if(ch=='#')
+		else if( (ch==0x20) | (ch==0x9) )
 		{
-			//不在注释里面,也不在字符串里的时候
 			if(innote>0|instr>0)continue;
 
-			//吃掉所有空格和tab
-			while(1)
+			lastname=thisname;
+			thisname=-1;
+		}
+
+		else if(	(ch>='0' && ch<='9') |
+					(ch>='a' && ch<='z') |
+					(ch>='A' && ch<='Z') |
+					(ch=='_') |(ch==',') )
+		{
+			if(innote>0|instr>0)continue;
+
+			if(thisname<0)thisname=i;
+		}
+
+		else if(ch==':')
+		{
+			if(innote>0|instr>0)continue;
+			if(infunc>9)continue;
+			if(thisname<0)continue;
+
+			signal=1;
+
+			for(ret=0;ret<inleaf;ret++)
 			{
-				if( (datahome[i+1]==' ') | (datahome[i+1]==0x9) )i++;
-				else break;
+				strbuf[ret]=0x9;
 			}
-
-			//宏外面碰到#号
-			if(inmarco==0)
+			for(ret=0;ret<99;ret++)
 			{
-				//#define
-				if( (*(unsigned short*)(datahome+i+1) )==0x6564 )
+				if( (datahome[thisname+ret]== 0x9) |
+					(datahome[thisname+ret]==0x20) |
+					(datahome[thisname+ret]== ':') )
 				{
-					if( (*(unsigned int*)(datahome+i+3) )==0x656e6966 )
-					{
-						i+=6;
-						inmarco='d';
-					}
+					strbuf[inleaf+ret]='\n';
+					strbuf[inleaf+ret+1]=0;
+					break;
 				}
-
-				//#else 这里是为了暂时不管宏嵌套的问题...
-				else if( (*(unsigned int*)(datahome+i+1) )==0x65736c65 )
-				{
-
-					inmarco='e';
-					i+=4;
-				}
-
-				//#if
-				else if( (*(unsigned short*)(datahome+i+1) )==0x6669 )
-				{
-					inmarco=1;
-					i+=2;
-				}
+				else strbuf[inleaf+ret]=datahome[thisname+ret];
 			}
+			//printf("%s",strbuf);
+			write(dest,strbuf,strlen(strbuf));
+		}
 
-			//普通宏里又碰到了#号
-			else if(inmarco==1)
+		else if(ch=='&')
+		{
+			if(innote>0|instr>0)continue;
+			if(infunc>0)continue;
+
+			signal=1;
+			i++;
+			for(ret=0;ret<inleaf;ret++)
 			{
-/*
-				//嵌套在#if里面的#define,这种解法不对
-				if( (*(unsigned short*)(datahome+i+1) )==0x6564 )
-				{
-					if( (*(unsigned int*)(datahome+i+3) )==0x656e6966 )
-					{
-						i+=6;
-						inmarco='d';
-					}
-				}
-*/
-				//#else -> 升级
-				if( (*(unsigned int*)(datahome+i+1) )==0x65736c65 )
-				{
-					inmarco='e';
-					i+=4;
-				}
-
-				//#endif -> 降级
-				else if( (datahome[i+1]=='e') &&
-				    (datahome[i+2]=='n') &&
-				    (datahome[i+3]=='d') &&
-				    (datahome[i+4]=='i') &&
-				    (datahome[i+5]=='f') )
-				{
-					inmarco=0;
-					i+=5;
-				}
+				strbuf[ret=0x9];
 			}
-
-			//else里面碰到endif
-			else if(inmarco=='e')
+			for(ret=0;ret<99;ret++)
 			{
-				if( (datahome[i+1]=='e') &&
-				    (datahome[i+2]=='n') &&
-				    (datahome[i+3]=='d') &&
-				    (datahome[i+4]=='i') &&
-				    (datahome[i+5]=='f') )
+				if( (datahome[i+ret]== 0x9) |
+					(datahome[i+ret]==0x20) |
+					(datahome[i+ret]== ':') )
 				{
-					inmarco=0;
-					i+=5;
+					strbuf[inleaf+ret]='\n';
+					strbuf[inleaf+ret+1]=0;
+					break;
 				}
+				else strbuf[inleaf+ret]=datahome[i+ret];
 			}
-		}//#marco
+			//printf("%s",strbuf);
+			write(dest,strbuf,strlen(strbuf));
+		}
 
+		else if(ch=='{')
+		{
+			if(innote>0|instr>0)continue;
+			if(infunc>9)continue;
+
+			if(signal==1)
+			{
+				signal=0;
+
+				for(ret=0;ret<inleaf;ret++)
+				{
+					strbuf[ret]=0x9;
+				}
+				ret=snprintf(strbuf+inleaf,200,"{\n",thisname);
+
+				//printf("%s",strbuf);
+				write(dest,strbuf,strlen(strbuf));
+
+				inleaf++;
+				leafstack[inleaf]=infunc;
+			}
+			infunc++;
+		}
+
+		else if(ch=='}')
+		{
+			if(innote>0|instr>0)continue;
+			if(infunc>9)continue;
+			infunc--;
+
+			if(inleaf==0)continue;
+			if(infunc==leafstack[inleaf])
+			{
+				inleaf--;
+
+				for(ret=0;ret<inleaf;ret++)strbuf[ret]=0x9;
+				ret=snprintf(strbuf+inleaf,200,"}\n",thisname);
+
+				//printf("%s",strbuf);
+				write(dest,strbuf,strlen(strbuf));
+			}
+		}
 	}//for
 
 	countbyte += 0x1000;
 	return i-end;	//可能多分析了几十几百个字节
 }
-void startheader(char* thisfile,int size)
+int dts_start(char* thisfile,int size)
 {
 	int ret;
 
@@ -320,10 +356,11 @@ void startheader(char* thisfile,int size)
 	write(dest,datahome,ret);
 
 	//init
+	thisname=lastname=-1;
 	countbyte=countline=0;
 	infunc = inmarco = innote = instr = 0;
 }
-void stopheader(int where)
+int dts_stop(int where)
 {
 	printf("@%x@%d -> %d,%d,%d,%d\n",
 		where,
@@ -336,7 +373,7 @@ void stopheader(int where)
 	printf("\n\n\n\n");
 	write(dest,"\n\n\n\n",4);
 }
-void initheader(char* file,char* memory)
+int dts_init(char* file,char* memory)
 {
 	//
 	dest=open(
@@ -346,7 +383,7 @@ void initheader(char* file,char* memory)
 	);
 	datahome=memory;
 }
-void killheader()
+int dts_kill()
 {
 	close(dest);
 }

@@ -206,7 +206,7 @@ wrong:
 //printf("wrong:%c\n",p[0]);
 	return 0;
 }
-int explainstruct(int start,int end)
+int struct_explain(int start,int end)
 {
 	int i=0;
 	unsigned char ch=0;
@@ -531,7 +531,7 @@ int explainstruct(int start,int end)
 	countbyte += 0x1000;
 	return i-end;
 }
-void startstruct(char* thisfile,int size)
+int struct_start(char* thisfile,int size)
 {
 	int ret;
 
@@ -549,7 +549,7 @@ void startstruct(char* thisfile,int size)
 	countbyte=countline=0;
 	instruct=inmarco=innote=instr=0;
 }
-void stopstruct(int where)
+int struct_stop(int where)
 {
 	printf("@%x@%d -> %d,%d,%d,%d\n",
 		where,
@@ -562,7 +562,7 @@ void stopstruct(int where)
 	printf("\n\n\n\n");
 	write(dest,"\n\n\n\n",4);
 }
-void initstruct(char* file,char* memory)
+int struct_init(char* file,char* memory)
 {
 	dest=open(
 		file,
@@ -571,7 +571,7 @@ void initstruct(char* file,char* memory)
 	);
 	datahome=memory;
 }
-void killstruct()
+int struct_kill()
 {
 	close(dest);
 }

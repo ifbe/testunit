@@ -1,27 +1,12 @@
-.PHONY:all
-all:
-	################code->seed->hash##################
-	gcc code2seed.c \
-	explain/c.c \
-	explain/cpp.c \
-	explain/dts.c \
-	explain/header.c \
-	explain/none.c \
-	explain/struct.c \
-	-o code2seed.exe
-	################seed+hash=tree####################
-	gcc seed2tree.c -o seed2tree.exe
-.PHONY:fun
-fun:
-	################seed2table2txt##################
-	gcc fun/seed2table.c -o seed2table.exe
-	gcc fun/table2txt.c -o table2txt.exe
-install:
-	-cp code2seed.exe /bin/
-	-cp seed2tree.exe /bin/
-uninstall:
-	-rm -f /bin/code2seed.exe
-	-rm -f /bin/seed2tree.exe
+.PHONY:learn
+learn:
+	gcc main.c \
+	reading/c.c \
+	reading/cpp.c \
+	reading/dts.c \
+	reading/include.c \
+	reading/none.c \
+	reading/struct.c
 clean:
 	rm -f *.exe *.out
 	rm -f *.seed *.tree
