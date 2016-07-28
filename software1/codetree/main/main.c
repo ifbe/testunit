@@ -1,150 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-
-
-
-//bash
-int bash_explain(int,int);
-int bash_start(char*,int);
-int bash_stop(int);
-int bash_init(char*,char*);
-int bash_kill();
-//c
-int c_explain(int,int);
-int c_start(char*,int);
-int c_stop(int);
-int c_init(char*,char*);
-int c_kill();
-//cpp
-int cpp_explain(int,int);
-int cpp_start(char*,int);
-int cpp_stop(int);
-int cpp_init(char*,char*);
-int cpp_kill();
-//class
-int class_explain(int,int);
-int class_start(char*,int);
-int class_stop(int);
-int class_init(char*,char*);
-int class_kill();
-//none(example)
-int none_explain(int,int);
-int none_start(char*,int);
-int none_stop(int);
-int none_init(char*,char*);
-int none_kill();
-//dts
-int dts_explain(int,int);
-int dts_start(char*,int);
-int dts_stop(int);
-int dts_init(char*,char*);
-int dts_kill();
-//go
-int go_explain(int,int);
-int go_start(char*,int);
-int go_stop(int);
-int go_init(char*,char*);
-int go_kill();
-//include
-int include_explain(int,int);
-int include_start(char*,int);
-int include_stop(int);
-int include_init(char*,char*);
-int include_kill();
-//makefile
-int makefile_explain(int,int);
-int makefile_start(char*,int);
-int makefile_stop(int);
-int makefile_init(char*,char*);
-int makefile_kill();
-//java
-int java_explain(int,int);
-int java_start(char*,int);
-int java_stop(int);
-int java_init(char*,char*);
-int java_kill();
-//js
-int js_explain(int,int);
-int js_start(char*,int);
-int js_stop(int);
-int js_init(char*,char*);
-int js_kill();
-//json
-int json_explain(int,int);
-int json_start(char*,int);
-int json_stop(int);
-int json_init(char*,char*);
-int json_kill();
-//perl
-int perl_explain(int,int);
-int perl_start(char*,int);
-int perl_stop(int);
-int perl_init(char*,char*);
-int perl_kill();
-//php
-int php_explain(int,int);
-int php_start(char*,int);
-int php_stop(int);
-int php_init(char*,char*);
-int php_kill();
-//python
-int python_explain(int,int);
-int python_start(char*,int);
-int python_stop(int);
-int python_init(char*,char*);
-int python_kill();
-//ruby
-int ruby_explain(int,int);
-int ruby_start(char*,int);
-int ruby_stop(int);
-int ruby_init(char*,char*);
-int ruby_kill();
-//struct
-int struct_explain(int,int);
-int struct_start(char*,int);
-int struct_stop(int);
-int struct_init(char*,char*);
-int struct_kill();
-
-
-
-
-
-
-
-
-//filled when in main()
-struct worker
-{
-	//[0,f]
-	char suffix[8];
-	char worker[8];
-
-	//[10,1f]
-        int (*start)();
-	char pad0[8-sizeof(char*)];
-        int (*stop)(int);
-	char pad1[8-sizeof(char*)];
-
-	//[20,2f]
-        int (*explain)(int,int);
-	char pad2[8-sizeof(char*)];
-        int (*what)(int,int);
-	char pad3[8-sizeof(char*)];
-
-	//[30,3f]
-        int (*haha)(int,int);
-	char pad4[8-sizeof(char*)];
-        int (*hehe)(int,int);
-	char pad5[8-sizeof(char*)];
-};
-static struct worker worker[20];
-
-
-
-
+void iterator_init();
+void string_init(int argc,char** argv);
 
 
 
@@ -167,6 +25,8 @@ int main(int argc,char *argv[])
 
 
 
+	iterator_init(argc,argv);
+	string_init(argc,argv);
 }
 /*
 	//-----------------------分析输入开始-------------------------

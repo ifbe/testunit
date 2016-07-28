@@ -1,4 +1,5 @@
 #include<stdio.h>
+#include<string.h>
 
 
 
@@ -49,4 +50,26 @@ printf("%c,%c\n",first[j],second[k]);
         }
 
         return 1;
+}
+
+
+
+
+void string_init(int argc,char** argv)
+{
+	int j;
+	for(j=1;j<argc;j++)
+	{
+		if(strstr(argv[j],"="))
+		{
+			printf("var:	%s\n",argv[j]);
+		}
+		else
+		{
+			printf("suf:	%s\n",argv[j]);
+		}
+	}
+}
+void string_kill()
+{
 }
