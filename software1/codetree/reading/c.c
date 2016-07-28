@@ -15,9 +15,9 @@
 
 
 //fp
-static int dest=-1;
+static int outfile=-1;
 
-//给read用，给snprintf用，以及强退的时候保存东西用
+//
 static unsigned char* datahome;		//4k+4k
 static unsigned char strbuf[256];
 static unsigned char backup1[256];
@@ -222,8 +222,8 @@ void purec_printprophet(unsigned char* p)
 	}
 
 finalprint:
-	write(dest,strbuf,count);
-	//printf("%s",dest);
+	write(outfile,strbuf,count);
+	//printf("%s",outfile);
 }
 int c_explain(int start,int end)
 {
@@ -239,8 +239,8 @@ int c_explain(int start,int end)
 		instr
 	);
 
-	//不用i<end防止交界麻烦,给足了整整0x800个机会自己决定滚不滚
-	for(i=start;i<0x1800;i++)
+	//不用i<end防止交界麻烦,给足了整整0x80000个机会自己决定滚不滚
+	for(i=start;i<0x180000;i++)
 	{
 		//拿一个
 		ch=datahome[i];
@@ -632,7 +632,7 @@ int c_explain(int start,int end)
 
 	}//for
 
-	countbyte += 0x1000;
+	countbyte += 0x100000;
 	return i-end;	//可能多分析了几十几百个字节
 }
 int c_start(char* thisfile,int size)
@@ -642,11 +642,11 @@ int c_start(char* thisfile,int size)
 	//infomation
 	ret=snprintf(datahome,256,"#name:	%s\n",thisfile);
 	printf("%s",datahome);
-	write(dest,datahome,ret);
+	write(outfile,datahome,ret);
 
 	ret=snprintf(datahome,256,"#size:	%d(0x%x)\n",size,size);
 	printf("%s",datahome);
-	write(dest,datahome,ret);
+	write(outfile,datahome,ret);
 
 	//init
 	chance=roundbracket=0;
@@ -665,19 +665,13 @@ int c_stop(int where)
 		instr
 	);
 	printf("\n\n\n\n");
-	write(dest,"\n\n\n\n",4);
+	write(outfile,"\n\n\n\n",4);
 }
-int c_init(char* file,char* memory)
+int c_init(char* src,int outfile)
 {
-	//
-	dest=open(
-		file,
-		O_CREAT|O_RDWR|O_TRUNC|O_BINARY,
-		S_IRWXU|S_IRWXG|S_IRWXO
-	);
-	datahome=memory;
+	datahome = src;
+	outfile = outfile;
 }
 int c_kill()
 {
-	close(dest);
 }

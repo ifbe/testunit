@@ -221,7 +221,7 @@ int struct_explain(int start,int end)
 	);
 
 	//
-	for(i=start;i<0x1800;i++)
+	for(i=start;i<0x180000;i++)
 	{
 		//拿一个
 		ch=datahome[i];
@@ -528,7 +528,7 @@ int struct_explain(int start,int end)
 
 	}//for
 
-	countbyte += 0x1000;
+	countbyte += 0x100000;
 	return i-end;
 }
 int struct_start(char* thisfile,int size)

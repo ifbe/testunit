@@ -71,7 +71,7 @@ int dts_explain(int start,int end)
 	);
 
 	//不用i<end防止交界麻烦,给足了整整0x800个机会自己决定滚不滚
-	for(i=start;i<0x1800;i++)
+	for(i=start;i<0x180000;i++)
 	{
 		//拿一个
 		ch=datahome[i];
@@ -308,7 +308,7 @@ int dts_explain(int start,int end)
 				{
 					strbuf[ret]=0x9;
 				}
-				ret=snprintf(strbuf+inleaf,200,"{\n",thisname);
+				ret=snprintf(strbuf+inleaf,200,"{\n");
 
 				//printf("%s",strbuf);
 				write(dest,strbuf,strlen(strbuf));
@@ -331,7 +331,7 @@ int dts_explain(int start,int end)
 				inleaf--;
 
 				for(ret=0;ret<inleaf;ret++)strbuf[ret]=0x9;
-				ret=snprintf(strbuf+inleaf,200,"}\n",thisname);
+				ret=snprintf(strbuf+inleaf,200,"}\n");
 
 				//printf("%s",strbuf);
 				write(dest,strbuf,strlen(strbuf));
@@ -339,7 +339,7 @@ int dts_explain(int start,int end)
 		}
 	}//for
 
-	countbyte += 0x1000;
+	countbyte += 0x100000;
 	return i-end;	//可能多分析了几十几百个字节
 }
 int dts_start(char* thisfile,int size)

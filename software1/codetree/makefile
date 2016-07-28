@@ -1,6 +1,9 @@
 .PHONY:learn
 learn:
-	gcc main.c \
+	gcc \
+	main/iterator.c \
+	main/main.c \
+	main/string.c \
 	reading/c.c \
 	reading/cpp.c \
 	reading/dts.c \

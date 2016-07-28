@@ -17,7 +17,7 @@
 //fp
 static int dest=-1;
 
-//给read用，给snprintf用，以及强退的时候保存东西用
+//
 static unsigned char* datahome;		//4k+4k
 static unsigned char strbuf[256];
 
@@ -61,7 +61,7 @@ int include_explain(int start,int end)
 	);
 
 	//不用i<end防止交界麻烦,给足了整整0x800个机会自己决定滚不滚
-	for(i=start;i<0x1800;i++)
+	for(i=start;i<0x180000;i++)
 	{
 		//拿一个
 		ch=datahome[i];
@@ -303,7 +303,7 @@ int include_explain(int start,int end)
 
 	}//for
 
-	countbyte += 0x1000;
+	countbyte += 0x100000;
 	return i-end;	//可能多分析了几十几百个字节
 }
 int include_start(char* thisfile,int size)
