@@ -4,11 +4,45 @@
 
 
 
+static char buf[0x1000];
+char* getdir(char* p)
+{
+	int j = 0;
+	int k = -1;
+	while(1)
+	{
+		if(j>0x1000)break;
+		if(p[j] == 0)break;
+		if(p[j] == '/')k=j;
+
+		buf[j]=p[j];
+		j++;
+	}
+
+	if(k<0)return p;
+	if(k==0)return "/";
+
+	buf[k]=0;
+	return buf;
+}
+char* getfile(char* p)
+{
+	int j=0;
+	int k=0;
+	while(1)
+	{
+		if(p[j] == 0)break;
+		if(p[j] == '/')k=j+1;
+
+		j++;
+	}
+	return p+k;
+}
 int wildcard(char* first,char* second)
 {
 	int j=0;
 	int k=0;
-	printf("%s,%s\n",first,second);
+	//printf("%s,%s\n",first,second);
 
 	while(1)
 	{
@@ -16,7 +50,6 @@ int wildcard(char* first,char* second)
 		{
 			if(first[j]==0)
 			{
-				printf("@1\n");
 				return 1;
 			}
 			else
@@ -39,7 +72,6 @@ int wildcard(char* first,char* second)
 			while(first[j]=='*')j++;
 			if(first[j]==0)
 			{
-				printf("@2\n");
 				return 1;
 			}
 
@@ -51,7 +83,6 @@ int wildcard(char* first,char* second)
 				{
 					if(wildcard(first+j+1 , second+k+1) != 0)
 					{
-						printf("@3\n");
 						return 1;
 					}
 				}
@@ -73,7 +104,6 @@ int wildcard(char* first,char* second)
 				{
 					if(wildcard(first+j+1,second+k+1) != 0)
 					{
-						printf("@4\n");
 						return 1;
 					}
 				}
@@ -85,6 +115,5 @@ int wildcard(char* first,char* second)
 		else return 0;
 	}
 
-	printf("@5\n");
 	return 1;
 }

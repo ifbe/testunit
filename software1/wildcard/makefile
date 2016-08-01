@@ -1,2 +1,2 @@
 all:
-	gcc main.c wildcard.c
+	gcc main.c string.c

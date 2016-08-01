@@ -1,2 +1,4 @@
 all:
-	gcc main.c traverse.c
+	gcc main.c string.c traverse.c
+clean:
+	rm -f *.exe *.out

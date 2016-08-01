@@ -10,13 +10,13 @@
 struct stack
 {
 	DIR* folder;
-	unsigned char name[512 - sizeof(char*)];
+	char* tail;
 };
-static struct stack stack[16];
+static struct stack stack[32];		//16 is not enough
+//
+static char path[0x1000];		//some very long
 //
 static struct stat statbuf;
-//
-static char path[512];
 //
 static int rsp=0;
 
@@ -30,15 +30,19 @@ char* traverse_read()
 	while(1)
 	{
 		//empty name
-		if(stack[rsp].name[0] == 0)
+		if(stack[rsp].tail == 0)
 		{
 			//empty stack
-			if(rsp == 0)return 0;
+			if(rsp == 0)
+			{
+				return 0;
+			}
 
-			//pop
+			//stack pop, new name
 			else
 			{
 				rsp--;
+				stack[rsp].tail[0]=0;
 				continue;
 			}
 		}
@@ -47,7 +51,8 @@ char* traverse_read()
 		if(stack[rsp].folder == 0)
 		{
 			//try to open dir
-			stack[rsp].folder = opendir(stack[rsp].name);
+			if(path[0]==0)stack[rsp].folder = opendir("/");
+			else stack[rsp].folder = opendir(path);
 
 			//opened successfully
 			if(stack[rsp].folder != 0)continue;
@@ -55,8 +60,7 @@ char* traverse_read()
 			//can not open, it is leaf !!!
 			else
 			{
-				strncpy(path,stack[rsp].name,500);
-				stack[rsp].name[0]=0;
+				stack[rsp].tail=0;
 				return path;
 			}
 		}
@@ -64,13 +68,12 @@ char* traverse_read()
 		//folder opened, take one
 		ent=readdir(stack[rsp].folder);
 
-		//failed to get
+		//nothing left in this folder
 		if(ent == 0)
 		{
 			closedir(stack[rsp].folder);
-			stack[rsp].name[0]=0;
+			stack[rsp].tail=0;
 
-			if(rsp > 0)rsp--;
 			continue;
 		}
 
@@ -87,41 +90,36 @@ char* traverse_read()
 		}
 
 		//push
-		if(	(rsp==0) &&
-			(stack[0].name[0]=='/') &&
-			(stack[0].name[1]==0) )
-		{
-			snprintf(
-				stack[1].name,
-				500,
-				"/%s",
-				ent->d_name
-			);
-		}
-		else
-		{
-			snprintf(
-				stack[rsp+1].name,
-				500,
-				"%s/%s",
-				stack[rsp].name,
-				ent->d_name
-			);
-		}
 		stack[rsp+1].folder = 0;
+		stack[rsp+1].tail = stack[rsp].tail + snprintf(
+			stack[rsp].tail,
+			1024,
+			"/%s",
+			ent->d_name
+		);
 		rsp++;
 	}
 }
 void traverse_write(char* p)
 {
 	int j;
+	if(p[0]==0)return;
 
 	//clear everything
 	rsp=0;
-	memset(stack,0,sizeof(struct stack));
-	strncpy(stack[0].name , p , 256);
+	strncpy(path , p , 1024);
 
 	//convert "/some/dir/" to "/some/dir"
 	j=strlen(p);
-	if(p[j]=='/')stack[0].name[j]=0;
+	if(p[j-1]=='/')
+	{
+		path[j-1]=0;
+		stack[0].folder=0;
+		stack[0].tail=path+j-1;
+	}
+	else
+	{
+		stack[0].folder=0;
+		stack[0].tail=path+j;
+	}
 }
