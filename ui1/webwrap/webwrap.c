@@ -12,6 +12,14 @@
 //
 static int childear[2];
 static int childmouth[2];
+//
+static int position=0;
+static unsigned char haha[0x100000*16]={0};
+//
+static unsigned char httpbuf[0x1000];
+static unsigned char http_response[]="HTTP/1.1 200 OK\r\nContent-type: text/html\r\n\r\n";
+static unsigned char http_head[0x1000] = {0};
+static unsigned char http_tail[] = "</pre></body></html>";
 
 
 
@@ -75,14 +83,6 @@ void thisisfather(char* url)
 	//socket related
 	int sockfd;
 	int thisfd;
-	static unsigned char httpbuf[0x1000];
-	//response text
-	static unsigned char http_response[]="HTTP/1.1 200 OK\r\nContent-type: text/html\r\n\r\n";
-	static unsigned char http_head[0x1000] = {0};
-	static unsigned char http_tail[] = "</pre></body></html>";
-	//from exe
-	static int position=0;
-	static unsigned char haha[0x100000*16]={0};
 
 
 

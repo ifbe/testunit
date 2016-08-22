@@ -18,6 +18,11 @@ static struct sockaddr_in remote;
 static socklen_t addrlen;
 //
 static char buffer[0x100000];
+static char* http =
+	"HTTP/1.1 200 OK\r\nContent-type: text/html\r\n\r\n"
+	"<html><body>"
+	"<p style=\"text-align:center; font-size:xx-large;\">42</p>"
+	"</body></html>";
 
 
 
@@ -36,7 +41,7 @@ int startsocket(char* address,int port)
 	selffd=socket(AF_INET,SOCK_STREAM,0);
 	if(selffd==-1)
 	{
-		//printf("socketcreate error\n");
+		printf("socketcreate error\n");
 		return -1;
 	}
 
@@ -75,7 +80,7 @@ void main()
 	struct sigaction sa;
 
 	//
-	ret = startsocket("127.0.0.1", 42);
+	ret = startsocket("127.0.0.1", 4242);
 	if(ret <= 0){printf("error@startsocket:%d\n",ret);return;}
 
 	//do not stop when SIGPIPE
@@ -99,16 +104,17 @@ void main()
 		//talk
 		while(1)
 		{
-			ret = read(remotefd, buffer, 100);
+			ret = read(remotefd, buffer, 1000);
 			if(ret <= 0)break;
 
 			buffer[ret]=0;
-			printf("r:	%s",buffer);
+			printf("%s",buffer);
 
-			ret = write(remotefd, "sb\n", 3);
-			if(ret <= 0)break;
-
-			printf("w:	sb\n");
+			if(strncmp(buffer, "GET", 3) == 0)
+			{
+				ret = write(remotefd, http, strlen(http));
+				break;
+			}
 		}
 
 		//out
