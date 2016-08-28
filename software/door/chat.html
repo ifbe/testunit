@@ -1,0 +1,77 @@
+<html>
+<head>
+<script type="text/javascript">
+document.onkeydown=function(){
+	if(window.event.keyCode == 9){
+		window.event.preventDefault();
+		window.event.keyCode=36;
+	}
+}
+
+var downx;
+var downy;
+function dragstart(theone,event)
+{
+	downx=event.screenX;
+	downy=event.screenY;
+	theone.style.opacity=0.5;
+}
+function dragend(theone,event)
+{
+	var newx=parseInt(theone.style.getPropertyValue("left"),10)+event.screenX-downx;
+	var newy=parseInt(theone.style.top.replace('px',''))+event.screenY-downy;
+	if(newx<0)newx=0;
+	if(newy<0)newy=0;
+	theone.style.left=newx+"px";
+	theone.style.top=newy+"px";
+	theone.style.opacity=1;
+}
+
+var ws=new WebSocket("ws://127.0.0.1:2222");
+function say(data)
+{
+	var debug=document.getElementById("debug");
+	debug.textContent=debug.textContent+data+"\n";
+}
+function send(data)
+{
+	ws.send(data);
+}
+ws.onmessage=function(event)
+{
+	say(event.data);
+	document.getElementById('haha').innerHTML=event.data;
+};
+ws.onopen=function(event)
+{
+	say("welcome victim");
+};
+ws.onclose=function(event)
+{
+	say("connection closed");
+};
+ws.onerror=function(event)
+{
+	say("something wrong");
+};
+</script>
+</head>
+
+<body style="background:black;margin:0;padding:0">
+
+<pre id="debug" style="position:absolute;left:1%;top:2%;width:97%;height:97%;background:#444444;color:#fff;">
+</pre>
+
+<div id="haha" style="position:absolute;left:2%;top:1%;width:97%;height:97%;background:#abcdef;color:#fff;">
+</div>
+
+<div id="you" style="position:absolute;left:200px;top:200px;width:20%;height:100px;background:#ffffff;" draggable="true" ondragstart="dragstart(this,event)" ondragend="dragend(this,event)" ontouchstart="dragstart(this,event)" ontouchend="dragend(this,event)">
+	<textarea id="word" style="float:left;width:80%;height:100%">anyone here?</textarea>
+	<div onclick="send(document.getElementById('word').value)" style="float:left;width:20%;height:25%;background:red">send</div>
+	<div style="float:left;width:20%;height:25%;background:green"></div>
+	<div style="float:left;width:20%;height:25%;background:blue"></div>
+	<div style="float:left;width:20%;height:25%;background:yellow"></div>
+</div>
+
+</body>
+</html>
