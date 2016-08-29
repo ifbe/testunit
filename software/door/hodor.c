@@ -1,16 +1,25 @@
-#include<stdio.h>
-#include<stdlib.h>
-#include<string.h>
-#include<errno.h>
-#include<fcntl.h>
-#include<signal.h>
-#include<unistd.h>
-#include<sys/socket.h>
-#include<sys/types.h>
-#include<arpa/inet.h>
-#include<netinet/in.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <signal.h>
+#include <unistd.h>
+#include <netinet/in.h>
+#include <sys/socket.h>
+#include <arpa/inet.h>
+#include <sys/epoll.h>
+#include <sys/types.h>
+//
 #define u64 unsigned long long
 #define u32 unsigned int
+#define u16 unsigned short
+#define u8 unsigned char
+//
+#define IPADDRESS "127.0.0.1"
+#define PORT 2222
+#define MAXSIZE 1024
+//
 void sha1sum(unsigned char* out, const unsigned char* str, int len);
 void base64_encode(unsigned char* out,const unsigned char* in,int len);
 
@@ -18,137 +27,168 @@ void base64_encode(unsigned char* out,const unsigned char* in,int len);
 
 
 //
-static int listenfd=0;
-static struct sockaddr_in selfbody={0};
+static int listenfd;
+static int epollfd;
+static struct epoll_event epollevent[MAXSIZE];
 //
-static int clientfd=0;
-static struct sockaddr_in clientaddr;
-static socklen_t addrlen;
+static int clientfirst=0;
+static int clientlast=0;
+static int clienttype[MAXSIZE];
+static int clientfd[MAXSIZE];
+//
+static unsigned char buf[0x100000];
+static char* GET = 0;
+static char* Connection = 0;
+static char* Upgrade = 0;
+static char* Sec_WebSocket_Key = 0;
 //
 static char* http_response = "HTTP/1.1 200 OK\r\nContent-type: text/html\r\n\r\n";
 static int http_response_size;
 static char* http_context[0x1000];
 static int http_context_size;
-//
-static unsigned char buffer[0x100000];
-static char* GET = 0;
-static char* Connection = 0;
-static char* Upgrade = 0;
-static char* Sec_WebSocket_Key = 0;
 
 
 
 
-int startsocket(char* address,int port)
+
+
+
+
+void epoll_delete(int fd)
 {
-	int ret;
-	int reuse=0;
+	struct epoll_event ev;
 
-	//create socket
-	listenfd=socket(AF_INET,SOCK_STREAM,0);
-	if(listenfd==-1)
-	{
-		printf("socketcreate error\n");
-		return -1;
-	}
+	ev.events = EPOLLIN;
+	ev.data.fd = fd;
+	epoll_ctl(epollfd, EPOLL_CTL_DEL, fd, &ev);
 
-	if (setsockopt(listenfd, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse)) < 0)
-	{
-		perror("setsockopet error\n");
-		return -1;
-	}
+	clienttype[fd] = 0;
+	close(fd);
 
-	//create struct
-	memset(&selfbody, 0, sizeof(struct sockaddr_in));
-	selfbody.sin_family=AF_INET;
-	selfbody.sin_addr.s_addr=inet_addr(address);
-	selfbody.sin_port=htons(port);
-
-	//
-	ret=bind(listenfd,(struct sockaddr*)&selfbody,sizeof(struct sockaddr_in));
-	if(ret!=0)
-	{
-		printf("bind error\n");
-		return -2;
-	}
-
-	//
-	ret=listen(listenfd,256);
-	if(ret!=0)
-	{
-		printf("listen error\n");
-		return -3;
-	}
-
-	return 1;
-}
-static void stopsocket(int num)
-{
-	close(clientfd);
-	close(listenfd);
-	exit(-1);
+	printf("[%d]leave\n\n\n\n\n", fd);
 }
 
-
-
-
-static void explainstr(char* buf, int max)
+void serve_websocket(int fd, int nread)
 {
-	int flag;
-	int linehead;
+	int i,j,k;
+	int type,masked;
+        u64 len;
+	unsigned char key[4];
+        unsigned char buf1[256];
+        unsigned char buf2[256];
 
-	GET = 0;
-	Connection = 0;
-	Upgrade = 0;
-	Sec_WebSocket_Key = 0;
+	for(k=0;k<nread;k++)printf("%.2x ",buf[k]);
+	printf("\n");
 
-	linehead = 0;
-	while(1)
+	//byte0.bit7
+	if((buf[0]&0x80)==0x80)printf("tail,");
+	else printf("part,");
+
+	//byte0.[3,0]
+	k = buf[0]&0xf;
+	if(k==0)
 	{
-		if(strncmp(buf+linehead, "GET ", 4) == 0)GET = buf+linehead+4;
-		else if(strncmp(buf+linehead, "Connection: ", 12) == 0)Connection = buf+linehead+12;
-		else if(strncmp(buf+linehead, "Upgrade: ", 9) == 0)Upgrade = buf+linehead+9;
-		else if(strncmp(buf+linehead, "Sec-WebSocket-Key: ", 19) == 0)Sec_WebSocket_Key = buf+linehead+19;
+		type=0;
+		printf("external,");
+	}
+	else if(k==1)
+	{
+		type=1;
+		printf("text,");
+	}
+	else if(k==2)
+	{
+		type=2;
+		printf("binary,");
+	}
+	else if(k==9)
+	{
+		printf("ping\n");
+		return;
+	}
+	else if(k==0xa)
+	{
+		printf("pong\n");
+		return;
+	}
+	else if(k==8)
+	{
+		printf("close\n");
+		epoll_delete(fd);
+		return;
+	}
+	else
+	{
+		printf("known\n");
+		epoll_delete(fd);
+		return;
+	}
 
-		//eat until next character
-		flag=0;
-		while(1)
+	//byte1.bit7
+	if( (buf[1]>>7) == 1)
+	{
+		masked=1;
+		printf("masked,");
+	}
+	else
+	{
+		masked=0;
+		printf("unmasked,");
+	}
+
+	//
+	k = buf[1]&0x7f;
+	if(k==127)
+	{
+		len     = ((u64)buf[2]<<56)
+			+ ((u64)buf[3]<<48)
+			+ ((u64)buf[4]<<40)
+			+ ((u64)buf[5]<<32)
+			+ ((u64)buf[6]<<24)
+			+ ((u64)buf[7]<<16)
+			+ ((u64)buf[8]<<8)
+			+ buf[9];
+		k = 10;
+		printf("len=%llx,",len);
+	}
+	else if(k==126)
+	{
+		len     = (buf[2]<<8)
+			+ buf[3];
+		k = 4;
+		printf("len=%llx,",len);
+	}
+	else
+	{
+		len = k;
+		k = 2;
+		printf("len=%llx,",len);
+	}
+
+	if(masked == 1)
+	{
+		*(u32*)key = *(u32*)(buf + k);
+		j = k;
+		k += 4;
+		printf("key=%x\n",*(u32*)key);
+
+		if(type==1)
 		{
-			if(buf[linehead] == 0)
+			buf[0] &= 0x8f;
+			buf[1] &= 0x7f;
+			for(i=0;i<len;i++)
 			{
-				//printf("[0x0@(%d,%d)]\n",linehead,max);
+				buf[j+i] = buf[i+k] ^ key[i%4];
+				printf("%c",buf[j+i]);
 			}
-			else if(buf[linehead] == 0xa)
-			{
-				flag=1;
-				//printf("[0xa@(%d,%d)]",linehead,max);
-				printf("\n");
-			}
-			else if(buf[linehead] == 0xd)
-			{
-				flag=1;
-				//printf("[0xd@(%d,%d)]\n",linehead,max);
-			}
-			else
-			{
-				if(flag==0)printf("%c", buf[linehead]);
-				else break;
-			}
+			printf("\n");
 
-			linehead++;
-			if(linehead >= max)break;
+			write(fd, buf, j+len);
 		}
-
-		if(linehead >= max)break;
 	}
-	printf("GET@%llx,Connection@%llx,Upgrade@%llx,Sec-WebSocket-Key@%llx\n",
-		(u64)GET,
-		(u64)Connection,
-		(u64)Upgrade,
-		(u64)Sec_WebSocket_Key
-	);
+	else printf("\n");
 }
-void serve_websocket(int fd)
+void handshake_websocket(int fd)
 {
 	int k,j,i;
 	int type,masked;
@@ -185,7 +225,7 @@ void serve_websocket(int fd)
 	base64_encode( buf2 ,buf1, 20 );
 	printf("%s\n",buf2);
 
-	snprintf(buffer, 0x10000,
+	snprintf(buf, 0x10000,
 		"HTTP/1.1 101 Switching Protocols\r\n"
 		"Upgrade: websocket\r\n"
 		"Connection: Upgrade\r\n"
@@ -193,127 +233,10 @@ void serve_websocket(int fd)
 
 		buf2
 	);
-	printf("%s",buffer);
-
-	j = write(fd, buffer, strlen(buffer));
-
-	while(1)
-	{
-		j = read(fd, buffer, 1000);
-		if(j <= 0)return;
-
-		for(k=0;k<j;k++)printf("%.2x ",buffer[k]);
-		printf("\n");
-
-		//byte0.bit7
-		if((buffer[0]&0x80)==0x80)printf("tail,");
-		else printf("part,");
-
-		//byte0.[3,0]
-		k = buffer[0]&0xf;
-		if(k==0)
-		{
-			type=0;
-			printf("external,");
-		}
-		else if(k==1)
-		{
-			type=1;
-			printf("text,");
-		}
-		else if(k==2)
-		{
-			type=2;
-			printf("binary,");
-		}
-		else if(k==9)
-		{
-			printf("ping\n");
-			continue;
-		}
-		else if(k==0xa)
-		{
-			printf("pong\n");
-			continue;
-		}
-		else if(k==8)
-		{
-			printf("close\n");
-			return;
-		}
-		else
-		{
-			printf("known\n");
-			return;
-		}
-
-		//byte1.bit7
-		if( (buffer[1]>>7) == 1)
-		{
-			masked=1;
-			printf("masked,");
-		}
-		else
-		{
-			masked=0;
-			printf("unmasked,");
-		}
-
-		//
-		k = buffer[1]&0x7f;
-		if(k==127)
-		{
-			len	= ((u64)buffer[2]<<56)
-				+ ((u64)buffer[3]<<48)
-				+ ((u64)buffer[4]<<40)
-				+ ((u64)buffer[5]<<32)
-				+ ((u64)buffer[6]<<24)
-				+ ((u64)buffer[7]<<16)
-				+ ((u64)buffer[8]<<8)
-				+ buffer[9];
-			k = 10;
-			printf("len=%llx,",len);
-		}
-		else if(k==126)
-		{
-			len	= (buffer[2]<<8)
-				+ buffer[3];
-			k = 4;
-			printf("len=%llx,",len);
-		}
-		else
-		{
-			len = k;
-			k = 2;
-			printf("len=%llx,",len);
-		}
-
-		if(masked == 1)
-		{
-			*(u32*)key = *(u32*)(buffer + k);
-			j = k;
-			k += 4;
-			printf("key=%x\n",*(u32*)key);
-
-			if(type==1)
-			{
-				buffer[0] &= 0x8f;
-				buffer[1] &= 0x7f;
-				for(i=0;i<len;i++)
-				{
-					buffer[j+i] = buffer[i+k] ^ key[i%4];
-					printf("%c",buffer[j+i]);
-				}
-				printf("\n");
-
-				write(fd, buffer, j+len);
-			}
-		}
-		else printf("\n");
-
-	}//while1
+	printf("%s",buf);
+	write(fd, buf, strlen(buf));
 }
-void serve_http(int fd)
+void handshake_http(int fd)
 {
 	int ret;
 
@@ -322,70 +245,309 @@ void serve_http(int fd)
 
 	ret = write(fd, http_context, http_context_size);
 	printf("writing http_context\n");
+
+	epoll_delete(fd);
+	printf("\n\n\n\n");
 }
-void main()
+
+
+
+
+static void explainstr(char* buf, int max)
+{
+	int flag;
+	int linehead;
+
+	GET = 0;
+	Connection = 0;
+	Upgrade = 0;
+	Sec_WebSocket_Key = 0;
+
+	linehead = 0;
+	while(1)
+	{
+		if(strncmp(buf+linehead, "GET ", 4) == 0)GET = buf+linehead+4;
+		else if(strncmp(buf+linehead, "Connection: ", 12) == 0)Connection = buf+linehead+12;
+		else if(strncmp(buf+linehead, "Upgrade: ", 9) == 0)Upgrade = buf+linehead+9;
+		else if(strncmp(buf+linehead, "Sec-WebSocket-Key: ", 19) == 0)Sec_WebSocket_Key = buf+linehead+19;
+
+		//eat until next character
+		flag=0;
+		while(1)
+		{
+			if(buf[linehead] == 0)
+			{
+				//printf("[0x0@(%d,%d)]\n",linehead,max);
+			}
+			else if(buf[linehead] == 0xd)
+			{
+				flag=1;
+				//printf("[0xd@(%d,%d)]\n",linehead,max);
+			}
+			else if(buf[linehead] == 0xa)
+			{
+				flag=1;
+				//printf("[0xa@(%d,%d)]",linehead,max);
+				printf("\n");
+			}
+			else
+			{
+				if(flag==0)
+				{
+					printf("%c", buf[linehead]);
+				}
+				else break;
+			}
+
+			linehead++;
+			if(linehead >= max)break;
+		}
+
+		if(linehead >= max)break;
+	}
+	printf("GET@%llx,Connection@%llx,Upgrade@%llx,Sec-WebSocket-Key@%llx\n",
+		(u64)GET,
+		(u64)Connection,
+		(u64)Upgrade,
+		(u64)Sec_WebSocket_Key
+	);
+}
+static void do_read(int fd)
+{
+	int nread;
+	struct epoll_event ev;
+
+	nread = read(fd, buf, MAXSIZE);
+	if(nread>0)
+	{
+		buf[nread] = 0;
+
+		//这是个websocket包
+		if(clienttype[fd] == 1)
+		{
+			serve_websocket(fd, nread);
+			return;
+		}
+
+		//这是个普通socket
+		if(clienttype[fd]==0xff)
+		{
+			//do nothing
+			printf("[%d]%s", fd, buf);
+			return;
+		}
+
+		//头一个包,检查是什么玩意
+		else
+		{
+			//printf("[%d]start {\n", fd);
+			//printf("%s", buf);
+			//printf("}end [%d]\n\n", fd);
+			explainstr(buf, nread);
+
+			//可能是http，websocket
+			if(GET != 0)
+			{
+				//这是个websocket请求
+				if( (Upgrade != 0) && (Sec_WebSocket_Key != 0) )
+				{
+					handshake_websocket(fd);
+					clienttype[fd] = 1;
+				}
+
+				//http请求根
+				else if( (GET[0]=='/')&&(GET[1]==' ') )
+				{
+					handshake_http(fd);
+					return;
+				}
+
+				//http请求其他
+				else
+				{
+					epoll_delete(fd);
+					return;
+				}
+			}
+			else clienttype[fd] = 0xff;
+		}
+	}
+	else
+	{
+		if (nread == -1)printf("[%d]read error\n", fd);
+		else if (nread == 0)printf("[%d]fd closed\n", fd);
+		epoll_delete(fd);
+	}
+}
+
+static void do_write(int fd)
+{
+	int nwrite;
+	struct epoll_event ev;
+
+	nwrite = write(fd, buf, strlen(buf));
+	if (nwrite == -1)
+	{
+		printf("[%d]write error\n", fd);
+		epoll_delete(fd);
+	}
+	else
+	{
+		ev.events = EPOLLIN;
+		ev.data.fd = fd;
+		epoll_ctl(epollfd, EPOLL_CTL_MOD, fd, &ev);
+	}
+	memset(buf, 0, MAXSIZE);
+}
+
+
+static void handle_accpet(int listenfd)
+{
+	int fd;
+	struct epoll_event ev;
+	struct sockaddr_in cliaddr;
+
+	socklen_t cliaddrlen = sizeof(struct sockaddr_in);
+	fd = accept(listenfd, (struct sockaddr*)&cliaddr, &cliaddrlen);
+	if (fd == -1)printf("accept error\n");
+
+	//
+	printf("[%d]%s:%d\n",
+		fd,
+		inet_ntoa(cliaddr.sin_addr),
+		cliaddr.sin_port
+	);
+
+	//
+	if(fd<clientfirst)clientfirst = fd;
+	else if(fd<MAXSIZE)clientlast = fd;
+	else
+	{
+		epoll_delete(fd);
+		return;
+	}
+	clientfd[fd] = 1;
+
+	//
+	ev.events = EPOLLIN;
+	ev.data.fd = fd;
+	epoll_ctl(epollfd, EPOLL_CTL_ADD, fd, &ev);
+}
+static void handle_events()
+{
+	int i;
+	int fd;
+	int num = epoll_wait(epollfd, epollevent, MAXSIZE, -1);
+
+	for (i = 0;i < num;i++)
+	{
+		/*
+		if (epollevent[i].events & EPOLLOUT)
+		{
+			do_write(fd);
+		}
+		*/
+
+		if (epollevent[i].events & EPOLLIN)
+		{
+			fd = epollevent[i].data.fd;
+
+			if(fd == listenfd)
+			{
+				handle_accpet(listenfd);
+			}
+			else do_read(fd);
+		}
+	}
+}
+
+
+
+
+static void stopsocket(int num)
+{
+	close(listenfd);
+	close(epollfd);
+	exit(-1);
+}
+static int startsocket(const char* ip, int port)
+{
+	int reuse=0;
+	struct sockaddr_in servaddr;
+
+	listenfd = socket(AF_INET, SOCK_STREAM, 0);
+	if (listenfd == -1)
+	{
+		printf("socket error\n");
+		exit(1);
+	}
+
+	if (setsockopt(listenfd, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse)) < 0)
+	{
+		printf("setsockopet error\n");
+		return -1;
+	}
+
+	bzero(&servaddr, sizeof(servaddr));
+	servaddr.sin_family = AF_INET;
+	inet_pton(AF_INET, ip, &servaddr.sin_addr);
+	servaddr.sin_port = htons(port);
+
+	//bind
+	if (bind(listenfd, (struct sockaddr*)&servaddr, sizeof(servaddr)) == -1)
+	{
+		printf("bind error\n");
+		exit(1);
+	}
+
+	//listen
+	listen(listenfd, 5);
+
+	return listenfd;
+}
+
+int main(int argc, char *argv[])
 {
 	int ret;
 	struct sigaction sa;
+	struct epoll_event ev;
 
-	//
+	//clean
+	for(ret=0;ret<MAXSIZE;ret++)
+	{
+		clienttype[ret] = 0;
+		clientfd[ret] = 0;
+	}
+
+	//http
 	ret = open("chat.html",O_RDONLY);
 	http_response_size = strlen(http_response);
 	http_context_size = read(ret, http_context, 0x1000);
 	close(ret);
 
-	//
-	ret = startsocket("0.0.0.0", 2222);
-	if(ret <= 0){printf("error@startsocket:%d\n",ret);return;}
+	//socket
+	listenfd = startsocket(IPADDRESS, PORT);
+
+	//epoll
+	epollfd = epoll_create(MAXSIZE);
+	ev.events = EPOLLIN;
+	ev.data.fd = listenfd;
+	epoll_ctl(epollfd, EPOLL_CTL_ADD, listenfd, &ev);
 
 	//do not stop when SIGPIPE
 	sa.sa_handler=SIG_IGN;
 	sigaction(SIGPIPE,&sa,0);
 
 	//ctrl+c
-	signal(SIGINT,stopsocket);
+	signal(SIGINT, stopsocket);
 
+	//epoll.forever
 	while(1)
 	{
-		//in
-		addrlen = sizeof(struct sockaddr_in);
-		clientfd = accept(listenfd, (struct sockaddr*)&clientaddr, &addrlen);
-		if(clientfd<=0)
-		{
-			printf("accept error\n");
-			return;
-		}
-		printf("%s:%d {\n",inet_ntoa(clientaddr.sin_addr),clientaddr.sin_port);
-
-		//talk
-		while(1)
-		{
-			ret = read(clientfd, buffer, 1000);
-			if(ret <= 0)break;
-
-			buffer[ret]=0;
-			explainstr(buffer, ret);
-			if(GET != 0)
-			{
-				if( (Upgrade != 0) && (Sec_WebSocket_Key != 0) )
-				{
-					serve_websocket(clientfd);
-				}
-				else if( (GET[0]=='/')&&(GET[1]==' ') )
-				{
-					serve_http(clientfd);
-				}
-			}
-
-			break;
-		}
-
-		//out
-		printf("} %s:%d\n\n\n\n\n",
-			inet_ntoa(clientaddr.sin_addr),
-			clientaddr.sin_port
-		);
-		close(clientfd);
+		handle_events();
 	}
+
+	//bye
 	stopsocket(0);
 }
+
