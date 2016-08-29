@@ -13,15 +13,16 @@
 #define u32 unsigned int
 void sha1sum(unsigned char* out, const unsigned char* str, int len);
 void base64_encode(unsigned char* out,const unsigned char* in,int len);
+
+
+
+
 //
-
-
-
-static int selffd=0;
+static int listenfd=0;
 static struct sockaddr_in selfbody={0};
 //
-static int remotefd=0;
-static struct sockaddr_in remote;
+static int clientfd=0;
+static struct sockaddr_in clientaddr;
 static socklen_t addrlen;
 //
 static char* http_response = "HTTP/1.1 200 OK\r\nContent-type: text/html\r\n\r\n";
@@ -41,6 +42,21 @@ static char* Sec_WebSocket_Key = 0;
 int startsocket(char* address,int port)
 {
 	int ret;
+	int reuse=0;
+
+	//create socket
+	listenfd=socket(AF_INET,SOCK_STREAM,0);
+	if(listenfd==-1)
+	{
+		printf("socketcreate error\n");
+		return -1;
+	}
+
+	if (setsockopt(listenfd, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse)) < 0)
+	{
+		perror("setsockopet error\n");
+		return -1;
+	}
 
 	//create struct
 	memset(&selfbody, 0, sizeof(struct sockaddr_in));
@@ -48,16 +64,8 @@ int startsocket(char* address,int port)
 	selfbody.sin_addr.s_addr=inet_addr(address);
 	selfbody.sin_port=htons(port);
 
-	//create socket
-	selffd=socket(AF_INET,SOCK_STREAM,0);
-	if(selffd==-1)
-	{
-		printf("socketcreate error\n");
-		return -1;
-	}
-
 	//
-	ret=bind(selffd,(struct sockaddr*)&selfbody,sizeof(struct sockaddr_in));
+	ret=bind(listenfd,(struct sockaddr*)&selfbody,sizeof(struct sockaddr_in));
 	if(ret!=0)
 	{
 		printf("bind error\n");
@@ -65,7 +73,7 @@ int startsocket(char* address,int port)
 	}
 
 	//
-	ret=listen(selffd,256);
+	ret=listen(listenfd,256);
 	if(ret!=0)
 	{
 		printf("listen error\n");
@@ -76,8 +84,8 @@ int startsocket(char* address,int port)
 }
 static void stopsocket(int num)
 {
-	close(remotefd);
-	close(selffd);
+	close(clientfd);
+	close(listenfd);
 	exit(-1);
 }
 
@@ -327,7 +335,7 @@ void main()
 	close(ret);
 
 	//
-	ret = startsocket("127.0.0.1", 2222);
+	ret = startsocket("0.0.0.0", 2222);
 	if(ret <= 0){printf("error@startsocket:%d\n",ret);return;}
 
 	//do not stop when SIGPIPE
@@ -340,18 +348,19 @@ void main()
 	while(1)
 	{
 		//in
-		remotefd = accept(selffd, (struct sockaddr*)&remote, &addrlen);
-                if(remotefd<=0)
-                {
-                        printf("accept error");
-                        return;
-                }
-                printf("in:	%s:%d\n",inet_ntoa(remote.sin_addr),ntohs(remote.sin_port));
+		addrlen = sizeof(struct sockaddr_in);
+		clientfd = accept(listenfd, (struct sockaddr*)&clientaddr, &addrlen);
+		if(clientfd<=0)
+		{
+			printf("accept error\n");
+			return;
+		}
+		printf("%s:%d {\n",inet_ntoa(clientaddr.sin_addr),clientaddr.sin_port);
 
 		//talk
 		while(1)
 		{
-			ret = read(remotefd, buffer, 1000);
+			ret = read(clientfd, buffer, 1000);
 			if(ret <= 0)break;
 
 			buffer[ret]=0;
@@ -360,11 +369,11 @@ void main()
 			{
 				if( (Upgrade != 0) && (Sec_WebSocket_Key != 0) )
 				{
-					serve_websocket(remotefd);
+					serve_websocket(clientfd);
 				}
 				else if( (GET[0]=='/')&&(GET[1]==' ') )
 				{
-					serve_http(remotefd);
+					serve_http(clientfd);
 				}
 			}
 
@@ -372,8 +381,11 @@ void main()
 		}
 
 		//out
-                printf("out:	%s:%d\n\n\n\n\n",inet_ntoa(remote.sin_addr),ntohs(remote.sin_port));
-		close(remotefd);
+		printf("} %s:%d\n\n\n\n\n",
+			inet_ntoa(clientaddr.sin_addr),
+			clientaddr.sin_port
+		);
+		close(clientfd);
 	}
 	stopsocket(0);
 }
