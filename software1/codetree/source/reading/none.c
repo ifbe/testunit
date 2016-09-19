@@ -14,7 +14,7 @@
 
 
 
-static ignorecount;
+static int ignorecount;
 int none_explain(int start,int end)
 {
 	return 0;

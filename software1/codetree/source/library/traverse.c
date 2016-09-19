@@ -123,5 +123,8 @@ int traverse_write(char* p)
 
 	//convert "/some/dir/" to "/some/dir"
 	j=strlen(p);
-	if(p[j]=='/')stack[0].name[j]=0;
+	if(j > 1)
+	{
+		if(p[j-1]=='/')stack[0].name[j-1]=0;
+	}
 }
