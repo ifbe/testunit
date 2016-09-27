@@ -5,12 +5,13 @@
 #include <sys/ioctl.h>
 #include <string.h>
 #include <math.h>
+#define u64 unsigned long long
 #define Kp 2.0f
 #define Ki 0.005f
 
 //input
+extern u64 timeinterval;
 extern float smooth[20];
-extern int timeinterval;
 
 //inner
 static float integral[6];

@@ -1,11 +1,12 @@
 #include <stdio.h>
 #include <string.h>
+#define u64 unsigned long long
 
 
 
 
 //in:	pitch,yaw,roll
-extern int timeinterval;
+extern u64 timeinterval;
 extern int thresholdspeed[4];
 extern float ebase[3];
 extern float eulerian[3];

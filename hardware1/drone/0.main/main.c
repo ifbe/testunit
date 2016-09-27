@@ -3,12 +3,13 @@
 #include<stdlib.h>
 #include<string.h>
 #include<sys/time.h>
+#define u64 unsigned long long
 
 
 
 
 //main.c
-int timeinterval;
+u64 timeinterval;
 
 
 
@@ -38,33 +39,16 @@ static void sig_int(int num)
 
 	exit(-1);
 }
-
-int timeval_subtract(struct timeval* x, struct timeval* y)   
+u64 gettime()
 {
-	int tv_sec;
-	int tv_usec;
-
-	if( x->tv_sec>y->tv_sec ) return -1;
-	if( (x->tv_sec==y->tv_sec) && (x->tv_usec>y->tv_usec) ) return -1;   
- 
-	tv_sec = ( y->tv_sec-x->tv_sec );
-	tv_usec = ( y->tv_usec-x->tv_usec );
-	//printf("%d,%d\n",tv_sec,tv_usec);
-
-	if(tv_usec<0)   
-	{   
-		tv_sec--;   
-		tv_usec+=1000000;   
-	}   
- 
-	return tv_usec+(tv_sec*1000000);   
+        struct timeval t;
+        gettimeofday(&t,0);
+        return (t.tv_sec)*1000*1000 + (t.tv_usec);
 }
-
 int main(int argc,char** argv)
 {
-	int ret;
-	int haha;
-	struct timeval start,end;
+	int ret,haha;
+	u64 start,end;
 
 	ret=getuid();
 	if(ret!=0)
@@ -189,14 +173,14 @@ int main(int argc,char** argv)
 
 going:
 	//forever
-	gettimeofday(&start,0);
+	start = gettime();
 	usleep(5000);
 	while(1)
 	{
 		//time start
-		gettimeofday(&end,0);
+		end=gettime();
 
-		timeinterval=timeval_subtract(&start,&end);
+		timeinterval=end-start;
 		if(timeinterval<=0)
 		{
 			goto cutpower;
@@ -227,8 +211,7 @@ going:
 		pwm();
 
 		//time end
-		start.tv_sec = end.tv_sec;
-		start.tv_usec = end.tv_usec;
+		start = end;
 	}
 
 cutpower:

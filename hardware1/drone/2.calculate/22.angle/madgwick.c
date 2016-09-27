@@ -5,10 +5,11 @@
 #include <sys/ioctl.h>
 #include <string.h>
 #include <math.h>
+#define u64 unsigned long long
 #define beta 10.0f
 
 //
-extern int timeinterval;
+extern u64 timeinterval;
 extern float smooth[20];
 
 //????
