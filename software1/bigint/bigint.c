@@ -284,3 +284,128 @@ int bigdiv(
 		);
 	}
 }
+
+
+
+
+int bigshl(u8* buf, int len)
+{
+	int j;
+	int haha=0;
+	for(j=0;j<len;j++)
+	{
+		haha += ((u16)buf[j]<<1);
+		buf[j] = haha & 0xff;
+		haha >>= 8;
+	}
+
+	if((haha&1) == 1)
+	{
+		buf[j] = 1;
+		j++;
+	}
+	return j;
+}
+int bigshr(u8* buf, int len)
+{
+	int j;
+	int haha=0;
+	for(j=len-1;j>0;j--)
+	{
+		haha = (haha<<8) | buf[j];
+		buf[j] = haha>>1;
+		haha = (haha<<8) & 0x1;
+	}
+
+	if(buf[j-1] == 0)j--;
+	return j;
+}
+
+
+
+
+//answer = (base^exp)%mod
+void movsb(u8* rdi, u8* rsi, int rcx)
+{
+        int j;
+        if(rdi < rsi)
+        {
+                for(j=0;j<rcx;j++)
+                {
+                        rdi[j] = rsi[j];
+                }
+        }
+        else
+        {
+                for(;rcx>0;rcx--)
+                {
+                        rdi[rcx-1] = rsi[rcx-1];
+                }
+        }
+}
+int bigpow_modular(
+	u8* base, int bl,
+	u8* exp, int el,
+	u8* mod, int ml,
+	u8* answer, int max,
+	u8* t1, int l1,
+	u8* t2, int l2,
+	u8* t3, int l3)
+{
+	int j;
+
+	//base %= mod
+	movsb(t1, base, bl);
+	bigdiv(
+		t1, bl,		//dividend
+		mod, ml,	//divisor
+		t2, l2,		//quotient
+		base, bl	//reminder
+	);
+
+	//answ=1
+	for(j=1;j<2*bl;j++)answer[j] = 0;
+	answer[0] = 1;
+
+	//
+	while(1)
+	{
+		//odd num: answer = answer*
+		if((exp[0]&1) == 1)
+		{
+			//answer = (answer*base)%mod
+			movsb(t1, answer, bl);
+			movsb(t2, base, bl);
+			bigmul(
+				t1, l1,
+				t2, l2,
+				answer, max,
+				t3, l3
+			);
+		}
+
+		//
+		el = bigshr(exp, el);
+		if( (el <= 1)&&(exp[0] == 0) )break;
+
+		//even num
+		//base = base * base
+		movsb(t1, base, bl);
+		movsb(t2, base, bl);
+		bigmul(
+			t1, bl,
+			t2, bl,
+			base, bl*2,
+			t3, bl
+		);
+
+		//base = base % mod
+		movsb(t1, base, bl);
+		bigdiv(
+			t1, bl,
+			mod, ml,
+			t2, bl,
+			base, bl
+		);
+	}
+}
