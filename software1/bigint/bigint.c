@@ -1,9 +1,11 @@
-#include<stdio.h>
-#include<string.h>
 #define u8 unsigned char
 #define u16 unsigned short
 #define u32 unsigned int
 #define u64 unsigned long long
+#include<stdio.h>
+#include<string.h>
+void movsb(u8* rdi, u8* rsi, int rcx);
+void printbigint(u8* p, int i);
 
 
 
@@ -117,12 +119,7 @@ int bigsub(u8* abuf, int alen, u8* bbuf, int blen, u8* answer, int max)
 		for(;j<=blen;j++)
 		{
 			temp = -bbuf[j] - temp;
-			if(temp >= 0)
-			{
-				answer[j] = 0;
-				break;
-			}
-			else
+			if(temp < 0)
 			{
 				answer[j] = 0xff;
 				temp = 1;
@@ -186,6 +183,11 @@ printf("@%016llx%016llx\n%016llx%016llx\n\n",
 	*(u64*)(answer+8), *(u64*)answer
 );
 */
+	}
+
+	for(j=alen+blen-1;j>=0;j--)
+	{
+		if(answer[j] != 0)return j+1;
 	}
 }
 
@@ -267,7 +269,6 @@ int bigdiv(
 		quotient[j] = 0;
 		remainder[j] = abuf[j];
 	}
-	remainder[alen] = 0;
 
 	//除数比被除数位数多
 	if(blen > alen)	return alen;
@@ -275,137 +276,216 @@ int bigdiv(
 	//正常开始减
 	for(j=alen-blen;j>=0;j--)
 	{
-		if(remainder[j+blen] == 0)ret = blen;
-		else ret = blen+1;
+		ret = blen;
+		if(remainder[j+blen] != 0)
+		{
+			//not first
+			if(j != alen-blen)ret++;
+		}
 
 		quotient[j] = bigdiv_keeptry(
 			remainder+j, ret,
 			bbuf, blen
 		);
 	}
+
+	for(j=alen-blen;j>=0;j--)
+	{
+		if(quotient[j] != 0)return j+1;
+	}
+}
+int bigmod(
+	u8* abuf, int alen,
+	u8* bbuf, int blen,
+	u8* remainder, int max2)
+{
+	int j,ret;
+
+	//real alen
+	j=alen-1;
+	for(;j>0;j--)
+	{
+		if(abuf[j] == 0)alen--;
+		else break;
+	}
+
+	//real blen
+	j=blen-1;
+	for(;j>0;j--)
+	{
+		if(bbuf[j] == 0)blen--;
+		else break;
+	}
+	if( (blen == 1) && (bbuf[0] == 0) )return 0;
+
+	//两种情况都要挪动
+	for(j=0;j<alen;j++)
+	{
+		remainder[j] = abuf[j];
+	}
+
+	//除数比被除数位数多
+	if(blen > alen)	return alen;
+
+	//正常开始减
+	for(j=alen-blen;j>=0;j--)
+	{
+		ret = blen;
+		if(remainder[j+blen] != 0)
+		{
+			//not first
+			if(j != alen-blen)ret++;
+		}
+
+		bigdiv_keeptry(
+			remainder+j, ret,
+			bbuf, blen
+		);
+	}
+
+	for(j=blen-1;j>=0;j--)
+	{
+		if(remainder[j] != 0)return j+1;
+	}
 }
 
 
 
 
-int bigshl(u8* buf, int len)
+int bigshl(u8* buf, int len, int sh)
 {
 	int j;
 	int haha=0;
 	for(j=0;j<len;j++)
 	{
-		haha += ((u16)buf[j]<<1);
-		buf[j] = haha & 0xff;
+		haha += (u16)buf[j]<<8;
+		buf[j] = ((haha<<sh)>>8) & 0xff;
 		haha >>= 8;
 	}
 
-	if((haha&1) == 1)
+	if(haha != 0)
 	{
-		buf[j] = 1;
-		j++;
+		buf[len] = haha;
+		len++;
 	}
-	return j;
+	return len;
 }
-int bigshr(u8* buf, int len)
+int bigshr(u8* buf, int len, int sh)
 {
 	int j;
-	int haha=0;
-	for(j=len-1;j>0;j--)
+	u16 haha=0;
+//printbigint(buf,len);
+//printf("(before)\n");
+	for(j=len-1;j>=0;j--)
 	{
-		haha = (haha<<8) | buf[j];
-		buf[j] = haha>>1;
-		haha = (haha<<8) & 0x1;
+		haha |= buf[j];
+		buf[j] = (haha>>sh)&0xff;
+		haha <<= 8;
 	}
-
-	if(buf[j-1] == 0)j--;
-	return j;
+	if(buf[len-1] == 0)len--;
+//printbigint(buf,len);
+//printf("(after)\n");
+	return len;
 }
 
 
 
 
-//answer = (base^exp)%mod
-void movsb(u8* rdi, u8* rsi, int rcx)
-{
-        int j;
-        if(rdi < rsi)
-        {
-                for(j=0;j<rcx;j++)
-                {
-                        rdi[j] = rsi[j];
-                }
-        }
-        else
-        {
-                for(;rcx>0;rcx--)
-                {
-                        rdi[rcx-1] = rsi[rcx-1];
-                }
-        }
-}
-int bigpow_modular(
+//ans = (base^exp)%mod
+int bigpow(
 	u8* base, int bl,
 	u8* exp, int el,
 	u8* mod, int ml,
-	u8* answer, int max,
+	u8* ans, int al,
 	u8* t1, int l1,
 	u8* t2, int l2,
 	u8* t3, int l3)
 {
 	int j;
 
+//printbigint(base,bl);
+//printf(" %% ");
+//printbigint(mod,ml);
+//printf(" = ");
 	//base %= mod
 	movsb(t1, base, bl);
-	bigdiv(
+	bl = bigmod(
 		t1, bl,		//dividend
 		mod, ml,	//divisor
-		t2, l2,		//quotient
 		base, bl	//reminder
 	);
+//printbigint(base,bl);
+//printf("\n");
 
 	//answ=1
-	for(j=1;j<2*bl;j++)answer[j] = 0;
-	answer[0] = 1;
+	for(j=1;j<2*bl;j++)ans[j] = 0;
+	ans[0] = 1;
+	al = 1;
 
 	//
 	while(1)
 	{
-		//odd num: answer = answer*
+		//odd num
 		if((exp[0]&1) == 1)
 		{
-			//answer = (answer*base)%mod
-			movsb(t1, answer, bl);
+//printbigint(ans, al);
+//printf(" * ");
+//printbigint(base, bl);
+//printf(" => ");
+			//ans *= base
+			movsb(t1, ans, al);
 			movsb(t2, base, bl);
-			bigmul(
-				t1, l1,
-				t2, l2,
-				answer, max,
-				t3, l3
+			al = bigmul(
+				t1, al,
+				t2, bl,
+				ans, al,
+				t3, bl
 			);
+//printbigint(ans, al);
+//printf(" => ");
+
+			//ans %= mod
+			movsb(t1, ans, al);
+			al = bigmod(
+				t1, al,
+				mod, ml,
+				ans, bl
+			);
+//printbigint(ans, al);
+//printf("\n");
 		}
 
 		//
-		el = bigshr(exp, el);
+		el = bigshr(exp, el, 1);
 		if( (el <= 1)&&(exp[0] == 0) )break;
 
+//printbigint(base, bl);
+//printf(" * ");
+//printbigint(base, bl);
+//printf(" => ");
 		//even num
 		//base = base * base
 		movsb(t1, base, bl);
 		movsb(t2, base, bl);
-		bigmul(
+		bl = bigmul(
 			t1, bl,
 			t2, bl,
 			base, bl*2,
 			t3, bl
 		);
+//printbigint(base, bl);
+//printf(" => ");
 
 		//base = base % mod
 		movsb(t1, base, bl);
-		bigdiv(
+		bl = bigmod(
 			t1, bl,
 			mod, ml,
-			t2, bl,
 			base, bl
 		);
+//printbigint(base, bl);
+//printf("\n");
 	}
+
+	return al;
 }
