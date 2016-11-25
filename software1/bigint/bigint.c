@@ -2,8 +2,6 @@
 #define u16 unsigned short
 #define u32 unsigned int
 #define u64 unsigned long long
-#include<stdio.h>
-#include<string.h>
 void movsb(u8* rdi, u8* rsi, int rcx);
 void printbigint(u8* p, int i);
 
@@ -99,6 +97,8 @@ int bigsub(u8* abuf, int alen, u8* bbuf, int blen, u8* answer, int max)
 				temp = 1;
 			}
 		}
+
+		for(j=alen;j>0;j--)if(abuf[j-1] != 0)break;
 	}
 	else	//alen<blen
 	{
@@ -185,10 +185,8 @@ printf("@%016llx%016llx\n%016llx%016llx\n\n",
 */
 	}
 
-	for(j=alen+blen-1;j>=0;j--)
-	{
-		if(answer[j] != 0)return j+1;
-	}
+	for(j=alen+blen;j>0;j--)if(answer[j-1] != 0)break;
+	return j;
 }
 
 

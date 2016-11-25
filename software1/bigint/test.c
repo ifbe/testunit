@@ -90,7 +90,7 @@ void main()
 	printbigint(a,16);
 	printf("\n");
 	printbigint(b,16);
-	printf("\n");
+	printf("\n\n");
 
 
 
@@ -105,7 +105,7 @@ void main()
 	ret = bigadd(a, 8, b, 8, c, 9);
 
 	printbigint(c, ret);
-	printf("\n");
+	printf("\n\n");
 
 
 
@@ -120,7 +120,7 @@ void main()
 	ret = bigsub(a, 8, b, 8, c, 9);
 
 	printbigint(c, ret);
-	printf("\n");
+	printf("\n\n");
 
 
 
@@ -136,7 +136,7 @@ void main()
 	ret = bigmul(a, 8, b, 8, c, 16, d, 16);
 
 	printbigint(c, ret);
-	printf("\n");
+	printf("\n\n");
 
 
 
@@ -151,16 +151,16 @@ void main()
 	ret = bigdiv(a, 8, b, 4, c, 16, d, 16);
 
 	printbigint(c, ret);
-	printf("\n");
+	printf("\n\n");
 
 
 
 
 	//pow
 	printbigint(a, 16);
-	printf(" ^ ");
+	printf(" , ");
 	printbigint(b, 16);
-	printf(" %% ");
+	printf(" , ");
 	printbigint(c, 16);
 	printf("\n");
 
