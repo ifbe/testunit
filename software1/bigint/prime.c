@@ -60,43 +60,6 @@ void printbigint(u8* p, int i)
 	printf("0x");
 	for(j=i-1;j>=0;j--)printf("%02x",p[j]);
 }
-
-
-
-
-
-int prime_yes(u8* addr, int len)
-{
-	int j;
-	u32 temp;
-	u8 quotient[16];
-	u8 remainder[16];
-
-	if((addr[0]&0x1) == 0)return 0;
-	for(temp=3;temp<0xffffffff;temp+=2)
-	{
-		bigdiv(
-			addr, len,
-			(u8*)&temp, 4,
-			quotient, 16,
-			remainder, 16
-		);
-
-printf("%08x	%llx	%llx\n",
-	temp,
-	*(u64*)quotient,
-	*(u64*)remainder
-);
-/*
-		for(j=0;j<8;j++)
-		{
-			if(remainder[j] != 0)return 0;
-		}
-*/
-	}
-
-	return 1;
-}
 int hexstr2bigint(u8* p, u8* q)
 {
 	int j=0,k=0;
@@ -106,13 +69,12 @@ int hexstr2bigint(u8* p, u8* q)
 		//byte.low4
 		j--;
 		if(j < 0)break;
-		if(p[j] == 0)break;
 		if( (p[j] >= 'a') && (p[j] <= 'f') )
-                {
-                        q[k] = p[j] - 0x57;
-                        k++;
-                }
-                else if( (p[j] >= 0x30) && (p[j] <= 0x39) )
+		{
+			q[k] = p[j] - 0x57;
+			k++;
+		}
+		else if( (p[j] >= 0x30) && (p[j] <= 0x39) )
 		{
 			q[k] = p[j] - 0x30;
 			k++;
@@ -122,13 +84,11 @@ int hexstr2bigint(u8* p, u8* q)
 		//byte.high4
 		j--;
 		if(j < 0)break;
-		if(p[j] == 0)break;
 		if( (p[j] >= 'a') && (p[j] <= 'f') )
-                {
-                        q[k-1] = (p[j]-0x57) << 4;
-                        k++;
-                }
-                else if( (p[j] >= 0x30) && (p[j] <= 0x39) )
+		{
+			q[k-1] += (p[j]-0x57) << 4;
+		}
+		else if( (p[j] >= 0x30) && (p[j] <= 0x39) )
 		{
 			q[k-1] += (p[j]-0x30) << 4;
 		}
@@ -137,19 +97,43 @@ int hexstr2bigint(u8* p, u8* q)
 
 	return k;
 }
-
-
-
-
-void main()
+int prime_yes(u8* buf, int len)
 {
-/*
-	u64 buf = 0x5555555555555557;
-	int ret = prime_yes((u8*)&buf, 8);
+	int j,k;
+	if(len <= 0)return 0;
 
-	if(ret > 0)printf("yes\n");
-	else printf("no\n");
-*/
+	//[0,0xff]
+	if(len == 1)
+	{
+		k = buf[0];
+		if(k <= 13)
+		{
+			if(k == 2)return 1;
+			else if(k == 3)return 1;
+			else if(k == 5)return 1;
+			else if(k == 7)return 1;
+			else if(k == 11)return 1;
+			else if(k == 13)return 1;
+			else return 0;
+		}
+		else if(k <= 251)
+		{
+			if((k&1) == 0)return 0;
+			for(j=3;j<14;j+=2)
+			{
+				if((k % j) == 0)return 0;
+			}
+			return 1;
+		}
+		else return 0;
+	}
+
+	//[0x100,xxx...]
+	if((buf[0]&1) == 0)return 0;
+	return 0;
+}
+void haha()
+{
 	int ret;
 
 	u8 base[0x1000];
@@ -196,4 +180,25 @@ printf("hex(pow(");
 
 	printbigint(ans, ret);
 	printf("\n");
+}
+
+
+
+
+void main(int argc, char** argv)
+{
+	int ret;
+	int len;
+
+	u8 buf[0x1000];
+	if(argc <= 1)return;
+
+	len = hexstr2bigint(argv[1], buf);
+	if(len == 0)return;
+	printbigint(buf,len);
+	printf("\n");
+
+	ret = prime_yes(buf, len);
+	if(ret > 0)printf("yes\n");
+	else printf("no\n");
 }
