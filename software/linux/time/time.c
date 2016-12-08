@@ -5,15 +5,26 @@
 #define u8 unsigned char
 #define u64 unsigned long long
 
+
+
+
+void sleep_us(int t)
+{
+	usleep(t);
+}
+u64 since1970()
+{
+	return time(0);
+}
+
+
+
+
 u64 gettime()
 {
         struct timeval t;
         gettimeofday(&t,0);
         return (t.tv_sec)*1000*1000 + (t.tv_usec);
-}
-u64 getdate1970()
-{
-	return time(0);
 }
 u64 getdate()
 {
@@ -55,11 +66,12 @@ void main()
 	while(1)
 	{
 		t = getdate();
-		printf("%d,%d,%d,%d,%d,%d,%d\n",p[6],p[5],p[4],p[3],p[2],p[1],p[0]);
+		printf("%d,%d,%d,%d,%d,%d,%d\n",
+			p[6],p[5],p[4],p[3],p[2],p[1],p[0]);
 
-		printf("%llx second from 1970, %llx seconds from boot\n",
-			getdate1970(), gettime());
+		printf("%lld since 1970, %lld since boot\n",
+			since1970(), gettime());
 
-		usleep(1000*1000);
+		sleep_us(1000*1000);
 	}
 }
