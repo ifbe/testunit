@@ -1,6 +1,7 @@
 *.o
 *.out
 *.exe
+*.pcm
 *.seed
 *.tree
 *.table
