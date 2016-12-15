@@ -52,6 +52,8 @@ u64 getdate()
 
 	//byte0=second
 	temp = (temp<<8) + (p->tm_sec);
+
+	return temp;
 }
 
 
