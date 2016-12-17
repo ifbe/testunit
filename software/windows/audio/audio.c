@@ -1,16 +1,18 @@
-#include <stdio.h>  
-#include <windows.h>  
+#include <stdio.h>
+#include <windows.h>
 #pragma comment(lib, "winmm.lib")
+#define u64 unsigned long long
+#define u32 unsigned int
 //
-#define bufsize 1024*1024	//Ã¿´Î¿ª±Ù10kµÄ»º´æ´æ´¢Â¼ÒôÊı¾İ
-BYTE pBuffer1[bufsize];		//²É¼¯ÒôÆµÊ±µÄÊı¾İ»º´æ
-FILE* pcmfile;  //ÒôÆµÎÄ¼ş  
+#define bufsize 1024*1024	//æ¯æ¬¡å¼€è¾Ÿ10kçš„ç¼“å­˜å­˜å‚¨å½•éŸ³æ•°æ®
+BYTE pBuffer1[bufsize];		//é‡‡é›†éŸ³é¢‘æ—¶çš„æ•°æ®ç¼“å­˜
+FILE* pcmfile;  //éŸ³é¢‘æ–‡ä»¶
 //
-HWAVEIN hWaveIn;			//ÊäÈëÉè±¸
+HWAVEIN hWaveIn;			//è¾“å…¥è®¾å¤‡
 HWAVEOUT hwo;
 //
-WAVEFORMATEX fmt;		//²É¼¯ÒôÆµµÄ¸ñÊ½£¬½á¹¹Ìå
-WAVEHDR head;				//²É¼¯ÒôÆµÊ±°üº¬Êı¾İ»º´æµÄ½á¹¹Ìå
+WAVEFORMATEX fmt;		//é‡‡é›†éŸ³é¢‘çš„æ ¼å¼ï¼Œç»“æ„ä½“
+WAVEHDR head;				//é‡‡é›†éŸ³é¢‘æ—¶åŒ…å«æ•°æ®ç¼“å­˜çš„ç»“æ„ä½“
 
 
 
@@ -18,22 +20,22 @@ WAVEHDR head;				//²É¼¯ÒôÆµÊ±°üº¬Êı¾İ»º´æµÄ½á¹¹Ìå
 int record()
 {
     HANDLE          wait;
-    fmt.wFormatTag = WAVE_FORMAT_PCM;//ÉùÒô¸ñÊ½ÎªPCM
-    fmt.nSamplesPerSec = 48000;//²ÉÑùÂÊ£¬16000´Î/Ãë
-    fmt.wBitsPerSample = 16;//²ÉÑù±ÈÌØ£¬16bits/´Î
-    fmt.nChannels = 1;//²ÉÑùÉùµÀÊı£¬2ÉùµÀ
-    fmt.nAvgBytesPerSec = 16000;//Ã¿ÃëµÄÊı¾İÂÊ£¬¾ÍÊÇÃ¿ÃëÄÜ²É¼¯¶àÉÙ×Ö½ÚµÄÊı¾İ
-    fmt.nBlockAlign = 2;//Ò»¸ö¿éµÄ´óĞ¡£¬²ÉÑùbitµÄ×Ö½ÚÊı³ËÒÔÉùµÀÊı
-    fmt.cbSize = 0;//Ò»°ãÎª0
- 
+    fmt.wFormatTag = WAVE_FORMAT_PCM;//å£°éŸ³æ ¼å¼ä¸ºPCM
+    fmt.nSamplesPerSec = 48000;//é‡‡æ ·ç‡ï¼Œ16000æ¬¡/ç§’
+    fmt.wBitsPerSample = 16;//é‡‡æ ·æ¯”ç‰¹ï¼Œ16bits/æ¬¡
+    fmt.nChannels = 1;//é‡‡æ ·å£°é“æ•°ï¼Œ2å£°é“
+    fmt.nAvgBytesPerSec = 16000;//æ¯ç§’çš„æ•°æ®ç‡ï¼Œå°±æ˜¯æ¯ç§’èƒ½é‡‡é›†å¤šå°‘å­—èŠ‚çš„æ•°æ®
+    fmt.nBlockAlign = 2;//ä¸€ä¸ªå—çš„å¤§å°ï¼Œé‡‡æ ·bitçš„å­—èŠ‚æ•°ä¹˜ä»¥å£°é“æ•°
+    fmt.cbSize = 0;//ä¸€èˆ¬ä¸º0
+
     wait = CreateEvent(NULL, 0, 0, NULL);
-    //Ê¹ÓÃwaveInOpenº¯Êı¿ªÆôÒôÆµ²É¼¯
+    //ä½¿ç”¨waveInOpenå‡½æ•°å¼€å¯éŸ³é¢‘é‡‡é›†
     waveInOpen(&hWaveIn, WAVE_MAPPER, &fmt,(DWORD_PTR)wait, 0L, CALLBACK_EVENT);
- 
-    //½¨Á¢Á½¸öÊı×é£¨ÕâÀï¿ÉÒÔ½¨Á¢¶à¸öÊı×é£©ÓÃÀ´»º³åÒôÆµÊı¾İ
-    int i = 2;
+
+    //å»ºç«‹ä¸¤ä¸ªæ•°ç»„ï¼ˆè¿™é‡Œå¯ä»¥å»ºç«‹å¤šä¸ªæ•°ç»„ï¼‰ç”¨æ¥ç¼“å†²éŸ³é¢‘æ•°æ®
+    int i = 10;
     fopen_s(&pcmfile, "test.pcm", "wb");
-    while (i--)//Â¼ÖÆ20×óÓÒÃëÉùÒô£¬½áºÏÒôÆµ½âÂëºÍÍøÂç´«Êä¿ÉÒÔĞŞ¸ÄÎªÊµÊ±Â¼Òô²¥·ÅµÄ»úÖÆÒÔÊµÏÖ¶Ô½²¹¦ÄÜ
+    while (i--)//å½•åˆ¶20å·¦å³ç§’å£°éŸ³ï¼Œç»“åˆéŸ³é¢‘è§£ç å’Œç½‘ç»œä¼ è¾“å¯ä»¥ä¿®æ”¹ä¸ºå®æ—¶å½•éŸ³æ’­æ”¾çš„æœºåˆ¶ä»¥å®ç°å¯¹è®²åŠŸèƒ½
     {
         head.lpData = (LPSTR)pBuffer1;
         head.dwBufferLength = bufsize;
@@ -41,16 +43,16 @@ int record()
         head.dwUser = 0;
         head.dwFlags = 0;
         head.dwLoops = 1;
-        waveInPrepareHeader(hWaveIn, &head, sizeof(WAVEHDR));//×¼±¸Ò»¸ö²¨ĞÎÊı¾İ¿éÍ·ÓÃÓÚÂ¼Òô
-        waveInAddBuffer(hWaveIn, &head, sizeof (WAVEHDR));//Ö¸¶¨²¨ĞÎÊı¾İ¿éÎªÂ¼ÒôÊäÈë»º´æ
-        waveInStart(hWaveIn);//¿ªÊ¼Â¼Òô
-        Sleep(1000);//µÈ´ıÉùÒôÂ¼ÖÆ1s
-        waveInReset(hWaveIn);//Í£Ö¹Â¼Òô
+        waveInPrepareHeader(hWaveIn, &head, sizeof(WAVEHDR));//å‡†å¤‡ä¸€ä¸ªæ³¢å½¢æ•°æ®å—å¤´ç”¨äºå½•éŸ³
+        waveInAddBuffer(hWaveIn, &head, sizeof (WAVEHDR));//æŒ‡å®šæ³¢å½¢æ•°æ®å—ä¸ºå½•éŸ³è¾“å…¥ç¼“å­˜
+        waveInStart(hWaveIn);//å¼€å§‹å½•éŸ³
+        Sleep(1000);//ç­‰å¾…å£°éŸ³å½•åˆ¶1s
+        waveInReset(hWaveIn);//åœæ­¢å½•éŸ³
         fwrite(pBuffer1, 1, head.dwBytesRecorded, pcmfile);
         printf("%ds\n", i);
     }
     fclose(pcmfile);
- 
+
     waveInClose(hWaveIn);
     return 0;
 }
@@ -58,47 +60,47 @@ int record()
 
 
 
-static void CALLBACK WaveCallback(HWAVEOUT hWave, UINT uMsg, DWORD dwInstance, DWORD dw1, DWORD dw2)//»Øµ÷º¯Êı  
-{  
-    switch (uMsg)  
-    {  
-        case WOM_DONE://ÉÏ´Î»º´æ²¥·ÅÍê³É,´¥·¢¸ÃÊÂ¼ş  
+static void CALLBACK WaveCallback(HWAVEOUT hWave, UINT uMsg, DWORD dwInstance, DWORD dw1, DWORD dw2)//å›è°ƒå‡½æ•°
+{
+    switch (uMsg)
+    {
+        case WOM_DONE://ä¸Šæ¬¡ç¼“å­˜æ’­æ”¾å®Œæˆ,è§¦å‘è¯¥äº‹ä»¶
         {
 			head.dwBufferLength = 0;
             printf("done\n");
-        }  
+        }
     }
 }
-void play(char* name)   
+void play(char* name)
 {
 	int ret;
-    fmt.wFormatTag = WAVE_FORMAT_PCM;//ÉèÖÃ²¨ĞÎÉùÒôµÄ¸ñÊ½  
-    fmt.nChannels = 1;//ÉèÖÃÒôÆµÎÄ¼şµÄÍ¨µÀÊıÁ¿  
-    fmt.nSamplesPerSec = 48000;//ÉèÖÃÃ¿¸öÉùµÀ²¥·ÅºÍ¼ÇÂ¼Ê±µÄÑù±¾ÆµÂÊ  
-    fmt.nAvgBytesPerSec = 16000;//ÉèÖÃÇëÇóµÄÆ½¾ùÊı¾İ´«ÊäÂÊ,µ¥Î»byte/s¡£Õâ¸öÖµ¶ÔÓÚ´´½¨»º³å´óĞ¡ÊÇºÜÓĞÓÃµÄ  
-    fmt.nBlockAlign = 2;//ÒÔ×Ö½ÚÎªµ¥Î»ÉèÖÃ¿é¶ÔÆë  
-    fmt.wBitsPerSample = 16;  
-    fmt.cbSize = 0;//¶îÍâĞÅÏ¢µÄ´óĞ¡
+    fmt.wFormatTag = WAVE_FORMAT_PCM;//è®¾ç½®æ³¢å½¢å£°éŸ³çš„æ ¼å¼
+    fmt.nChannels = 1;//è®¾ç½®éŸ³é¢‘æ–‡ä»¶çš„é€šé“æ•°é‡
+    fmt.nSamplesPerSec = 48000;//è®¾ç½®æ¯ä¸ªå£°é“æ’­æ”¾å’Œè®°å½•æ—¶çš„æ ·æœ¬é¢‘ç‡
+    fmt.nAvgBytesPerSec = 16000;//è®¾ç½®è¯·æ±‚çš„å¹³å‡æ•°æ®ä¼ è¾“ç‡,å•ä½byte/sã€‚è¿™ä¸ªå€¼å¯¹äºåˆ›å»ºç¼“å†²å¤§å°æ˜¯å¾ˆæœ‰ç”¨çš„
+    fmt.nBlockAlign = 2;//ä»¥å­—èŠ‚ä¸ºå•ä½è®¾ç½®å—å¯¹é½
+    fmt.wBitsPerSample = 16;
+    fmt.cbSize = 0;//é¢å¤–ä¿¡æ¯çš„å¤§å°
 
-    fopen_s(&pcmfile, name, "rb");//´ò¿ªÎÄ¼ş  
-    waveOutOpen(&hwo, WAVE_MAPPER, &fmt, (DWORD)WaveCallback, 0L, CALLBACK_FUNCTION);//´ò¿ªÒ»¸ö¸ø¶¨µÄ²¨ĞÎÒôÆµÊä³ö×°ÖÃÀ´½øĞĞÉùÒô²¥·Å£¬·½Ê½Îª»Øµ÷º¯Êı·½Ê½¡£Èç¹ûÊÇ¶Ô»°¿ò³ÌĞò£¬¿ÉÒÔ½«µÚÎå¸ö²ÎÊı¸ÄÎª(DWORD)this£¬²Ù×÷¸ú±¾Demo³ÌĞòÏàËÆ  
+    fopen_s(&pcmfile, name, "rb");//æ‰“å¼€æ–‡ä»¶
+    waveOutOpen(&hwo, WAVE_MAPPER, &fmt, (u64)WaveCallback, 0L, CALLBACK_FUNCTION);
 
     ret = fread(pBuffer1, 1, bufsize, pcmfile);
     head.dwLoops = 0L;
     head.lpData = pBuffer1;
-    head.dwBufferLength = ret;   
+    head.dwBufferLength = ret;
     head.dwFlags = 0L;
-    waveOutPrepareHeader(hwo, &head, sizeof(WAVEHDR));//×¼±¸Ò»¸ö²¨ĞÎÊı¾İ¿éÓÃÓÚ²¥·Å  
-    waveOutWrite(hwo, &head, sizeof(WAVEHDR));//ÔÚÒôÆµÃ½ÌåÖĞ²¥·ÅµÚ¶ş¸ö²ÎÊıÖ¸¶¨µÄÊı¾İ£¬Ò²Ïàµ±ÓÚ¿ªÆôÒ»¸ö²¥·ÅÇøµÄÒâË¼  
+    waveOutPrepareHeader(hwo, &head, sizeof(WAVEHDR));//å‡†å¤‡ä¸€ä¸ªæ³¢å½¢æ•°æ®å—ç”¨äºæ’­æ”¾
+    waveOutWrite(hwo, &head, sizeof(WAVEHDR));//åœ¨éŸ³é¢‘åª’ä½“ä¸­æ’­æ”¾ç¬¬äºŒä¸ªå‚æ•°æŒ‡å®šçš„æ•°æ®ï¼Œä¹Ÿç›¸å½“äºå¼€å¯ä¸€ä¸ªæ’­æ”¾åŒºçš„æ„æ€
 
-    while (head.dwBufferLength != 0)//Èç¹ûÎÄ¼ş»¹ÔÚÃ»²¥·ÅÍêÔòµÈ´ı500ms  
-    {  
-        Sleep(500);  
+    while (head.dwBufferLength != 0)//å¦‚æœæ–‡ä»¶è¿˜åœ¨æ²¡æ’­æ”¾å®Œåˆ™ç­‰å¾…500ms
+    {
+        Sleep(500);
     }
-    waveOutUnprepareHeader(hwo, &head, sizeof(WAVEHDR)); 
+    waveOutUnprepareHeader(hwo, &head, sizeof(WAVEHDR));
 
-    fclose(pcmfile);//¹Ø±ÕÎÄ¼ş  
-    return;  
+    fclose(pcmfile);//å…³é—­æ–‡ä»¶
+    return;
 }
 
 
