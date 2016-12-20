@@ -7,18 +7,43 @@ void main (int argc, char *argv[])
 {
 	int i;
 	int err;
+	int fd;
+
+	int channel;
 	int buffer_frames = 1024;	//10ms
 	unsigned int rate = 44100;
+
 	snd_pcm_t *capture_handle;
 	snd_pcm_hw_params_t *hw_params;
 	snd_pcm_format_t format = SND_PCM_FORMAT_S16_LE;
-	int fd;
+
+	//
+	if(argc<2)
+	{
+		printf("./a.out 2\n");
+		exit(1);
+	}
+
+	//
+	channel = argv[1][0] - 0x30;
+	if((channel != 1) && (channel !=2))
+	{
+		printf("error@channel\n");
+		exit(1);
+	}
+
+	//
 	fd = open("test.pcm", O_CREAT|O_RDWR);
+	if(fd <= 0)
+	{
+		printf("error@open\n");
+		exit(1);
+	}
 
 	printf("@snd_pcm_open\n");
-	err = snd_pcm_open (&capture_handle, argv[1], SND_PCM_STREAM_CAPTURE, 0);
+	err = snd_pcm_open (&capture_handle, "hw:1,0", SND_PCM_STREAM_CAPTURE, 0);
 	if (err < 0) {
-		printf("%s(%s)\n", argv[1], snd_strerror (err));
+		printf("%s\n", snd_strerror (err));
 		exit (1);
 	}
 
@@ -59,7 +84,7 @@ void main (int argc, char *argv[])
 	}
 
 	printf("@snd_pcm_hw_params_set_channels\n");
-	err = snd_pcm_hw_params_set_channels (capture_handle, hw_params, 1);
+	err = snd_pcm_hw_params_set_channels (capture_handle, hw_params, channel);
 	if (err < 0) {
 		printf ("%s\n", snd_strerror (err));
 		exit (1);
@@ -87,9 +112,10 @@ void main (int argc, char *argv[])
 			printf ("%s\n", snd_strerror (err));
 			exit (1);
 		}
+		printf("[%d]read %d\n", i, err);
 
-		err = write(fd, buffer, buffer_frames*2);
-		printf("%d done\n", i);
+		err = write(fd, buffer, buffer_frames * channel * 2);
+		printf("[%d]write %d\n", i, err);
 	}
 
 	printf("@snd_pcm_close\n");
