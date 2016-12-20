@@ -5,9 +5,8 @@ static char buffer[0x100000];
 
 void main (int argc, char *argv[])
 {
-	int i;
-	int err;
-	int fd;
+	int i, j;
+	int err, fd;
 
 	int channel;
 	int buffer_frames = 1024;	//10ms
@@ -114,8 +113,18 @@ void main (int argc, char *argv[])
 		}
 		printf("[%d]read %d\n", i, err);
 
-		err = write(fd, buffer, buffer_frames * channel * 2);
-		printf("[%d]write %d\n", i, err);
+		if(channel == 2)
+		{
+			err = write(fd, buffer, buffer_frames * 4);
+		}
+		else
+		{
+			for(j=0;j<buffer_frames;j++)
+			{
+				write(fd, buffer + j*2, 2);
+				write(fd, (void*)&j, 2);
+			}
+		}
 	}
 
 	printf("@snd_pcm_close\n");

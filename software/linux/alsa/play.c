@@ -45,10 +45,10 @@ int wav_read(FILE* fp)
 }
 int pcm_read()
 {
-	wav_header.wChannels = 1;	//2
+	wav_header.wChannels = 2;
 	wav_header.nSamplesPersec = 44100;
 	wav_header.wBitsPerSample = 16;
-	wav_header.wBlockAlign = 2;	//4
+	wav_header.wBlockAlign = 4;
 }
 int set_pcm_play(FILE *fp)
 {
@@ -65,7 +65,8 @@ int set_pcm_play(FILE *fp)
 	int bit=wav_header.wBitsPerSample;
 	int datablock=wav_header.wBlockAlign;
 
-	rc=snd_pcm_open(&handle, "default", SND_PCM_STREAM_PLAYBACK, 0);
+	//rc=snd_pcm_open(&handle, "default", SND_PCM_STREAM_PLAYBACK, 0);
+	rc=snd_pcm_open(&handle, "hw:1,0", SND_PCM_STREAM_PLAYBACK, 0);
 	if(rc<0)
 	{
 		perror("\nopen PCM device failed:");
