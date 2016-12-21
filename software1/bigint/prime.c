@@ -152,7 +152,7 @@ int prime_yes(u8* buf, int len)
 	printf("\n");
 	return 0;
 }
-void main1()
+void main()
 {
 	int ret;
 
@@ -205,7 +205,7 @@ printf("hex(pow(");
 
 
 
-void main(int argc, char** argv)
+void main1(int argc, char** argv)
 {
 	int ret;
 	int len;

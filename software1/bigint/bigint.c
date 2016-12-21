@@ -1,3 +1,4 @@
+#include<stdio.h>
 #define u8 unsigned char
 #define u16 unsigned short
 #define u32 unsigned int
@@ -8,6 +9,47 @@ void printbigint(u8* p, int i);
 
 
 
+//	<<	>>
+int bigshl(u8* buf, int len, int sh)
+{
+	int j;
+	int haha=0;
+	for(j=0;j<len;j++)
+	{
+		haha += (u16)buf[j]<<8;
+		buf[j] = ((haha<<sh)>>8) & 0xff;
+		haha >>= 8;
+	}
+
+	if(haha != 0)
+	{
+		buf[len] = haha;
+		len++;
+	}
+	return len;
+}
+int bigshr(u8* buf, int len, int sh)
+{
+	int j;
+	u16 haha=0;
+//printbigint(buf,len);
+//printf("(before)\n");
+	for(j=len-1;j>=0;j--)
+	{
+		haha |= buf[j];
+		buf[j] = (haha>>sh)&0xff;
+		haha <<= 8;
+	}
+	if(buf[len-1] == 0)len--;
+//printbigint(buf,len);
+//printf("(after)\n");
+	return len;
+}
+
+
+
+
+//	+	-	*
 int bigadd(
 	u8* abuf, int alen,
 	u8* bbuf, int blen,
@@ -59,10 +101,6 @@ int bigadd(
 	}
 	return j;
 }
-
-
-
-
 int bigsub(u8* abuf, int alen, u8* bbuf, int blen, u8* answer, int max)
 {
 	int j;
@@ -128,70 +166,69 @@ int bigsub(u8* abuf, int alen, u8* bbuf, int blen, u8* answer, int max)
 	}
 	return j;
 }
-
-
-
-
-int bigmul_onebyte(
-	u8* abuf, int alen,
-	u8* bbuf, int index,
-	u8* res, int max)
-{
-	int j;
-	int temp = 0;
-
-	for(j=0;j<index;j++)res[j] = 0;
-	res += index;
-
-	for(j=0;j<alen;j++)
-	{
-		temp += abuf[j] * bbuf[index];
-		//printf("%x\n",temp);
-
-		res[j] = temp & 0xff;
-		temp >>= 8;
-	}
-	if(temp != 0)
-	{
-		res[alen] = temp;
-		j++;
-	}
-	return j+index;
-}
 int bigmul(
 	u8* abuf, int alen,
 	u8* bbuf, int blen,
-	u8* answer, int max,
-	u8* temp, int rsvd)
+	u8* answer, int x)
 {
-	int j;
-	int ret;
-	for(j=0;j<alen+blen;j++)answer[j] = 0;
+	int j,k;
+	int temp,carry;
 
-	for(j=0;j<blen;j++)
+	x = 0;
+	j = k = 0;
+	temp = carry = 0;
+	while(1)
 	{
-		ret = bigmul_onebyte(
-			abuf, alen,
-			bbuf, j,
-			temp, 66666666
-		);
+		temp = carry;
+		if( (x<alen) && (x<blen) )
+		{
+			for(j=0;j<=x;j++)
+			{
+				temp += abuf[j] * bbuf[x-j];
+				//printf("(%d,%d)", j, x-j);
+			}
+		}
+		else if(x<blen)
+		{
+			for(j=0;j<alen;j++)
+			{
+				temp += abuf[j] * bbuf[x-j];
+				//printf("(%d,%d)", j, x-j);
+			}
+		}
+		else if(x<alen)
+		{
+			for(j=0;j<blen;j++)
+			{
+				temp += abuf[x-j] * bbuf[j];
+				//printf("(%d,%d)", x-j, j);
+			}
+		}
+		else
+		{
+			for(j=0;j<alen+blen-1-x;j++)
+			{
+				temp += abuf[alen-1-j] * bbuf[x-alen+j+1];
+				//printf("(%d,%d)", alen-1-j, x-alen+j+1);
+			}
+		}
+		//printf("\n");
 
-		bigadd(answer, 66666666, temp, ret, answer, 6666666);
-/*
-printf("@%016llx%016llx\n%016llx%016llx\n\n",
-	*(u64*)(temp+8), *(u64*)temp,
-	*(u64*)(answer+8), *(u64*)answer
-);
-*/
+		//
+		answer[x] = temp & 0xff;
+		carry = temp>>8;
+
+		//
+		x++;
+		if(x >= alen+blen)break;
 	}
-
-	for(j=alen+blen;j>0;j--)if(answer[j-1] != 0)break;
-	return j;
+	return x;
 }
 
 
 
 
+//	/	%
 int bigdiv_keeptry(
 	u8* abuf, int alen,
 	u8* bbuf, int blen)
@@ -289,8 +326,9 @@ int bigdiv(
 
 	for(j=alen-blen;j>=0;j--)
 	{
-		if(quotient[j] != 0)return j+1;
+		if(quotient[j] != 0)break;
 	}
+	return j+1;
 }
 int bigmod(
 	u8* abuf, int alen,
@@ -343,47 +381,9 @@ int bigmod(
 
 	for(j=blen-1;j>=0;j--)
 	{
-		if(remainder[j] != 0)return j+1;
+		if(remainder[j] != 0)break;
 	}
-}
-
-
-
-
-int bigshl(u8* buf, int len, int sh)
-{
-	int j;
-	int haha=0;
-	for(j=0;j<len;j++)
-	{
-		haha += (u16)buf[j]<<8;
-		buf[j] = ((haha<<sh)>>8) & 0xff;
-		haha >>= 8;
-	}
-
-	if(haha != 0)
-	{
-		buf[len] = haha;
-		len++;
-	}
-	return len;
-}
-int bigshr(u8* buf, int len, int sh)
-{
-	int j;
-	u16 haha=0;
-//printbigint(buf,len);
-//printf("(before)\n");
-	for(j=len-1;j>=0;j--)
-	{
-		haha |= buf[j];
-		buf[j] = (haha>>sh)&0xff;
-		haha <<= 8;
-	}
-	if(buf[len-1] == 0)len--;
-//printbigint(buf,len);
-//printf("(after)\n");
-	return len;
+	return j+1;
 }
 
 
@@ -396,8 +396,7 @@ int bigpow(
 	u8* mod, int ml,
 	u8* ans, int al,
 	u8* t1, int l1,
-	u8* t2, int l2,
-	u8* t3, int l3)
+	u8* t2, int l2)
 {
 	int j;
 
@@ -436,8 +435,7 @@ int bigpow(
 			al = bigmul(
 				t1, al,
 				t2, bl,
-				ans, al,
-				t3, bl
+				ans, al
 			);
 //printbigint(ans, al);
 //printf(" => ");
@@ -468,8 +466,7 @@ int bigpow(
 		bl = bigmul(
 			t1, bl,
 			t2, bl,
-			base, bl*2,
-			t3, bl
+			base, bl*2
 		);
 //printbigint(base, bl);
 //printf(" => ");
