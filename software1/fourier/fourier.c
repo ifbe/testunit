@@ -1,75 +1,83 @@
 #include <stdio.h>
 #include <math.h>
 #define PI 3.14159265358979323846264338327950288419716939937510582097494459230
+#define tau PI*2
 
 
 
 
 static unsigned int buf0[1024];
-static float buf1[1024];	//real
-static float buf2[1024];	//imag
+static double buf1[1024];	//real
+static double buf2[1024];	//imag
 
 
 
 
-void fft(float real[], float imag[], int k)
+//W(kn, N) = cos(kn*2PI/N) - jsin(kn*2PI/N)
+void fft(double real[], double imag[], int k)
 {
-	float tempr, tempi, facr, faci;
-	int i, j, k1, k2, m, step, factor_step;
-	int N = 1<<k;
+	double re1, im1, facr, faci;
+	int i, j, m, n, step, factor;
+	int len = 1<<k;
 
-	for(j=1;j<N-1;j++)
+	for(j=1;j<len-1;j++)
 	{
 		//reverse bit
 		i=0;
-		k1 = j;
+		n = j;
 		for(m=0;m<k;m++)
 		{
 			i <<= 1;
-			i += (k1&1);
-			k1 >>= 1;
+			i += (n&1);
+			n >>= 1;
 		}
 
 		//only small -> big
 		if(j>=i)continue;
-
+//printf("%x,%x\n",j,i);
 		//swap data
-		tempr = real[j];
+		re1 = real[j];
 		real[j] = real[i];
-		real[i] = tempr;
+		real[i] = re1;
 
-		tempi = imag[j];
+		im1 = imag[j];
 		imag[j] = imag[i];
-		imag[i] = tempi;
+		imag[i] = im1;
 	}
 
-	//butterfly computation
-	for( i = 0; i < k; i++)
+	//总共k级
+	for(i = 0; i < k; i++)
 	{
-		step = 1 << (i+1);
-		factor_step = N >> (i+1);
-
+		step = 1 << i;
+		factor = len >> (i+1);
 		facr = 1.0;
 		faci = 0.0;
-		for(j = 0; j < step/2; j++)
+
+		//每组第1个，第2个，第3个(重用factor)
+		for(j = 0; j < step; j++)
 		{
-			for(k1 = j; k1 < N; k1 += step)
+			//第0次512组，第1次256组，第2次128组
+			for(m = j; m < len; m += step*2)
 			{
-				k2 = k1 + step/2;
-				tempr = real[k1] + real[k2]*facr - imag[k2]*faci;
-				tempi = imag[k1] + real[k2]*faci + imag[k2]*facr;
-				real[k2] = real[k1] - (real[k2]*facr - imag[k2]*faci);
-				imag[k2] = imag[k1] - (real[k2]*faci + imag[k2]*facr);
-				real[k1] = tempr;
-				imag[k1] = tempi;
+				n = m + step;
+				re1 = real[n]*facr - imag[n]*faci;
+				im1 = real[n]*faci + imag[n]*facr;
+
+				real[n] = real[m] - re1;
+				imag[n] = imag[m] - im1; 
+				real[m] += re1;
+				imag[m] += im1;
 			}
-			facr = cos(-2*PI*(j+1)*factor_step/N);
-			faci = sin(-2*PI*(j+1)*factor_step/N);
+
+			//算下一次的（第一次不乘）
+			facr = cos(2*PI*(j+1)*factor/len);
+			faci = -sin(2*PI*(j+1)*factor/len);
 		}
 	}
+
 }
 
-void ifft(float real[], float imag[], int k)
+void ifft(double real[], double imag[], int k)
 {
 	int i;
 	int N = 1<<k;
@@ -88,7 +96,13 @@ void ifft(float real[], float imag[], int k)
 int main()
 {
 	int j;
+
 	FILE* fp = fopen("test.pcm","r");
+	fread(buf0, 4, 1024, fp);
+	fread(buf0, 4, 1024, fp);
+	fread(buf0, 4, 1024, fp);
+	fread(buf0, 4, 1024, fp);
+	fread(buf0, 4, 1024, fp);
 	fread(buf0, 4, 1024, fp);
 	fread(buf0, 4, 1024, fp);
 	fread(buf0, 4, 1024, fp);
@@ -98,8 +112,11 @@ int main()
 
 	for(j = 0; j < 1024; j++)
 	{
-		buf1[j] = (float)(buf0[j]&0xffff)/65536.0;
+		//buf1[j] = sin((double)j*tau/8);
+		buf1[j] = (double)(buf0[j]&0xffff)/65536.0;
+		buf2[j] = 0.0;
 		printf("%f	%f\n", buf1[j], buf2[j]);
+		//printf("%f\n", buf1[j]);
 	}
 	printf("\n");
 
@@ -107,8 +124,8 @@ int main()
 	fft(buf1, buf2, 10);
 	for(j = 0; j < 1024; j++)
 	{
-		//printf("%f	%f\n", buf1[j], buf2[j]);
-		printf("%f\n", 20*log10(buf1[j]*buf1[j] + buf2[j]*buf2[j]) );
+		//printf("%f\n", buf1[j]);
+		printf("%f\n", 10*log10(buf1[j]*buf1[j] + buf2[j]*buf2[j]) );
 	}
 	printf("\n");
 
@@ -117,6 +134,7 @@ int main()
 	for(j = 0; j < 1024; j++)
 	{
 		printf("%f	%f\n", buf1[j], buf2[j]);
+		//printf("%f\n", buf1[j]);
 	}
 
 	return 0;

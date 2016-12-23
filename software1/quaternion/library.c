@@ -4,6 +4,49 @@
 
 
 
+void quaternion_norm(double* p)
+{
+	double norm = sqrt(p[0]*p[0] + p[1]*p[1] + p[2]*p[2] + p[3]*p[3]);
+	p[0] = p[0] / norm;
+	p[1] = p[1] / norm;
+	p[2] = p[2] / norm;
+	p[3] = p[3] / norm;
+}
+
+
+
+//q1q2 = (w1*w2 - v1*v2, w1*v2 + w2*v1 + v1xv2)
+void quaternion_mul(double* p, double* q)
+{
+	double res[4];
+	res[0] = p[0]*q[0] - p[1]*q[1] - p[2]*q[2] - p[3]*q[3];
+	res[1] = p[0]*q[1] + p[1]*q[0] + p[2]*q[3] - p[3]*q[2];
+	res[2] = p[0]*q[2] + p[2]*q[0] + p[3]*q[1] - p[1]*q[3];
+	res[3] = p[0]*q[3] + p[3]*q[0] + p[1]*q[2] - p[2]*q[1];
+	p[0] = res[0];
+	p[1] = res[1];
+	p[2] = res[2];
+	p[3] = res[3];
+}
+
+
+
+
+//
+void quaternion_inverse(double* p)
+{
+	double normsqure = sqrt(p[0]*p[0] + p[1]*p[1] + p[2]*p[2] + p[3]*p[3]);
+	normsquare = normsquare*normsquare;
+
+	//q^(-1) = q^(*), but incaseof norm !=0
+	p[1] = -1 * p[1] /normsquare;
+	p[2] = -1 * p[2] /normsquare;
+	p[3] = -1 * p[3] /normsquare;
+}
+
+
+
+
 //in:	angle,vectorx,vectory,vectorz
 //out:	q0,q1,q2,q3
 void axis2quaternion(double* av,double* q)
