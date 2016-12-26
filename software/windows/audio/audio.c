@@ -21,10 +21,10 @@ int record()
 {
     HANDLE          wait;
     fmt.wFormatTag = WAVE_FORMAT_PCM;//声音格式为PCM
-    fmt.nSamplesPerSec = 48000;//采样率，16000次/秒
+    fmt.nSamplesPerSec = 44100;//采样率，16000次/秒
     fmt.wBitsPerSample = 16;//采样比特，16bits/次
     fmt.nChannels = 1;//采样声道数，2声道
-    fmt.nAvgBytesPerSec = 16000;//每秒的数据率，就是每秒能采集多少字节的数据
+    fmt.nAvgBytesPerSec = 44100*2;//每秒的数据率，就是每秒能采集多少字节的数据
     fmt.nBlockAlign = 2;//一个块的大小，采样bit的字节数乘以声道数
     fmt.cbSize = 0;//一般为0
 
@@ -33,7 +33,7 @@ int record()
     waveInOpen(&hWaveIn, WAVE_MAPPER, &fmt,(DWORD_PTR)wait, 0L, CALLBACK_EVENT);
 
     //建立两个数组（这里可以建立多个数组）用来缓冲音频数据
-    int i = 10;
+    int i = 2;
     fopen_s(&pcmfile, "test.pcm", "wb");
     while (i--)//录制20左右秒声音，结合音频解码和网络传输可以修改为实时录音播放的机制以实现对讲功能
     {
@@ -76,8 +76,8 @@ void play(char* name)
 	int ret;
     fmt.wFormatTag = WAVE_FORMAT_PCM;//设置波形声音的格式
     fmt.nChannels = 1;//设置音频文件的通道数量
-    fmt.nSamplesPerSec = 48000;//设置每个声道播放和记录时的样本频率
-    fmt.nAvgBytesPerSec = 16000;//设置请求的平均数据传输率,单位byte/s。这个值对于创建缓冲大小是很有用的
+    fmt.nSamplesPerSec = 44100;//设置每个声道播放和记录时的样本频率
+    fmt.nAvgBytesPerSec = 44100*2;//设置请求的平均数据传输率,单位byte/s。这个值对于创建缓冲大小是很有用的
     fmt.nBlockAlign = 2;//以字节为单位设置块对齐
     fmt.wBitsPerSample = 16;
     fmt.cbSize = 0;//额外信息的大小
