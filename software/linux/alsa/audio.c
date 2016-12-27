@@ -43,18 +43,14 @@ int wav_read(FILE* fp)
 
 	fseek(fp,58,SEEK_SET); //定位歌曲到数据区
 }
-int pcm_read()
-{
-	wav_header.wChannels = 2;
-	wav_header.nSamplesPersec = 44100;
-	wav_header.wBitsPerSample = 16;
-	wav_header.wBlockAlign = 4;
-}
+
+
+
+
 int set_pcm_play(FILE *fp)
 {
 	int rc;
 	int ret;
-	int size;
 	snd_pcm_t* handle; //PCI设备句柄
 	snd_pcm_hw_params_t* params;//硬件信息和PCM流配置
 	unsigned int val;
@@ -63,7 +59,6 @@ int set_pcm_play(FILE *fp)
 	int channels=wav_header.wChannels;
 	int frequency=wav_header.nSamplesPersec;
 	int bit=wav_header.wBitsPerSample;
-	int datablock=wav_header.wBlockAlign;
 
 	//rc=snd_pcm_open(&handle, "default", SND_PCM_STREAM_PLAYBACK, 0);
 	rc=snd_pcm_open(&handle, "hw:1,0", SND_PCM_STREAM_PLAYBACK, 0);
@@ -143,19 +138,22 @@ int set_pcm_play(FILE *fp)
 		exit(1);
 	}
 
-	size = frames * datablock; /*4 代表数据快长度*/
 	while (1)
 	{
-		memset(buffer,0,sizeof(buffer));
-		ret = fread(buffer, 1, size, fp);
+		ret = fread(buffer, 1, 2*frames, fp);
 		if(ret == 0)
 		{
 			printf("endof file\n");
 			break;
 		}
-		else if (ret != size)
+		for(rc=frames-1;rc>=0;rc--)
 		{
+			buffer[rc*4+3] = buffer[rc*2+1];
+			buffer[rc*4+2] = buffer[rc*2+0];
+			buffer[rc*4+1] = buffer[rc*2+1];
+			buffer[rc*4+0] = buffer[rc*2+0];
 		}
+
 		// 写音频数据到PCM设备 
 		while(ret = snd_pcm_writei(handle, buffer, frames)<0)
 		{
@@ -178,6 +176,107 @@ int set_pcm_play(FILE *fp)
 	snd_pcm_close(handle);
 	return 0;
 }
+
+void record(unsigned int rate, int channel)
+{
+	int i, j;
+	int err, fd;
+
+	snd_pcm_t *capture_handle;
+	snd_pcm_hw_params_t *hw_params;
+	snd_pcm_format_t format = SND_PCM_FORMAT_S16_LE;
+
+	//
+	fd = open("test.pcm", O_CREAT|O_RDWR);
+	if(fd <= 0)
+	{
+		printf("error@open\n");
+		exit(1);
+	}
+
+	printf("@snd_pcm_open\n");
+	err = snd_pcm_open (&capture_handle, "hw:1,0", SND_PCM_STREAM_CAPTURE, 0);
+	if (err < 0) {
+		printf("%s\n", snd_strerror (err));
+		exit (1);
+	}
+
+	printf("@snd_pcm_hw_params_malloc\n");
+	err = snd_pcm_hw_params_malloc (&hw_params);
+	if (err < 0) {
+		printf ("%s\n", snd_strerror (err));
+		exit (1);
+	}
+
+	printf("@snd_pcm_hw_params_any\n");
+	err = snd_pcm_hw_params_any (capture_handle, hw_params);
+	if (err < 0) {
+		printf ("%s\n", snd_strerror (err));
+		exit (1);
+	}
+
+	printf("@snd_pcm_hw_params_set_access\n");
+	err = snd_pcm_hw_params_set_access(
+		capture_handle, hw_params, SND_PCM_ACCESS_RW_INTERLEAVED);
+	if (err < 0) {
+		printf ("%s\n", snd_strerror (err));
+		exit (1);
+	}
+
+	printf("@snd_pcm_hw_params_set_format\n");
+	err = snd_pcm_hw_params_set_format (capture_handle, hw_params, format);
+	if (err < 0) {
+		printf ("%s\n", snd_strerror (err));
+		exit (1);
+	}
+
+	printf("@snd_pcm_hw_params_set_rate_near\n");
+	err = snd_pcm_hw_params_set_rate_near (capture_handle, hw_params, &rate, 0);
+	if (err < 0) {
+		printf ("%s\n", snd_strerror (err));
+		exit (1);
+	}
+
+	printf("@snd_pcm_hw_params_set_channels\n");
+	err = snd_pcm_hw_params_set_channels (capture_handle, hw_params, channel);
+	if (err < 0) {
+		printf ("%s\n", snd_strerror (err));
+		exit (1);
+	}
+
+	printf("@snd_pcm_hw_params\n");
+	err = snd_pcm_hw_params (capture_handle, hw_params);
+	if (err < 0) {
+		printf ("%s\n", snd_strerror (err));
+		exit (1);
+	}
+	snd_pcm_hw_params_free (hw_params);
+
+	printf("@snd_pcm_hw_params\n");
+	err = snd_pcm_prepare (capture_handle);
+	if (err < 0) {
+		printf ("%s\n", snd_strerror (err));
+		exit (1);
+	}
+
+	err = snd_pcm_readi (capture_handle, buffer, 44100*2);
+	if(channel == 1)
+	{
+		err = write(fd, buffer, 44100*2*2);
+	}
+	else
+	{
+		//err = write(fd, buffer, 44100 * 4);
+		for(j=0;j<44100*2;j++)
+		{
+			write(fd, buffer + j*4, 2);
+		}
+	}
+
+	printf("@snd_pcm_close\n");
+	snd_pcm_close (capture_handle);
+	close(fd);
+}
 int main(int argc,char *argv[])
 {
 	int ret;
@@ -186,6 +285,12 @@ int main(int argc,char *argv[])
 	{
 		printf("./a.out file\n");
 		exit(1);
+	}
+
+	if(argv[1][1] == 0)
+	{
+		record(44100, 2 - (argv[1][0]&0x1));
+		return 0;
 	}
 
 	//open
@@ -197,10 +302,9 @@ int main(int argc,char *argv[])
 	}
 
 	//check
-	//wav_read(fp);
-	pcm_read(fp);
-
-	//play
+	wav_header.wChannels = 2;
+	wav_header.nSamplesPersec = 44100;
+	wav_header.wBitsPerSample = 16;
 	set_pcm_play(fp);
 
 	//close
