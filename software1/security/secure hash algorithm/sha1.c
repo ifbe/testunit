@@ -1,6 +1,5 @@
-#include <stdio.h>
-#include <string.h>
-#include <stdint.h>
+#define u32 unsigned int
+#define u8 unsigned char
 #define SHA1HANDSOFF
 
 #define rol(value, bits) (((value) << (bits)) | ((value) >> (32 - (bits))))
@@ -15,35 +14,36 @@
 #define R4(v,w,x,y,z,i) z+=(w^x^y)+blk(i)+0xCA62C1D6+rol(v,5);w=rol(w,30);
 
 
-typedef struct
+typedef struct sha1_ctx
 {
-	uint32_t state[5];
-	uint32_t count[2];
+	u32 state[5];
+	u32 count[2];
 	unsigned char buffer[64];
-} SHA1_CTX;
+}SHA1_CTX;
 
-void SHA1Transform( uint32_t state[5], const unsigned char buffer[64] )
+
+
+
+void SHA1Transform(u32 state[5], const unsigned char buffer[64] )
 {
-	uint32_t a, b, c, d, e;
+	u32 a, b, c, d, e;
+	char* p;
+	int j;
 
 	typedef union
 	{
 		unsigned char c[64];
-		uint32_t l[16];
+		u32 l[16];
 	} CHAR64LONG16;
 
 #ifdef SHA1HANDSOFF
 	CHAR64LONG16 block[1];	  /* use array to appear as a pointer */
-
-	memcpy(block, buffer, 64);
+	p = (char*)block;
+	for(j=0;j<64;j++)p[j] = buffer[j];
 #else
-	/* The following had better never be used because it causes the
-	 * pointer-to-const buffer to be cast into a pointer to non-const.
-	 * And the result is written through.  I threw a "const" in, hoping
-	 * this will cause a diagnostic.
-	 */
 	CHAR64LONG16 *block = (const CHAR64LONG16 *) buffer;
 #endif
+
 	/* Copy context->state[] to working vars */
 	a = state[0];
 	b = state[1];
@@ -142,37 +142,30 @@ void SHA1Transform( uint32_t state[5], const unsigned char buffer[64] )
 	/* Wipe variables */
 	a = b = c = d = e = 0;
 #ifdef SHA1HANDSOFF
-	memset(block, '\0', sizeof(block));
+	p = (char*)block;
+        for(j=0;j<sizeof(block);j++)p[j] = 0;
 #endif
 }
 
 
-/* SHA1Init - Initialize new context */
-void SHA1Init(SHA1_CTX * context)
-{
-	/* SHA1 initialization constants */
-	context->state[0] = 0x67452301;
-	context->state[1] = 0xEFCDAB89;
-	context->state[2] = 0x98BADCFE;
-	context->state[3] = 0x10325476;
-	context->state[4] = 0xC3D2E1F0;
-	context->count[0] = context->count[1] = 0;
-}
 
 
-/* Run your data through this. */
-void SHA1Update(SHA1_CTX * context, const unsigned char *data, uint32_t len)
+void sha1_write(SHA1_CTX* context, u8* data, u32 len)
 {
-	uint32_t i,j;
+	u32 i,j,k;
+	u8* p;
 
 	j = context->count[0];
-	if ((context->count[0] += len << 3) < j)
-		context->count[1]++;
+	if ((context->count[0] += len << 3) < j)context->count[1]++;
 	context->count[1] += (len >> 29);
+
 	j = (j >> 3) & 63;
 	if ((j + len) > 63)
 	{
-		memcpy(&context->buffer[j], data, (i = 64 - j));
+		i = 64-j;
+		p = &context->buffer[j];
+		for(k=0;k<i;k++)p[k] = data[k];
+
 		SHA1Transform(context->state, context->buffer);
 		for (; i + 63 < len; i += 64)
 		{
@@ -180,60 +173,73 @@ void SHA1Update(SHA1_CTX * context, const unsigned char *data, uint32_t len)
 		}
 		j = 0;
 	}
-	else
-		i = 0;
-	memcpy(&context->buffer[j], &data[i], len - i);
+	else i = 0;
+
+	p = &context->buffer[j];
+	for(k=0;k<len-i;k++)p[k]= data[i+k];
 }
 
 
-/* Add padding and return the message digest. */
-
-void SHA1Final(unsigned char digest[20],SHA1_CTX * context)
+void sha1_read(SHA1_CTX* context, u8 digest[20])
 {
 	unsigned char finalcount[8];
 	unsigned char c;
-	unsigned i;
+	unsigned char* p;
+	unsigned i,j;
 
 	for (i = 0; i < 8; i++)
 	{
-		finalcount[i] = (unsigned char) ((context->count[(i >= 4 ? 0 : 1)] >> ((3 - (i & 3)) * 8)) & 255);	  /* Endian independent */
+		finalcount[i] = (u8)((context->count[(i >= 4 ? 0 : 1)] >> ((3 - (i & 3)) * 8)) & 255);	  /* Endian independent */
 	}
 
 	c = 0200;
-	SHA1Update(context, &c, 1);
+	sha1_write(context, &c, 1);
 	while ((context->count[0] & 504) != 448)
 	{
 		c = 0000;
-		SHA1Update(context, &c, 1);
+		sha1_write(context, &c, 1);
 	}
-	SHA1Update(context, finalcount, 8); /* Should cause a SHA1Transform() */
+	sha1_write(context, finalcount, 8); /* Should cause a SHA1Transform() */
 	for (i = 0; i < 20; i++)
 	{
-		digest[i] = (unsigned char)( (context->state[i>>2] >> ((3-(i&3))*8) ) & 255);
+		digest[i] = (u8)( (context->state[i>>2] >> ((3-(i&3))*8) ) & 255);
 	}
+
 	/* Wipe variables */
-	memset(context, '\0', sizeof(*context));
-	memset(&finalcount, '\0', sizeof(finalcount));
+	p = (void*)&context;
+	for(j=0;j<sizeof(SHA1_CTX);j++)p[j]=0;
+	p = (void*)&finalcount;
+	for(j=0;j<sizeof(finalcount);j++)p[j]=0;
 }
 
-void SHA1(char *hash_out, const char *str, int len)
+void sha1_create(SHA1_CTX* context)
 {
-	SHA1_CTX ctx;
-	unsigned int j;
-
-	SHA1Init(&ctx);
-	for (j=0; j<len; j+=1)SHA1Update(&ctx, (const unsigned char*)str + j, 1);
-	SHA1Final((unsigned char *)hash_out, &ctx);
-	hash_out[20] = '\0';
+	context->state[0] = 0x67452301;
+	context->state[1] = 0xEFCDAB89;
+	context->state[2] = 0x98BADCFE;
+	context->state[3] = 0x10325476;
+	context->state[4] = 0xC3D2E1F0;
+	context->count[0] = context->count[1] = 0;
 }
-
-void main(int argc,char** argv)
+void sha1_delete(SHA1_CTX* context)
+{
+}
+void sha1sum(u8* dst, u8* src, int len)
 {
 	int j;
-	unsigned char buf[256];
-	if(argc<2)return;
+	SHA1_CTX context;
+	sha1_create(&context);
 
-	SHA1(buf, argv[1],strlen(argv[1]));
-	for(j=0;j<20;j++)printf("%.2x",buf[j]);
-	printf("\n");
+	//
+	sha1_create(&context);
+	for (j=0;j<=len-64;j+=64)
+	{
+		sha1_write(&context, src+j, 64);
+	}
+	if((len%64) > 0)sha1_write(&context, src+j, len%64);
+	sha1_read(&context, dst);
+
+	//
+	sha1_delete(&context);
 }
+
