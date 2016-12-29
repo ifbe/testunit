@@ -45,6 +45,29 @@ int bigshr(u8* buf, int len, int sh)
 //printf("(after)\n");
 	return len;
 }
+int bigcmp(
+	u8* abuf, int alen,
+	u8* bbuf, int blen)
+{
+	while( (alen>1) && (abuf[alen-1]==0) )alen--;
+	while( (blen>1) && (bbuf[blen-1]==0) )blen--;
+
+	if(alen < blen)return -1;
+	else if(alen > blen)return 1;
+	while(1)	//alen == blen
+	{
+		if(abuf[alen-1] < bbuf[blen])return -1;
+		if(abuf[alen-1] > bbuf[blen])return 1;
+		if(alen == 1)return 0;
+
+		//cmp next
+		alen--;
+		blen--;
+	}
+
+	//never
+	return 0;
+}
 
 
 
@@ -53,7 +76,7 @@ int bigshr(u8* buf, int len, int sh)
 int bigadd(
 	u8* abuf, int alen,
 	u8* bbuf, int blen,
-	u8* answer, int max)
+	u8* ans, int max)
 {
 	int j;
 	int temp = 0;
@@ -62,7 +85,7 @@ int bigadd(
 		for(j=0;j<blen;j++)
 		{
 			temp += abuf[j] + bbuf[j];
-			answer[j] = temp & 0xff;
+			ans[j] = temp & 0xff;
 			temp >>= 8;
 		}
 		for(;j<alen;j++)
@@ -70,12 +93,12 @@ int bigadd(
 			if(temp == 0)break;
 
 			temp += abuf[j];
-			answer[j] = temp & 0xff;
+			ans[j] = temp & 0xff;
 			temp >>= 8;
 		}
 		if(temp != 0)
 		{
-			answer[j] = 1;
+			ans[j] = 1;
 			j++;
 		}
 	}
@@ -84,24 +107,27 @@ int bigadd(
 		for(j=0;j<alen;j++)
 		{
 			temp += abuf[j] + bbuf[j];
-			answer[j] = temp & 0xff;
+			ans[j] = temp & 0xff;
 			temp >>= 8;
 		}
 		for(;j<blen;j++)
 		{
 			temp += bbuf[j];
-			answer[j] = temp & 0xff;
+			ans[j] = temp & 0xff;
 			temp >>= 8;
 		}
 		if(temp != 0)
 		{
-			answer[j] = 1;
+			ans[j] = 1;
 			j++;
 		}
 	}
 	return j;
 }
-int bigsub(u8* abuf, int alen, u8* bbuf, int blen, u8* answer, int max)
+int bigsub(
+	u8* abuf, int alen,
+	u8* bbuf, int blen,
+	u8* ans, int max)
 {
 	int j;
 	int temp = 0;
@@ -112,12 +138,12 @@ int bigsub(u8* abuf, int alen, u8* bbuf, int blen, u8* answer, int max)
 			temp = abuf[j] - bbuf[j] - temp;
 			if(temp >= 0)
 			{
-				answer[j] = temp;
+				ans[j] = temp;
 				temp = 0;
 			}
 			else
 			{
-				answer[j] = temp + 256;
+				ans[j] = temp + 256;
 				temp = 1;
 			}
 		}
@@ -126,12 +152,12 @@ int bigsub(u8* abuf, int alen, u8* bbuf, int blen, u8* answer, int max)
 			temp = abuf[j] - temp;
 			if(temp >= 0)
 			{
-				answer[j] = temp;
+				ans[j] = temp;
 				break;
 			}
 			else
 			{
-				answer[j] = temp + 256;
+				ans[j] = temp + 256;
 				temp = 1;
 			}
 		}
@@ -145,12 +171,12 @@ int bigsub(u8* abuf, int alen, u8* bbuf, int blen, u8* answer, int max)
 			temp = abuf[j] -bbuf[j] - temp;
 			if(temp >= 0)
 			{
-				answer[j] = temp;
+				ans[j] = temp;
 				temp = 0;
 			}
 			else
 			{
-				answer[j] = temp + 256;
+				ans[j] = temp + 256;
 				temp = 1;
 			}
 		}
@@ -159,7 +185,7 @@ int bigsub(u8* abuf, int alen, u8* bbuf, int blen, u8* answer, int max)
 			temp = -bbuf[j] - temp;
 			if(temp < 0)
 			{
-				answer[j] = 0xff;
+				ans[j] = 0xff;
 				temp = 1;
 			}
 		}
@@ -169,7 +195,7 @@ int bigsub(u8* abuf, int alen, u8* bbuf, int blen, u8* answer, int max)
 int bigmul(
 	u8* abuf, int alen,
 	u8* bbuf, int blen,
-	u8* answer, int x)
+	u8* ans, int x)
 {
 	int j,k;
 	int temp,carry;
@@ -215,7 +241,7 @@ int bigmul(
 		//printf("\n");
 
 		//
-		answer[x] = temp & 0xff;
+		ans[x] = temp & 0xff;
 		carry = temp>>8;
 
 		//
@@ -276,33 +302,20 @@ nomore:
 int bigdiv(
 	u8* abuf, int alen,
 	u8* bbuf, int blen,
-	u8* quotient, int max1,
-	u8* remainder, int max2)
+	u8* qbuf, int qlen,
+	u8* rbuf, int rlen)
 {
 	int j,ret;
 
-	//real alen
-	j=alen-1;
-	for(;j>0;j--)
-	{
-		if(abuf[j] == 0)alen--;
-		else break;
-	}
-
-	//real blen
-	j=blen-1;
-	for(;j>0;j--)
-	{
-		if(bbuf[j] == 0)blen--;
-		else break;
-	}
+	while( (alen>1) && (abuf[alen-1]==0) )alen--;
+	while( (blen>1) && (bbuf[blen-1]==0) )blen--;
 	if( (blen == 1) && (bbuf[0] == 0) )return 0;
 
 	//两种情况都要挪动
 	for(j=0;j<alen;j++)
 	{
-		quotient[j] = 0;
-		remainder[j] = abuf[j];
+		qbuf[j] = 0;
+		rbuf[j] = abuf[j];
 	}
 
 	//除数比被除数位数多
@@ -312,52 +325,39 @@ int bigdiv(
 	for(j=alen-blen;j>=0;j--)
 	{
 		ret = blen;
-		if(remainder[j+blen] != 0)
+		if(rbuf[j+blen] != 0)
 		{
 			//not first
 			if(j != alen-blen)ret++;
 		}
 
-		quotient[j] = bigdiv_keeptry(
-			remainder+j, ret,
+		qbuf[j] = bigdiv_keeptry(
+			rbuf+j, ret,
 			bbuf, blen
 		);
 	}
 
 	for(j=alen-blen;j>=0;j--)
 	{
-		if(quotient[j] != 0)break;
+		if(qbuf[j] != 0)break;
 	}
 	return j+1;
 }
 int bigmod(
 	u8* abuf, int alen,
 	u8* bbuf, int blen,
-	u8* remainder, int max2)
+	u8* rbuf, int rlen)
 {
 	int j,ret;
 
-	//real alen
-	j=alen-1;
-	for(;j>0;j--)
-	{
-		if(abuf[j] == 0)alen--;
-		else break;
-	}
-
-	//real blen
-	j=blen-1;
-	for(;j>0;j--)
-	{
-		if(bbuf[j] == 0)blen--;
-		else break;
-	}
+	while( (alen>1) && (abuf[alen-1]==0) )alen--;
+	while( (blen>1) && (bbuf[blen-1]==0) )blen--;
 	if( (blen == 1) && (bbuf[0] == 0) )return 0;
 
 	//两种情况都要挪动
 	for(j=0;j<alen;j++)
 	{
-		remainder[j] = abuf[j];
+		rbuf[j] = abuf[j];
 	}
 
 	//除数比被除数位数多
@@ -367,21 +367,21 @@ int bigmod(
 	for(j=alen-blen;j>=0;j--)
 	{
 		ret = blen;
-		if(remainder[j+blen] != 0)
+		if(rbuf[j+blen] != 0)
 		{
 			//not first
 			if(j != alen-blen)ret++;
 		}
 
 		bigdiv_keeptry(
-			remainder+j, ret,
+			rbuf+j, ret,
 			bbuf, blen
 		);
 	}
 
 	for(j=blen-1;j>=0;j--)
 	{
-		if(remainder[j] != 0)break;
+		if(rbuf[j] != 0)break;
 	}
 	return j+1;
 }
@@ -395,8 +395,7 @@ int bigpow(
 	u8* exp, int el,
 	u8* mod, int ml,
 	u8* ans, int al,
-	u8* t1, int l1,
-	u8* t2, int l2)
+	u8* t1, int l1)
 {
 	int j;
 
@@ -431,10 +430,9 @@ int bigpow(
 //printf(" => ");
 			//ans *= base
 			movsb(t1, ans, al);
-			movsb(t2, base, bl);
 			al = bigmul(
 				t1, al,
-				t2, bl,
+				base, bl,
 				ans, al
 			);
 //printbigint(ans, al);
@@ -462,10 +460,9 @@ int bigpow(
 		//even num
 		//base = base * base
 		movsb(t1, base, bl);
-		movsb(t2, base, bl);
 		bl = bigmul(
 			t1, bl,
-			t2, bl,
+			t1, bl,
 			base, bl*2
 		);
 //printbigint(base, bl);

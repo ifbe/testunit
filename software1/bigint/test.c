@@ -34,8 +34,7 @@ int bigpow(
         u8* exp, int el,
         u8* mod, int ml,
         u8* answer, int max,
-        u8* t1, int l1,
-        u8* t2, int l2
+        u8* t1, int l1
 );
 void movsb(u8* rdi, u8* rsi, int rcx)
 {
@@ -76,12 +75,11 @@ void main()
 	u8 c[32];
 	u8 d[32];
 	u8 e[32];
-	u8 f[32];
 	for(j=0;j<16;j++)
 	{
 		a[j] = 0xf0+j;
 		b[j] = 0xff-j;
-		c[j] = d[j] = e[j] = f[j] = 0;
+		c[j] = d[j] = e[j] = 0;
 	}
 
 
@@ -170,8 +168,7 @@ void main()
 		b, 16,
 		c, 16,
 		d, 16,
-		e, 16,
-		f, 16
+		e, 16
 	);
 
 	printbigint(d, ret);
