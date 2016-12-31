@@ -61,7 +61,7 @@ int set_pcm_play(FILE *fp)
 	int bit=wav_header.wBitsPerSample;
 
 	//rc=snd_pcm_open(&handle, "default", SND_PCM_STREAM_PLAYBACK, 0);
-	rc=snd_pcm_open(&handle, "hw:1,0", SND_PCM_STREAM_PLAYBACK, 0);
+	rc=snd_pcm_open(&handle, "hw:0,0", SND_PCM_STREAM_PLAYBACK, 0);
 	if(rc<0)
 	{
 		perror("\nopen PCM device failed:");
@@ -195,7 +195,7 @@ void record(unsigned int rate, int channel)
 	}
 
 	printf("@snd_pcm_open\n");
-	err = snd_pcm_open (&capture_handle, "hw:1,0", SND_PCM_STREAM_CAPTURE, 0);
+	err = snd_pcm_open (&capture_handle, "hw:0,0", SND_PCM_STREAM_CAPTURE, 0);
 	if (err < 0) {
 		printf("%s\n", snd_strerror (err));
 		exit (1);

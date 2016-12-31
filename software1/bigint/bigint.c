@@ -53,11 +53,19 @@ int bigcmp(
 	while( (blen>1) && (bbuf[blen-1]==0) )blen--;
 
 	if(alen < blen)return -1;
-	else if(alen > blen)return 1;
+	else if(alen > blen)
+	{
+		//printf("%d>%d\n",alen,blen);
+		return 1;
+	}
 	while(1)	//alen == blen
 	{
-		if(abuf[alen-1] < bbuf[blen])return -1;
-		if(abuf[alen-1] > bbuf[blen])return 1;
+		if(abuf[alen-1] < bbuf[blen-1])return -1;
+		if(abuf[alen-1] > bbuf[blen-1])
+		{
+			//printf("%d>%d\n",abuf[alen-1], bbuf[blen-1]);
+			return 1;
+		}
 		if(alen == 1)return 0;
 
 		//cmp next
@@ -254,6 +262,114 @@ int bigmul(
 
 
 
+//c=a-b*x    (x<0x7fffff)
+int bigsub_muled(
+	u8* abuf, int alen,
+	u8* bbuf, int blen,
+	int val)
+{
+	int j;
+	int remain=0;
+	for(j=0;j<blen;j++)
+	{
+		remain += abuf[j] - bbuf[j]*val;
+		abuf[j] = remain&0xff;
+		remain >>= 8;
+	}
+	while(remain != 0)
+	{
+		remain += abuf[j];
+		abuf[j] = remain&0xff;
+		remain >>= 8;
+		j++;
+	}
+	while( (alen>1) && (abuf[alen-1]==0) )alen--;
+	return alen;
+}
+int bigmod(
+	u8* abuf, int alen,
+	u8* bbuf, int blen)
+{
+	int j;
+	u32 q;
+//printf("in\n");
+	//清理掉高位0
+	while( (alen>1) && (abuf[alen-1]==0) )alen--;
+	while( (blen>1) && (bbuf[blen-1]==0) )blen--;
+	if(blen == 1)
+	{
+		if(bbuf[0] == 0)return 0;
+		else
+		{
+			
+		}
+	}
+
+	//被除数实际位数 <= 除数实际位数
+	if(alen < blen)return alen;
+
+	//每次尽量把那最高字节清零，清理不掉的交给下一次来打扫
+	q = 0;
+	for(j=alen-blen-1;j>=0;j--)
+	{
+		//printf("%x%02x%02x / %x\n", q, abuf[j+blen], abuf[j+blen-1], bbuf[blen-1]+1);
+		q = ( (q<<16) + (abuf[j+blen]<<8) + abuf[j+blen-1] ) / (bbuf[blen-1]+1);
+		//printf("%x\n",q);
+
+		bigsub_muled(
+			abuf + j, blen,
+			bbuf, blen,
+			q
+		);
+		if(q > 0xffff)
+		{
+			while(abuf[j+blen+1] >0)
+			{
+				bigsub_muled(
+					abuf + j, alen,
+					bbuf, blen,
+					abuf[j+blen+1]*(256/bbuf[blen-1])
+				);
+			}
+		}
+
+		while( (alen>1) && (abuf[alen-1]==0) )alen--;
+		q = abuf[j+blen];
+		//printbigint(abuf,alen);
+		//printf("\n");
+	}
+
+	//现在alen <= blen
+	while(1)
+	{
+		//小于除数直接返回
+		j = bigcmp(abuf, alen, bbuf, blen);
+		//printf("j=%d\n",j);
+		if(j < 0)break;
+
+//printf("1\n");
+		//确定要除以几，剪掉之后返回
+		if(alen==blen)j = abuf[blen-1] / (bbuf[blen-1]+1);
+		else j = ((abuf[blen]<<8) - abuf[blen-1]) / (bbuf[blen-1]+1);
+		if(j==0)j=1;
+		bigsub_muled(
+			abuf, alen,
+			bbuf, blen,
+			j
+		);
+//printf("2\n");
+		while( (alen>1) && (abuf[alen-1]==0) )alen--;
+		//printbigint(abuf,alen);
+		//printf("\n");
+	}
+
+	while( (alen>1) && (abuf[alen-1]==0) )alen--;
+//printf("out\n");
+	return alen;
+}
+
+
+
 //	/	%
 int bigdiv_keeptry(
 	u8* abuf, int alen,
@@ -343,7 +459,7 @@ int bigdiv(
 	}
 	return j+1;
 }
-int bigmod(
+int bigmod_old(
 	u8* abuf, int alen,
 	u8* bbuf, int blen,
 	u8* rbuf, int rlen)
@@ -404,12 +520,15 @@ int bigpow(
 //printbigint(mod,ml);
 //printf(" = ");
 	//base %= mod
+	bl = bigmod(base, bl, mod, ml);
+	/*
 	movsb(t1, base, bl);
-	bl = bigmod(
+	bl = bigmod_old(
 		t1, bl,		//dividend
 		mod, ml,	//divisor
 		base, bl	//reminder
 	);
+	*/
 //printbigint(base,bl);
 //printf("\n");
 
@@ -437,14 +556,17 @@ int bigpow(
 			);
 //printbigint(ans, al);
 //printf(" => ");
+			al = bigmod(ans, al, mod, ml);
 
+/*
 			//ans %= mod
 			movsb(t1, ans, al);
-			al = bigmod(
+			al = bigmod_old(
 				t1, al,
 				mod, ml,
 				ans, bl
 			);
+*/
 //printbigint(ans, al);
 //printf("\n");
 		}
@@ -467,14 +589,17 @@ int bigpow(
 		);
 //printbigint(base, bl);
 //printf(" => ");
+		bl = bigmod(base, bl, mod, ml);
 
+/*
 		//base = base % mod
 		movsb(t1, base, bl);
-		bl = bigmod(
+		bl = bigmod_old(
 			t1, bl,
 			mod, ml,
 			base, bl
 		);
+*/
 //printbigint(base, bl);
 //printf("\n");
 	}

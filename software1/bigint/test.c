@@ -18,6 +18,11 @@ int bigsub(
 	u8* bbuf, int blen,
 	u8* answer, int max
 );
+int bigsub_muled(
+	u8* abuf, int alen,
+	u8* bbuf, int blen,
+	int val
+);
 int bigmul(
 	u8* abuf, int alen,
 	u8* bbuf, int blen,
@@ -96,6 +101,7 @@ void main()
 
 
 	//add
+	printf("bigadd\n");
 	printbigint(a, 8);
 	printf(" + ");
 	printbigint(b, 8);
@@ -111,6 +117,7 @@ void main()
 
 
 	//sub
+	printf("bigsub\n");
 	printbigint(a, 8);
 	printf(" - ");
 	printbigint(b, 8);
@@ -126,6 +133,7 @@ void main()
 
 
 	//mul
+	printf("bigmul\n");
 	printbigint(a, 8);
 	printf(" * ");
 	printbigint(b, 8);
@@ -141,6 +149,7 @@ void main()
 
 
 	//div
+	printf("bigdiv\n");
 	printbigint(a, 8);
 	printf(" / ");
 	printbigint(b, 4);
@@ -156,6 +165,7 @@ void main()
 
 
 	//pow
+	printf("bigpow\n");
 	printbigint(a, 16);
 	printf(" , ");
 	printbigint(b, 16);
@@ -172,5 +182,20 @@ void main()
 	);
 
 	printbigint(d, ret);
-	printf("\n");
+	printf("\n\n");
+
+
+
+
+	//
+	printf("bigsub_muled\n");
+	printbigint(a, 16);
+	printf(" - (");
+	printbigint(d, ret/2);
+	printf(" * 0x65536)\n");
+
+	ret = bigsub_muled(a, 16, d, ret/2, 0x65536);
+
+	printbigint(a, ret);
+	printf("\n\n");
 }
