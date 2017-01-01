@@ -4,43 +4,43 @@
 #define u16 unsigned short
 #define u32 unsigned int
 #define u64 unsigned long long
-
-
-
-
+int bigdup(u8* src, int sl, u8* dst, int dl);
+int bigcmp(u8* src, int sl, u8* dst, int dl);
+int bigshl(u8* buf, int len, int sh);
+int bigshr(u8* buf, int len, int sh);
 int bigadd(
 	u8* abuf, int alen,
-	u8* bbuf, int blen,
-	u8* answer, int max
-);
-int bigsub(
+	u8* bbuf, int blen);
+int bigadd_muled(
 	u8* abuf, int alen,
 	u8* bbuf, int blen,
-	u8* answer, int max
-);
+	int val);
+int bigsub(
+	u8* abuf, int alen,
+	u8* bbuf, int blen);
 int bigsub_muled(
 	u8* abuf, int alen,
 	u8* bbuf, int blen,
-	int val
-);
+	int val);
 int bigmul(
 	u8* abuf, int alen,
 	u8* bbuf, int blen,
-	u8* answer, int max
-);
+	u8* answer, int max);
+int bigpow(
+	u8* base, int bl,
+	u8* exp, int el,
+	u8* mod, int ml,
+	u8* ans, int al,
+	u8* t1, int l1);
 int bigdiv(
 	u8* abuf, int alen,
 	u8* bbuf, int blen,
 	u8* quotient, int max1,
-	u8* remainder, int max2
-);
-int bigpow(
-        u8* base, int bl,
-        u8* exp, int el,
-        u8* mod, int ml,
-        u8* answer, int max,
-        u8* t1, int l1
-);
+	u8* remainder, int max2);
+
+
+
+
 void movsb(u8* rdi, u8* rsi, int rcx)
 {
         int j;
@@ -91,7 +91,7 @@ void main()
 
 
 	//origin
-	printf("origin\n");
+	printf("origin:\n");
 	printbigint(a,16);
 	printf("\n");
 	printbigint(b,16);
@@ -101,45 +101,60 @@ void main()
 
 
 	//add
-	printf("bigadd\n");
+	printf("bigadd:\n");
 	printbigint(a, 8);
 	printf(" + ");
 	printbigint(b, 8);
 	printf("\n");
 
-	printf("%016llx\n", (*(u64*)a) + (*(u64*)b) );
-	ret = bigadd(a, 8, b, 8, c, 9);
+	printf("0x%016llx\n", (*(u64*)a) + (*(u64*)b) );
+	ret = bigadd(a, 8, b, 8);
 
-	printbigint(c, ret);
+	printbigint(a, ret);
 	printf("\n\n");
 
 
 
 
 	//sub
-	printf("bigsub\n");
+	printf("bigsub:\n");
 	printbigint(a, 8);
 	printf(" - ");
 	printbigint(b, 8);
 	printf("\n");
 
-	printf("%08llx\n", (*(u64*)a) - (*(u64*)b) );
-	ret = bigsub(a, 8, b, 8, c, 9);
+	printf("0x%08llx\n", (*(u64*)a) - (*(u64*)b) );
+	ret = bigsub(a, 8, b, 8);
 
-	printbigint(c, ret);
+	printbigint(a, ret);
+	printf("\n\n");
+
+
+
+
+	//bigsub_muled
+	printf("bigsub_muled:\n");
+	printbigint(a, 16);
+	printf(" - (");
+	printbigint(b, 11);
+	printf(" * 0x7532)\n");
+
+	ret = bigsub_muled(a, 16, b, 11, 0x7532);
+
+	printbigint(a, ret);
 	printf("\n\n");
 
 
 
 
 	//mul
-	printf("bigmul\n");
+	printf("bigmul:\n");
 	printbigint(a, 8);
 	printf(" * ");
 	printbigint(b, 8);
 	printf("\n");
 
-	printf("%016llx\n", (*(u64*)a) * (*(u64*)b) );
+	printf("0x%016llx\n", (*(u64*)a) * (*(u64*)b) );
 	ret = bigmul(a, 8, b, 8, c, 16);
 
 	printbigint(c, ret);
@@ -148,24 +163,8 @@ void main()
 
 
 
-	//div
-	printf("bigdiv\n");
-	printbigint(a, 8);
-	printf(" / ");
-	printbigint(b, 4);
-	printf("\n");
-
-	printf("%016llx\n",	(*(u64*)a) / (*(u32*)b) );
-	ret = bigdiv(a, 8, b, 4, c, 16, d, 16);
-
-	printbigint(c, ret);
-	printf("\n\n");
-
-
-
-
 	//pow
-	printf("bigpow\n");
+	printf("bigpow:\n");
 	printbigint(a, 16);
 	printf(" , ");
 	printbigint(b, 16);
@@ -186,16 +185,17 @@ void main()
 
 
 
+return;
+	//div
+	printf("bigdiv:\n");
+	printbigint(a, 8);
+	printf(" / ");
+	printbigint(b, 4);
+	printf("\n");
 
-	//
-	printf("bigsub_muled\n");
-	printbigint(a, 16);
-	printf(" - (");
-	printbigint(d, ret/2);
-	printf(" * 0x65536)\n");
+	printf("0x%016llx\n",	(*(u64*)a) / (*(u32*)b) );
+	ret = bigdiv(a, 8, b, 4, c, 16, d, 16);
 
-	ret = bigsub_muled(a, 16, d, ret/2, 0x65536);
-
-	printbigint(a, ret);
+	printbigint(c, ret);
 	printf("\n\n");
 }
