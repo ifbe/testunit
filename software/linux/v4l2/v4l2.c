@@ -16,7 +16,7 @@ struct buffer{
 
 
 
-void fileout(int j, char* buf, int len)
+void fileout(int j, unsigned char* buf, int len)
 {
 	char haha[32];
 	snprintf(haha, 32, "%d.jpg", j);
