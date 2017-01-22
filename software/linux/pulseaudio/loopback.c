@@ -19,7 +19,7 @@ int main(int argc, char*argv[]) {
     static const pa_sample_spec ss = {
         .format = PA_SAMPLE_S16LE,
         .rate = 44100,
-        .channels = 2
+        .channels = 1
     };
 
     pa_simple *s_in, *s_out = NULL;
