@@ -1,7 +1,8 @@
-#include "stdafx.h"  
-#include <DShow.h>  
-#include <Guiddef.h>  
-#include <strmif.h>  
+#include<tchar.h>
+#include<DShow.h>  
+#include<Guiddef.h>  
+#include<strmif.h>  
+#include<windows.h>
 #pragma comment(lib, "Dxguid.lib")  
 #pragma comment(lib, "Strmiids.lib")  
 #define CHECK_HR(s) if (FAILED(s)) {return 1;}  
@@ -43,12 +44,12 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     wcex.cbClsExtra     = 0;  
     wcex.cbWndExtra     = 0;  
     wcex.hInstance      = hInstance;  
-    wcex.hIcon          = LoadIcon(hInstance, MAKEINTRESOURCE(IDI_APPLICATION));  
+    wcex.hIcon          = 0;//LoadIcon(hInstance, MAKEINTRESOURCE(IDI_APPLICATION));  
     wcex.hCursor        = LoadCursor(NULL, IDC_ARROW);  
     wcex.hbrBackground  = (HBRUSH)(COLOR_WINDOW+1);  
     wcex.lpszMenuName   = NULL;  
     wcex.lpszClassName  = _T("aaaaa");  
-    wcex.hIconSm        = LoadIcon(wcex.hInstance, MAKEINTRESOURCE(IDI_APPLICATION));  
+    wcex.hIconSm        = 0;//LoadIcon(wcex.hInstance, MAKEINTRESOURCE(IDI_APPLICATION));  
   
     if (!RegisterClassEx(&wcex))  
     {  
