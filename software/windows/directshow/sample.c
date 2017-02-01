@@ -114,7 +114,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	HWND win = CreateWindow("test", "test",
 		WS_OVERLAPPEDWINDOW,
 		CW_USEDEFAULT, CW_USEDEFAULT,
-		512, 512,
+		640, 480,
 		0, 0, 0, 0
 	);
 	ShowWindow(win,SW_SHOW);
@@ -128,7 +128,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     CHECK_HR(4);
 
     m_pVidWin->put_Owner((OAHWND)win);
-    m_pVidWin->SetWindowPosition(0, 0, 500, 500);
+    m_pVidWin->SetWindowPosition(0, 0, 640, 480);
     m_pVidWin->put_WindowStyle(WS_CHILD | WS_CLIPSIBLINGS);
 	m_pVidWin->put_Visible(OATRUE);
 
