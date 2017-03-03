@@ -365,13 +365,13 @@ int bigmod(				//a << a%b
 	return alen;
 }
 int bigpow(			//ans = (base^exp)%mod
+	u8* ans, int al,
 	u8* base, int bl,
 	u8* exp, int el,
-	u8* mod, int ml,
-	u8* ans, int al,
-	u8* t1, int l1)
+	u8* mod, int ml)
 {
 	int j;
+	u8 t1[0x1000];
 
 	//base %= mod
 	bl = bigmod(base, bl, mod, ml);
