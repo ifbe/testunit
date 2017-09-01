@@ -15,8 +15,8 @@ GLuint color;
 GLuint index;
 
 float camerax = 0.0f;
-float cameray = 0.1f;
-float cameraz = 1.1f;
+float cameray = 2.0f;
+float cameraz = 0.0f;
 float centerx = 0.0f;
 float centery = 0.0f;
 float centerz = 0.0f;
@@ -29,14 +29,14 @@ static int last_x=0;
 static int last_y=0;
 
 float positionData[] = {
-	-0.5, -0.5, -0.5,
-	0.5, -0.5, -0.5,
-	0.5, 0.5, -0.5,
-	-0.5, 0.5, -0.5,
-	-0.5, -0.5, 0.5,
+	-0.25, -0.25, -0.5,
+	0.25, -0.25, -0.5,
+	0.25, 0.25, -0.5,
+	-0.25, 0.25, -0.5,
+	-0.5, -0.5, 0.25,
 	0.5, -0.5, 0.5,
-	0.5, 0.5, 0.5,
-	-0.5, 0.5, 0.5,
+	0.5, 0.5, 0.75,
+	-0.5, 0.5, 1.0,
 };
 /*
 float colorData[] = {  
@@ -305,7 +305,7 @@ void fixview()
 	viewmatrix[11] = 0.0f;
 
 	viewmatrix[12] = -camerax*ux - cameray*uy - cameraz*uz;
-	viewmatrix[13] = -camerax*vx - cameray*vy - cameraz*nz;
+	viewmatrix[13] = -camerax*vx - cameray*vy - cameraz*vz;
 	viewmatrix[14] = camerax*nx + cameray*ny + cameraz*nz;
 	viewmatrix[15] = 1.0f;
 /*
@@ -357,31 +357,30 @@ void callback_move(int x,int y)
 {
 	float tx = camerax;
 	float ty = cameray;
-	float norm = sqrt(camerax*camerax + cameray*cameray);
 	if(x>last_x)
 	{
-		camerax = norm*cos(angle);
-		cameray = norm*sin(angle);
-		angle -= 0.1f;
+		camerax = tx*cos(0.1f) + ty*sin(0.1f);
+		cameray = -tx*sin(0.1f) + ty*cos(0.1f);
 
 		//camera_yaw += PI/20;
 	}
 	else if(x<last_x)
 	{
-		camerax = norm*cos(angle);
-		cameray = norm*sin(angle);
-		angle += 0.1f;
+		camerax = tx*cos(0.1f) - ty*sin(0.1f);
+		cameray = tx*sin(0.1f) + ty*cos(0.1f);
+
 		//camera_yaw -= PI/20;
 	}
-	else if(y>last_y)
+
+	if(y>last_y)
 	{
-		cameraz -= 0.1;
+		cameraz += 0.1;
 		//cameray += 0.1f;
 		//if(camera_pitch < PI*44/90)camera_pitch += PI/90;
 	}
 	else if(y<last_y)
 	{
-		cameraz += 0.1;
+		cameraz -= 0.1;
 		//cameray -= 0.1f;
 		//if(camera_pitch > -PI*44/90)camera_pitch -= PI/90;
 	}
@@ -440,7 +439,7 @@ int main(int argc,char** argv)
     err = glewInit();
     if( GLEW_OK != err )printf("glewinit: %s\n", glewGetErrorString(err));  
 
-	glViewport(0, 0, 512, 512);
+	glViewport(-256, -256, 512, 512);
 	glEnable(GL_DEPTH_TEST);
     initShader();
     initVBO();  
