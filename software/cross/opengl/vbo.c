@@ -9,7 +9,10 @@ GLuint vShader;
 GLuint fShader;
 GLuint programHandle;
 
-GLuint vaoHandle;
+GLuint axisvao;
+GLuint axis;
+
+GLuint shapevao;
 GLuint position;
 GLuint color;
 GLuint index;
@@ -27,7 +30,14 @@ float abovez = 1.0f;
 float angle = 0;
 static int last_x=0;
 static int last_y=0;
-
+float axisData[] = {
+	-1000.0, 0.0, 0.0,
+	1000.0, 0.0, 0.0,
+	0.0, -1000.0, 0.0,
+	0.0, 1000.0, 0.0,
+	0.0, 0.0, -1000.0,
+	0.0, 0.0, 1000.0
+};
 float positionData[] = {
 	-0.25, -0.25, -0.5,
 	0.25, -0.25, -0.5,
@@ -213,43 +223,49 @@ void initShader()
 }
 void initVBO()  
 {
-	//vao
-    glGenVertexArrays(1,&vaoHandle);
-    glBindVertexArray(vaoHandle);
+	//axis vao
+    glGenVertexArrays(1,&axisvao);
+    glBindVertexArray(axisvao);
+
+	//axis
+    glGenBuffers(1, &axis);
+    glBindBuffer(GL_ARRAY_BUFFER, axis);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(float)*3*6, axisData, GL_STATIC_DRAW);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
+    glEnableVertexAttribArray(0);
+
+
+
+
+	//shape vao
+    glGenVertexArrays(1,&shapevao);
+    glBindVertexArray(shapevao);
 
     //position
     glGenBuffers(1, &position);
     glBindBuffer(GL_ARRAY_BUFFER, position);
     glBufferData(GL_ARRAY_BUFFER, sizeof(float)*3*8, positionData, GL_STATIC_DRAW);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
+    glEnableVertexAttribArray(0);
 /*
     //color
     glGenBuffers(1, &color);
     glBindBuffer(GL_COLOR_BUFFER, color);
     glBufferData(GL_COLOR_BUFFER, 9*sizeof(float), colorData, GL_STATIC_DRAW);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, 0);
+    glEnableVertexAttribArray(1);
 
     //common
     glGenBuffers(1, &common);
     glBindBuffer(GL_ARRAY_BUFFER, common);
     glBufferData(GL_ARRAY_BUFFER, 9*sizeof(float), colorData, GL_STATIC_DRAW);
+    glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 0, 0);
+    glEnableVertexAttribArray(2);
 */
     //index
     glGenBuffers(1, &index);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, index);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(short)*4*6, indexdata, GL_STATIC_DRAW);
-
-	//顶点坐标
-    glBindBuffer(GL_ARRAY_BUFFER, position);
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
-/*
-	//顶点颜色
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, 0);
-
-	//顶点纹理
-    glEnableVertexAttribArray(2);
-    glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 0, 0);
-*/
 }  
 
 
@@ -335,14 +351,18 @@ void display()
 	glClearColor(1.0f, 1.0f, 1.0f, 0.0f);
 	glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
 
-	//draw
-	glBindVertexArray(vaoHandle);
-	glDrawElements(GL_QUADS, 4*6, GL_UNSIGNED_SHORT, 0);
-
 	//matrix
 	fixmodel();
 	fixview();
 	fixprojection();
+
+	//axis
+	glBindVertexArray(axisvao);
+	glDrawArrays(GL_LINES, 0, 6);
+
+	//shape
+	glBindVertexArray(shapevao);
+	glDrawElements(GL_QUADS, 4*6, GL_UNSIGNED_SHORT, 0);
 
 	//write
 	glFlush();
