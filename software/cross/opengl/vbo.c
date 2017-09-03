@@ -4,19 +4,24 @@
 #include <GL/glew.h>
 #include <GL/freeglut.h>
 #define PI 3.1415926535897932384626433832795028841971693993151
-
+//
+int width;
+int height;
+int last_x=0;
+int last_y=0;
+//
 GLuint vShader;
 GLuint fShader;
 GLuint programHandle;
-
+//
 GLuint axisvao;
 GLuint axis;
-
+//
 GLuint shapevao;
 GLuint position;
 GLuint color;
 GLuint index;
-
+//
 float camerax = 0.0f;
 float cameray = 2.0f;
 float cameraz = 0.0f;
@@ -26,10 +31,7 @@ float centerz = 0.0f;
 float abovex = 0.0f;
 float abovey = 0.0f;
 float abovez = 1.0f;
-
-float angle = 0;
-static int last_x=0;
-static int last_y=0;
+//
 float axisData[] = {
 	-1000.0, 0.0, 0.0,
 	1000.0, 0.0, 0.0,
@@ -342,6 +344,11 @@ void fixprojection()
 	0, 0, (f+n)/(f-n), -1,
 	0, 0, (2*f*n)/(f-n), 0
 */
+	float w = (float)width;
+	float h = (float)height;
+	glViewport(0, 0, width, height);
+	projmatrix[0] = h / w;
+
 	GLint projLoc = glGetUniformLocation(programHandle, "proj");
 	glUniformMatrix4fv(projLoc, 1, GL_FALSE, projmatrix);
 }
@@ -372,6 +379,11 @@ void keyboard(unsigned char key,int x,int y)
 {
 	printf("%d\n",key);
 	glutPostRedisplay();
+}
+void callback_reshape(int w, int h)
+{
+	width = w;
+	height = h;
 }
 void callback_move(int x,int y)
 {
@@ -467,6 +479,7 @@ int main(int argc,char** argv)
     glutDisplayFunc(display);
     glutIdleFunc(display);
     glutKeyboardFunc(keyboard);
+	glutReshapeFunc(callback_reshape);
 	glutMouseFunc(callback_mouse);
 	glutMotionFunc(callback_move); 
       
