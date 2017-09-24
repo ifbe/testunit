@@ -24,8 +24,8 @@ GLuint samplenormalhandle;
 GLuint samplecolorhandle;
 GLuint sampleindexhandle;
 //
-float camerax = 3.0f;
-float cameray = 2.0f;
+float camerax = 1.0f;
+float cameray = -2.0f;
 float cameraz = 1.0f;
 float centerx = 0.0f;
 float centery = 0.0f;
@@ -63,11 +63,11 @@ float axispositiondata[] = {
 };
 float axiscolordata[] = {
 	0.0, 0.0, 1.0,
+	0.0, 0.0, 1.0,
 	0.0, 1.0, 0.0,
-	0.0, 1.0, 1.0,
+	0.0, 1.0, 0.0,
 	1.0, 0.0, 0.0,
-	1.0, 0.0, 1.0,
-	1.0, 1.0, 0.0
+	1.0, 0.0, 0.0
 };
 //
 float samplepositiondata[] = {
@@ -81,22 +81,24 @@ float samplepositiondata[] = {
 	-0.5, 0.5, 0.5,
 };
 float samplenormaldata[] = {
-	0.0, 0.0, -1.0,
-	0.0, -1.0, 0.0,
-	1.0, 0.0, 0.0,
-	0.0, 0.0, 1.0,
-	-1.0, 0.0, 0.0,
-	0.0, 1.0, 0.0
+	-0.5, -0.5, -0.5,
+	0.5, -0.5, -0.5,
+	0.5, 0.5, -0.5,
+	-0.5, 0.5, -0.5,
+	-0.5, -0.5, 0.5,
+	0.5, -0.5, 0.5,
+	0.5, 0.5, 0.5,
+	-0.5, 0.5, 0.5,
 };
 float samplecolordata[] = {
 	0.0, 0.0, 0.0,
-	0.0, 0.0, 1.0,
-	0.0, 1.0, 0.0,
-	0.0, 1.0, 1.0,
-	1.0, 0.0, 0.0,
-	1.0, 0.0, 1.0,
-	1.0, 1.0, 0.0,
-	1.0, 1.0, 1.0
+	0.0, 0.0, 0.1f,
+	0.0, 0.1f, 0.0,
+	0.0, 0.1f, 0.1f,
+	0.1f, 0.0, 0.0,
+	0.1f, 0.0, 0.1f,
+	0.1f, 0.1f, 0.0,
+	0.1f, 0.1f, 0.1f
 };
 unsigned short sampleindexdata[] = {
 	0, 1, 2, 3,
@@ -112,16 +114,22 @@ unsigned short sampleindexdata[] = {
 
 char vCode[] = {
 	"#version 400\n"
-	"in vec3 position;\n"
+	"layout(location = 0)in vec3 position;\n"
+	"layout(location = 1)in vec3 normal;\n"
+	"layout(location = 2)in vec3 color;\n"
 	"out vec3 vertexcolor;\n"
-	"uniform mat4 model;\n"
-	"uniform mat4 view;\n"
-	"uniform mat4 proj;\n"
+	"uniform vec3 ambientcolor;\n"
+	"uniform vec3 diffusecolor;\n"
+	"uniform vec3 diffuseplace;\n"
+	"uniform mat4 mvpmatrix;\n"
+	//"uniform mat4 normatrix;\n"
 	"void main()\n"
 	"{\n"
-		"vertexcolor = position;\n"
-		//"gl_Position = vec4(position,1.0);\n"
-		"gl_Position = proj * view * model * vec4(position,1.0);\n"
+		"vec3 N = normalize(normal);"
+		"vec3 S = normalize(vec3(diffuseplace - position));"
+		"vec3 ddd = diffusecolor * max(dot(S, N), 0.0);\n"
+		"vertexcolor = color + ambientcolor + ddd;\n"
+		"gl_Position = mvpmatrix * vec4(position,1.0);\n"
 	"}\n"
 };
 char fCode[] = {
@@ -303,11 +311,35 @@ void initVBO()
 
 
 
+void matrixmultiply(GLfloat* u, GLfloat* v)
+{
+	int j;
+	float w[16];
+	for(j=0;j<16;j++)w[j] = u[j];
+
+	u[ 0] = w[ 0]*v[ 0] + w[ 1]*v[ 4] + w[ 2]*v[ 8] + w[ 3]*v[12];
+	u[ 1] = w[ 0]*v[ 1] + w[ 1]*v[ 5] + w[ 2]*v[ 9] + w[ 3]*v[13];
+	u[ 2] = w[ 0]*v[ 2] + w[ 1]*v[ 6] + w[ 2]*v[10] + w[ 3]*v[14];
+	u[ 3] = w[ 0]*v[ 3] + w[ 1]*v[ 7] + w[ 2]*v[11] + w[ 3]*v[15];
+
+	u[ 4] = w[ 4]*v[ 0] + w[ 5]*v[ 4] + w[ 6]*v[ 8] + w[ 7]*v[12];
+	u[ 5] = w[ 4]*v[ 1] + w[ 5]*v[ 5] + w[ 6]*v[ 9] + w[ 7]*v[13];
+	u[ 6] = w[ 4]*v[ 2] + w[ 5]*v[ 6] + w[ 6]*v[10] + w[ 7]*v[14];
+	u[ 7] = w[ 4]*v[ 3] + w[ 5]*v[ 7] + w[ 6]*v[11] + w[ 7]*v[15];
+
+	u[ 8] = w[ 8]*v[ 0] + w[ 9]*v[ 4] + w[10]*v[ 8] + w[11]*v[12];
+	u[ 9] = w[ 8]*v[ 1] + w[ 9]*v[ 5] + w[10]*v[ 9] + w[11]*v[13];
+	u[10] = w[ 8]*v[ 2] + w[ 9]*v[ 6] + w[10]*v[10] + w[11]*v[14];
+	u[11] = w[ 8]*v[ 3] + w[ 9]*v[ 7] + w[10]*v[11] + w[11]*v[15];
+
+	u[12] = w[12]*v[ 0] + w[13]*v[ 4] + w[14]*v[ 8] + w[15]*v[12];
+	u[13] = w[12]*v[ 1] + w[13]*v[ 5] + w[14]*v[ 9] + w[15]*v[13];
+	u[14] = w[12]*v[ 2] + w[13]*v[ 6] + w[14]*v[10] + w[15]*v[14];
+	u[15] = w[12]*v[ 3] + w[13]*v[ 7] + w[14]*v[11] + w[15]*v[15];
+}
 void fixmodel()
 {
 	//matrix = movematrix * rotatematrix * scalematrix
-	GLint modelLoc = glGetUniformLocation(programHandle, "model");
-	glUniformMatrix4fv(modelLoc, 1, GL_FALSE, modelmatrix);
 }
 void fixview()
 {
@@ -363,8 +395,6 @@ void fixview()
 	viewmatrix[10] = cos(camerax);
 	viewmatrix[14] = -1.0f;
 */
-	GLint viewLoc = glGetUniformLocation(programHandle, "view");
-	glUniformMatrix4fv(viewLoc, 1, GL_FALSE, viewmatrix);
 }
 void fixprojection()
 {
@@ -378,20 +408,47 @@ void fixprojection()
 	float h = (float)height;
 	glViewport(0, 0, width, height);
 	projmatrix[0] = h / w;
+}
+void fixmatrix()
+{
+	int x;
+	GLfloat temp[4*4];
 
-	GLint projLoc = glGetUniformLocation(programHandle, "proj");
-	glUniformMatrix4fv(projLoc, 1, GL_FALSE, projmatrix);
+	fixmodel();
+	fixview();
+	fixprojection();
+
+	for(x=0;x<16;x++)temp[x] = modelmatrix[x];
+	matrixmultiply(temp, viewmatrix);
+	matrixmultiply(temp, projmatrix);
+
+	GLint pvmmatrix = glGetUniformLocation(programHandle, "mvpmatrix");
+	glUniformMatrix4fv(pvmmatrix, 1, GL_FALSE, temp);
+}
+void fixlight()
+{
+	GLfloat ambientcolor[3] = {0.1f, 0.1f, 0.1f};
+	GLfloat diffuseplace[3] = {0.1f, 0.2f, 5.0f};
+	GLfloat diffusecolor[3] = {0.8f, 0.0f, 0.0f};
+
+	GLint ac = glGetUniformLocation(programHandle, "ambientcolor");
+	glUniform3fv(ac, 1, ambientcolor);
+
+	GLint dc = glGetUniformLocation(programHandle, "diffusecolor");
+	glUniform3fv(dc, 1, diffusecolor);
+
+	GLint dp = glGetUniformLocation(programHandle, "diffuseplace");
+	glUniform3fv(dp, 1, diffuseplace);
 }
 void display()  
 {
 	//set
-	glClearColor(1.0f, 1.0f, 1.0f, 0.0f);
+	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 	glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
 
-	//matrix
-	fixmodel();
-	fixview();
-	fixprojection();
+	//
+	fixmatrix();
+	fixlight();
 
 	//axis
 	glBindVertexArray(axisvao);
