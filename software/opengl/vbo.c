@@ -16,17 +16,18 @@ GLuint programHandle;
 //
 GLuint axisvao;
 GLuint axispositionhandle;
+GLuint axisnormalhandle;
 GLuint axiscolorhandle;
 //
 GLuint samplevao;
+GLuint sampleindexhandle;
 GLuint samplepositionhandle;
 GLuint samplenormalhandle;
 GLuint samplecolorhandle;
-GLuint sampleindexhandle;
 //
-float camerax = 1.0f;
+float camerax = 2.0f;
 float cameray = -2.0f;
-float cameraz = 1.0f;
+float cameraz = 2.0f;
 float centerx = 0.0f;
 float centery = 0.0f;
 float centerz = 0.0f;
@@ -54,51 +55,59 @@ GLfloat projmatrix[4*4] = {
 };
 //
 float axispositiondata[] = {
-	-1000.0, 0.0, 0.0,
-	1000.0, 0.0, 0.0,
-	0.0, -1000.0, 0.0,
-	0.0, 1000.0, 0.0,
-	0.0, 0.0, -1000.0,
-	0.0, 0.0, 1000.0
+	-10.0, 0.0, 0.0,
+	10.0, 0.0, 0.0,
+	0.0, -10.0, 0.0,
+	0.0, 10.0, 0.0,
+	0.0, 0.0, -10.0,
+	0.0, 0.0, 10.0
+};
+float axisnormaldata[] = {
+	0.0, 0.0, 1.0,
+	0.0, 0.0, 1.0,
+	0.0, 0.0, 1.0,
+	0.0, 0.0, 1.0,
+	0.0, 0.0, 1.0,
+	0.0, 0.0, 1.0
 };
 float axiscolordata[] = {
+	1.0, 1.0, 0.0,
 	0.0, 0.0, 1.0,
-	0.0, 0.0, 1.0,
+	1.0, 0.0, 1.0,
 	0.0, 1.0, 0.0,
-	0.0, 1.0, 0.0,
-	1.0, 0.0, 0.0,
+	0.0, 1.0, 1.0,
 	1.0, 0.0, 0.0
 };
 //
 float samplepositiondata[] = {
-	-0.5, -0.5, -0.5,
-	0.5, -0.5, -0.5,
-	0.5, 0.5, -0.5,
-	-0.5, 0.5, -0.5,
-	-0.5, -0.5, 0.5,
-	0.5, -0.5, 0.5,
-	0.5, 0.5, 0.5,
-	-0.5, 0.5, 0.5,
+	-1.0, -1.0, -1.0,
+	1.0, -1.0, -1.0,
+	1.0, 1.0, -1.0,
+	-1.0, 1.0, -1.0,
+	-1.0, -1.0, 1.0,
+	1.0, -1.0, 1.0,
+	1.0, 1.0, 1.0,
+	-1.0, 1.0, 1.0,
 };
 float samplenormaldata[] = {
-	-0.5, -0.5, -0.5,
-	0.5, -0.5, -0.5,
-	0.5, 0.5, -0.5,
-	-0.5, 0.5, -0.5,
-	-0.5, -0.5, 0.5,
-	0.5, -0.5, 0.5,
-	0.5, 0.5, 0.5,
-	-0.5, 0.5, 0.5,
+	-1.0, -1.0, -1.0,
+	1.0, -1.0, -1.0,
+	1.0, 1.0, -1.0,
+	-1.0, 1.0, -1.0,
+	-1.0, -1.0, 1.0,
+	1.0, -1.0, 1.0,
+	1.0, 1.0, 1.0,
+	-1.0, 1.0, 1.0,
 };
 float samplecolordata[] = {
 	0.0, 0.0, 0.0,
-	0.0, 0.0, 0.1f,
-	0.0, 0.1f, 0.0,
-	0.0, 0.1f, 0.1f,
-	0.1f, 0.0, 0.0,
-	0.1f, 0.0, 0.1f,
-	0.1f, 0.1f, 0.0,
-	0.1f, 0.1f, 0.1f
+	0.0, 0.0, 1.0f,
+	0.0, 1.0f, 0.0,
+	0.0, 1.0f, 1.0f,
+	1.0f, 0.0, 0.0,
+	1.0f, 0.0, 1.0f,
+	1.0f, 1.0f, 0.0f,
+	1.0f, 1.0f, 1.0f
 };
 unsigned short sampleindexdata[] = {
 	0, 1, 2, 3,
@@ -122,13 +131,13 @@ char vCode[] = {
 	"uniform vec3 diffusecolor;\n"
 	"uniform vec3 diffuseplace;\n"
 	"uniform mat4 mvpmatrix;\n"
-	//"uniform mat4 normatrix;\n"
 	"void main()\n"
 	"{\n"
-		"vec3 N = normalize(normal);"
-		"vec3 S = normalize(vec3(diffuseplace - position));"
-		"vec3 ddd = diffusecolor * max(dot(S, N), 0.0);\n"
-		"vertexcolor = color + ambientcolor + ddd;\n"
+		"vec3 N = normalize(normal);\n"
+		"vec3 S = normalize(vec3(diffuseplace - position));\n"
+		"vec3 diffuse = color * diffusecolor * max(dot(S, N), 0.0);\n"
+		"vec3 ambient = color * ambientcolor;\n"
+		"vertexcolor = ambient + diffuse;\n"
 		"gl_Position = mvpmatrix * vec4(position,1.0);\n"
 	"}\n"
 };
@@ -266,6 +275,13 @@ void initVBO()
     glBufferData(GL_ARRAY_BUFFER, sizeof(float)*3*6, axispositiondata, GL_STATIC_DRAW);
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
     glEnableVertexAttribArray(0);
+
+    //color
+    glGenBuffers(1, &axisnormalhandle);
+    glBindBuffer(GL_ARRAY_BUFFER, axisnormalhandle);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(float)*3*6, axisnormaldata, GL_STATIC_DRAW);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, 0);
+    glEnableVertexAttribArray(1);
 
     //color
     glGenBuffers(1, &axiscolorhandle);
@@ -427,9 +443,9 @@ void fixmatrix()
 }
 void fixlight()
 {
-	GLfloat ambientcolor[3] = {0.1f, 0.1f, 0.1f};
+	GLfloat ambientcolor[3] = {0.1f, 0.0f, 0.0f};
+	GLfloat diffusecolor[3] = {1.0f, 1.0f, 1.0f};
 	GLfloat diffuseplace[3] = {0.1f, 0.2f, 5.0f};
-	GLfloat diffusecolor[3] = {0.8f, 0.0f, 0.0f};
 
 	GLint ac = glGetUniformLocation(programHandle, "ambientcolor");
 	glUniform3fv(ac, 1, ambientcolor);
