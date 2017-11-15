@@ -289,4 +289,6 @@ void main()
 	printf("asin:	%lf,%lf\n", asin(-0.9), arcsin(-0.9));
 	printf("acos:	%lf,%lf\n", acos(0.6), arccos(0.6));
 	printf("atan2:	%lf,%lf\n", atan2(2.3, 0.9), arctan2(2.3, 0.9));
+	printf("pow:	%lf,%lf\n", pow(2.3, 0.9), power(2.3, 0.9));
+	printf("exp:	%lf,%lf\n", exp(8.4), exponent(8.4));
 }
