@@ -116,37 +116,37 @@ unsigned short sampleindexdata[] = {
 
 
 char vCode[] = {
-	"#version 400\n"
-	"layout(location = 0)in vec3 position;\n"
-	"layout(location = 1)in vec3 normal;\n"
-	"layout(location = 2)in vec3 color;\n"
-	"uniform vec3 ambientcolor;\n"
-	"uniform vec3 lightcolor;\n"
-	"uniform vec3 lightposition;\n"
-	"uniform vec3 eyeposition;\n"
+	"#version 300 es\n"
+	"layout(location = 0)in mediump vec3 position;\n"
+	"layout(location = 1)in mediump vec3 normal;\n"
+	"layout(location = 2)in mediump vec3 color;\n"
+	"uniform mediump vec3 ambientcolor;\n"
+	"uniform mediump vec3 lightcolor;\n"
+	"uniform mediump vec3 lightposition;\n"
+	"uniform mediump vec3 eyeposition;\n"
 	"uniform mat4 modelviewproj;\n"
 	"uniform mat4 normalmatrix;\n"
-	"out vec3 vertexcolor;\n"
+	"out mediump vec3 vertexcolor;\n"
 	"void main()\n"
 	"{\n"
-		"vec3 S = normalize(vec3(lightposition - position));\n"
-		"vec3 N = normalize(normal);\n"
-		"vec3 V = normalize(-position);\n"
-		"vec3 R = reflect(-S, N);\n"
-		"float SN = max(dot(S, N), 0.0);\n"
-		"float RV = max(dot(R, V), 0.0);\n"
-		"vec3 ambient = color * ambientcolor;\n"
-		"vec3 diffuse = color * lightcolor * SN;\n"
-		"vec3 specular = vec3(0.0, 0.0, 0.0);\n"
-		"if(SN>0.0)specular = color * lightcolor * pow(RV, 8);\n"
+		"mediump vec3 S = normalize(vec3(lightposition - position));\n"
+		"mediump vec3 N = normalize(normal);\n"
+		"mediump vec3 V = normalize(-position);\n"
+		"mediump vec3 R = reflect(-S, N);\n"
+		"mediump float SN = max(dot(S, N), 0.0);\n"
+		"mediump float RV = max(dot(R, V), 0.0);\n"
+		"mediump vec3 ambient = color * ambientcolor;\n"
+		"mediump vec3 diffuse = color * lightcolor * SN;\n"
+		"mediump vec3 specular = vec3(0.0, 0.0, 0.0);\n"
+		"if(SN>0.0)specular = color * lightcolor * pow(RV, 8.0);\n"
 		"vertexcolor = ambient + diffuse + specular;\n"
 		"gl_Position = modelviewproj * vec4(position,1.0);\n"
 	"}\n"
 };
 char fCode[] = {
-	"#version 400\n"
-	"in vec3 vertexcolor;\n"
-	"out vec4 FragColor;\n"
+	"#version 300 es\n"
+	"in mediump vec3 vertexcolor;\n"
+	"out mediump vec4 FragColor;\n"
 	"void main()\n"
 	"{\n"
 		"FragColor = vec4(vertexcolor,1.0);\n"
@@ -154,176 +154,160 @@ char fCode[] = {
 };
 void initShader()  
 {  
-    //1. 查看GLSL和OpenGL的版本  
-    const GLubyte *renderer = glGetString( GL_RENDERER );  
-    const GLubyte *vendor = glGetString( GL_VENDOR );  
-    const GLubyte *version = glGetString( GL_VERSION );  
-    const GLubyte *glslVersion = glGetString( GL_SHADING_LANGUAGE_VERSION );  
-    GLint major, minor;  
-    glGetIntegerv(GL_MAJOR_VERSION, &major);
-    glGetIntegerv(GL_MINOR_VERSION, &minor);
-    printf("GL Vendor: %s\n", vendor);
-    printf("GL Renderer: %s\n", renderer);
-    printf("GL Version (string): %s\n", version);
-    printf("GLSL Version: %s\n", glslVersion);
-    printf("GL Version (integer): %x.%x\n", major, minor);
+	const GLubyte *renderer = glGetString( GL_RENDERER );  
+	const GLubyte *vendor = glGetString( GL_VENDOR );  
+	const GLubyte *version = glGetString( GL_VERSION );  
+	const GLubyte *glslVersion = glGetString( GL_SHADING_LANGUAGE_VERSION );  
 
-    //2. 顶点着色器  
-    vShader = glCreateShader(GL_VERTEX_SHADER);
-    if (0 == vShader)  
-    {  
-        printf("ERROR : Create vertex shader failed\n");
-        exit(1);  
-    }  
+	GLint major, minor;  
+	glGetIntegerv(GL_MAJOR_VERSION, &major);
+	glGetIntegerv(GL_MINOR_VERSION, &minor);
+	printf("GL Vendor: %s\n", vendor);
+	printf("GL Renderer: %s\n", renderer);
+	printf("GL Version (string): %s\n", version);
+	printf("GLSL Version: %s\n", glslVersion);
+	printf("GL Version (integer): %x.%x\n", major, minor);
 
-    //把着色器源代码和着色器对象相关联
+	vShader = glCreateShader(GL_VERTEX_SHADER);
+	if (0 == vShader)  
+	{  
+		printf("ERROR : Create vertex shader failed\n");
+		exit(1);  
+	}  
+
 	const GLchar* vCodeArray[1] = {vCode};
-    glShaderSource(vShader, 1, vCodeArray, NULL);
-    glCompileShader(vShader);  
+	glShaderSource(vShader, 1, vCodeArray, NULL);
+	glCompileShader(vShader);  
 
-    //检查编译是否成功  
-    GLint compileResult;  
-    glGetShaderiv(vShader,GL_COMPILE_STATUS,&compileResult);  
-    if (GL_FALSE == compileResult)  
-    {  
-        GLint logLen;  
-        //得到编译日志长度  
-        glGetShaderiv(vShader,GL_INFO_LOG_LENGTH,&logLen);  
-        if (logLen > 0)  
-        {  
-            char *log = (char *)malloc(logLen);  
-            GLsizei written;  
-            //得到日志信息并输出  
-            glGetShaderInfoLog(vShader,logLen,&written,log);
-            printf("vertex shader compile log: %s\n",log);
-            free(log);//释放空间
-        }
-    }
+	GLint compileResult;  
+	glGetShaderiv(vShader,GL_COMPILE_STATUS,&compileResult);  
+	if (GL_FALSE == compileResult)  
+	{  
+		GLint logLen;  
+		glGetShaderiv(vShader,GL_INFO_LOG_LENGTH,&logLen);  
+		if (logLen > 0)  
+		{  
+			char *log = (char *)malloc(logLen);  
+			GLsizei written;  
+			glGetShaderInfoLog(vShader,logLen,&written,log);
+			printf("vertex shader compile log: %s\n",log);
+			free(log);
+		}
+	}
 
-    //3. 片断着色器  
-    fShader = glCreateShader(GL_FRAGMENT_SHADER);
-    if (0 == fShader)  
-    {  
-        printf("ERROR : Create fragment shader failed");  
-        exit(1);  
-    }  
+	fShader = glCreateShader(GL_FRAGMENT_SHADER);
+	if (0 == fShader)  
+	{  
+		printf("ERROR : Create fragment shader failed");  
+		exit(1);  
+	}  
 
-    //把着色器源代码和着色器对象相关联
 	const GLchar* fCodeArray[1] = {fCode};
-    glShaderSource(fShader, 1, fCodeArray, NULL);
-    glCompileShader(fShader);  
+	glShaderSource(fShader, 1, fCodeArray, NULL);
+	glCompileShader(fShader);  
 
-    //检查编译是否成功  
-    glGetShaderiv(fShader,GL_COMPILE_STATUS,&compileResult);  
-    if (GL_FALSE == compileResult)  
-    {  
-        GLint logLen;  
-        //得到编译日志长度  
-        glGetShaderiv(fShader,GL_INFO_LOG_LENGTH,&logLen);  
-        if (logLen > 0)  
-        {  
-            char *log = (char *)malloc(logLen);  
-            GLsizei written;  
-            //得到日志信息并输出  
-            glGetShaderInfoLog(fShader,logLen,&written,log);
-            printf("fragment shader compile log: %s\n",log);
-            free(log);//释放空间  
-        }  
-    }  
+	glGetShaderiv(fShader,GL_COMPILE_STATUS,&compileResult);  
+	if (GL_FALSE == compileResult)  
+	{  
+		GLint logLen;  
+		glGetShaderiv(fShader,GL_INFO_LOG_LENGTH,&logLen);  
+		if (logLen > 0)  
+		{  
+			char *log = (char *)malloc(logLen);  
+			GLsizei written;  
+			glGetShaderInfoLog(fShader,logLen,&written,log);
+			printf("fragment shader compile log: %s\n",log);
+			free(log);
+		}  
+	}
   
-    //4. 着色器程序  
-    programHandle = glCreateProgram();  
-    if (!programHandle)  
-    {  
-        printf("ERROR : create program failed");
-        exit(1);  
-    }
+	programHandle = glCreateProgram();  
+	if (!programHandle)  
+	{  
+		printf("ERROR : create program failed");
+		exit(1);  
+	}
 
-    //将着色器程序链接到所创建的程序中  
-    glAttachShader(programHandle,vShader);
-    glAttachShader(programHandle,fShader);
-    glLinkProgram(programHandle);
+	glAttachShader(programHandle,vShader);
+	glAttachShader(programHandle,fShader);
+	glLinkProgram(programHandle);
 
-    //查询链接的结果  
-    GLint linkStatus;  
-    glGetProgramiv(programHandle,GL_LINK_STATUS,&linkStatus);  
-    if(GL_FALSE == linkStatus)  
-    {  
-        printf("ERROR : link shader program failed");  
-        GLint logLen;  
-        glGetProgramiv(programHandle,GL_INFO_LOG_LENGTH, &logLen);  
-        if (logLen > 0)  
-        {  
-            char *log = (char *)malloc(logLen);  
-            GLsizei written;  
-            glGetProgramInfoLog(programHandle,logLen, &written,log);  
-            printf("Program log :%s\n", log);  
-        }  
-    }  
-    else//链接成功，在OpenGL管线中使用渲染程序  
-    {  
-        glUseProgram(programHandle);  
-    }  
+	GLint linkStatus;  
+	glGetProgramiv(programHandle,GL_LINK_STATUS,&linkStatus);  
+	if(GL_FALSE == linkStatus)  
+	{  
+		printf("ERROR : link shader program failed");  
+		GLint logLen;  
+		glGetProgramiv(programHandle,GL_INFO_LOG_LENGTH, &logLen);  
+		if (logLen > 0)  
+		{  
+			char *log = (char *)malloc(logLen);  
+			GLsizei written;  
+			glGetProgramInfoLog(programHandle,logLen, &written,log);  
+			printf("Program log :%s\n", log);  
+		}  
+	}  
+	else glUseProgram(programHandle);  
 }
 void initVBO()  
 {
 	//axis vao
-    glGenVertexArrays(1,&axisvao);
-    glBindVertexArray(axisvao);
+	glGenVertexArrays(1,&axisvao);
+	glBindVertexArray(axisvao);
 
 	//axis
-    glGenBuffers(1, &axispositionhandle);
-    glBindBuffer(GL_ARRAY_BUFFER, axispositionhandle);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(float)*3*6, axispositiondata, GL_STATIC_DRAW);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
-    glEnableVertexAttribArray(0);
+	glGenBuffers(1, &axispositionhandle);
+	glBindBuffer(GL_ARRAY_BUFFER, axispositionhandle);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(float)*3*6, axispositiondata, GL_STATIC_DRAW);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
+	glEnableVertexAttribArray(0);
 
-    //color
-    glGenBuffers(1, &axisnormalhandle);
-    glBindBuffer(GL_ARRAY_BUFFER, axisnormalhandle);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(float)*3*6, axisnormaldata, GL_STATIC_DRAW);
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, 0);
-    glEnableVertexAttribArray(1);
+	//color
+	glGenBuffers(1, &axisnormalhandle);
+	glBindBuffer(GL_ARRAY_BUFFER, axisnormalhandle);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(float)*3*6, axisnormaldata, GL_STATIC_DRAW);
+	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, 0);
+	glEnableVertexAttribArray(1);
 
-    //color
-    glGenBuffers(1, &axiscolorhandle);
-    glBindBuffer(GL_ARRAY_BUFFER, axiscolorhandle);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(float)*3*6, axiscolordata, GL_STATIC_DRAW);
-    glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 0, 0);
-    glEnableVertexAttribArray(2);
+	//color
+	glGenBuffers(1, &axiscolorhandle);
+	glBindBuffer(GL_ARRAY_BUFFER, axiscolorhandle);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(float)*3*6, axiscolordata, GL_STATIC_DRAW);
+	glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 0, 0);
+	glEnableVertexAttribArray(2);
 
 
 
 
 	//sample vao
-    glGenVertexArrays(1,&samplevao);
-    glBindVertexArray(samplevao);
+	glGenVertexArrays(1,&samplevao);
+	glBindVertexArray(samplevao);
 
-    //sample position
-    glGenBuffers(1, &samplepositionhandle);
-    glBindBuffer(GL_ARRAY_BUFFER, samplepositionhandle);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(float)*3*8, samplepositiondata, GL_STATIC_DRAW);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
-    glEnableVertexAttribArray(0);
+	//sample position
+	glGenBuffers(1, &samplepositionhandle);
+	glBindBuffer(GL_ARRAY_BUFFER, samplepositionhandle);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(float)*3*8, samplepositiondata, GL_STATIC_DRAW);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
+	glEnableVertexAttribArray(0);
 
-    //sample common
-    glGenBuffers(1, &samplenormalhandle);
-    glBindBuffer(GL_ARRAY_BUFFER, samplenormalhandle);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(float)*3*8, samplenormaldata, GL_STATIC_DRAW);
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, 0);
-    glEnableVertexAttribArray(1);
+	//sample common
+	glGenBuffers(1, &samplenormalhandle);
+	glBindBuffer(GL_ARRAY_BUFFER, samplenormalhandle);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(float)*3*8, samplenormaldata, GL_STATIC_DRAW);
+	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, 0);
+	glEnableVertexAttribArray(1);
 
-    //sample color
-    glGenBuffers(1, &samplecolorhandle);
-    glBindBuffer(GL_ARRAY_BUFFER, samplecolorhandle);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(float)*3*8, samplecolordata, GL_STATIC_DRAW);
-    glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 0, 0);
-    glEnableVertexAttribArray(2);
+	//sample color
+	glGenBuffers(1, &samplecolorhandle);
+	glBindBuffer(GL_ARRAY_BUFFER, samplecolorhandle);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(float)*3*8, samplecolordata, GL_STATIC_DRAW);
+	glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 0, 0);
+	glEnableVertexAttribArray(2);
 
-    //sample index
-    glGenBuffers(1, &sampleindexhandle);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, sampleindexhandle);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(short)*4*6, sampleindexdata, GL_STATIC_DRAW);
+	//sample index
+	glGenBuffers(1, &sampleindexhandle);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, sampleindexhandle);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(short)*4*6, sampleindexdata, GL_STATIC_DRAW);
 }  
 
 
@@ -516,7 +500,7 @@ void display()
 
 	//write
 	glFlush();
-    glutSwapBuffers();
+	glutSwapBuffers();
 }
 void keyboard(unsigned char key,int x,int y)  
 {
@@ -617,182 +601,29 @@ void callback_mouse(int button, int state, int x, int y)
 int main(int argc,char** argv)  
 {
 	int err;
-    glutInit(&argc,argv);
-    glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB);
-    glutInitWindowSize(512, 512);
-    glutInitWindowPosition(256, 256);
-    glutCreateWindow("GLSL Test : Draw a triangle");
+	glutInit(&argc,argv);
+	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGBA | GLUT_DEPTH);
+	glutInitWindowSize(512, 512);
+	glutInitWindowPosition(256, 256);
+	glutCreateWindow("GLSL Test : Draw a triangle");
 
-    //初始化glew扩展库  
-    err = glewInit();
-    if( GLEW_OK != err )printf("glewinit: %s\n", glewGetErrorString(err));  
+	err = glewInit();
+	if( GLEW_OK != err )printf("glewinit: %s\n", glewGetErrorString(err));  
 
 	glViewport(0, 0, 512, 512);
 	glEnable(GL_DEPTH_TEST);
-    initShader();
-    initVBO();  
+	initShader();
+	initVBO();  
 
-    glutDisplayFunc(display);
-    glutKeyboardFunc(keyboard);
+	glutDisplayFunc(display);
+	glutKeyboardFunc(keyboard);
 	glutReshapeFunc(callback_reshape);
 	glutMouseFunc(callback_mouse);
 	glutMotionFunc(callback_move); 
       
-    glutMainLoop();
+	glutMainLoop();
 
 	glDeleteShader(vShader);
 	glUseProgram(0);
-    return 0;  
+	return 0;  
 }
-
-
-/*
-GLuint vertex;
-GLuint index;
-GLfloat vbo[] = {
-	1.0, 0.0, 0.0,
-	0.0, 1.0, 0.0,
-	0.0, 0.0, 1.0
-};
-GLuint ibo[] = {
-	0,1,2
-};
-
-
-
-
-void callback_display()
-{
-	glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
-	glClearColor(1.0f, 1.0f, 1.0f, 0.0f);
-
-	glViewport(0, 0, 512, 512);
-	glMatrixMode(GL_PROJECTION);
-	glLoadIdentity();
-	gluPerspective(45.0, 1.0, 1.0, 200.0);
-
-	//
-	glBindBuffer(GL_ARRAY_BUFFER, vertex);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, index);
-
-	//
-	glBufferData(GL_ARRAY_BUFFER, 4*9, vbo, GL_STATIC_DRAW);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, 4*3, ibo, GL_STATIC_DRAW);
-
-	//
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 12, 0);
-    glEnableVertexAttribArray(0);
-
-	//
-	//glBindVertexArray(VAO);
-	glDrawElements(GL_TRIANGLES, 12, GL_UNSIGNED_INT, 0);
-    glDisableVertexAttribArray(0);
-	//glBindVertexArray(0);
-
-	//
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-
-	//
-	glFlush();
-	glutSwapBuffers();
-}
-int main(int argc, char** argv)
-{
-	int ret;
-
-	//glut
-	glutInit(&argc, argv);
-	glutInitDisplayMode(GLUT_DOUBLE|GLUT_RGBA|GLUT_DEPTH);
-	glutInitWindowSize(512, 512);
-	glutInitWindowPosition(200, 200);
-	glutCreateWindow("42");
-
-	//glew
-	ret = glewInit();
-
-	//
-	glutDisplayFunc(callback_display);
-
-	//
-	glGenBuffers(1, &vertex);
-	glGenBuffers(1, &index);
-
-	//
-	glutMainLoop();
-
-	//
-	glDeleteBuffers(1, &vertex);
-	glDeleteBuffers(1, &index);
-
-	return 0;
-}
-*/
-
-
-
-/*
-#include <stdio.h>
-#include <GL/glew.h>
-#include <GL/freeglut.h>
-#include <stdlib.h>
-
-GLuint VBO;
-GLfloat Vertices[] = {
-	1.0f, -1.0f, -10.0f,
-	1.0f, 1.0f, -10.0f,
-	3.0f, 1.0f, -10.0f,
-	3.0f, -1.0f, -10.0f
-};
-
-
-int VBOSize = 4;
-
-
-static void RenderSceneCB()
-{
-    glClear(GL_COLOR_BUFFER_BIT);
-    glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-
-	glViewport(0, 0, 512, 512);
-	glMatrixMode(GL_PROJECTION);
-	glLoadIdentity();
-	gluPerspective(45.0, 1.0, 1.0, 200.0);
-
-	glBindBuffer(GL_ARRAY_BUFFER, VBO);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(Vertices), Vertices, GL_STATIC_DRAW);
-
-	//
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, 0);
-    glDrawArrays(GL_QUADS, 0, VBOSize);
-    glDisableVertexAttribArray(0);
-
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
-    glutSwapBuffers();
-}
-
-
-int main(int argc, char** argv)
-{
-	int ret;
-
-	//glut
-	glutInit(&argc, argv);
-	glutInitDisplayMode(GLUT_DOUBLE|GLUT_RGBA|GLUT_DEPTH);
-	glutInitWindowSize(512, 512);
-	glutInitWindowPosition(200, 200);
-	glutCreateWindow("42");
-
-	//glew
-	ret = glewInit();
-
-    glutDisplayFunc(RenderSceneCB);
-
- 	glGenBuffers(1, &VBO);
-
-    glutMainLoop();
-    
-    return 0;
-}
-*/
