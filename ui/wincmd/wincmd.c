@@ -9,11 +9,12 @@
 
 int main()
 {
-	int j;
+	int j,x,y;
     DWORD cNumRead, fdwMode, fdwSaveOldMode;
-    INPUT_RECORD irInBuf[128];
+	HANDLE hStdin, hStdout;
+	CONSOLE_SCREEN_BUFFER_INFO bInfo;
 
-	HANDLE hStdin;
+    INPUT_RECORD irInBuf[128];
 	KEY_EVENT_RECORD keyrec;
 	MOUSE_EVENT_RECORD mouserec;
 	WINDOW_BUFFER_SIZE_RECORD wbsrec;
@@ -22,14 +23,21 @@ int main()
     hStdin = GetStdHandle(STD_INPUT_HANDLE);
     if(hStdin == INVALID_HANDLE_VALUE)
 	{
-        printf("GetStdHandle");
+        printf("hStdin\n");
+		return 0;
+	}
+
+	hStdout = GetStdHandle(STD_OUTPUT_HANDLE);
+	if(hStdout == INVALID_HANDLE_VALUE)
+	{
+        printf("hStdout\n");
 		return 0;
 	}
 
     // Save the current input mode, to be restored on exit
     if(!GetConsoleMode(hStdin, &fdwSaveOldMode) )
 	{
-        printf("GetConsoleMode");
+        printf("GetConsoleMode\n");
 		return 0;
 	}
 
@@ -37,7 +45,7 @@ int main()
     fdwMode = ENABLE_WINDOW_INPUT | ENABLE_MOUSE_INPUT | ENABLE_EXTENDED_FLAGS;
     if(!SetConsoleMode(hStdin, fdwMode) )
 	{
-        printf("SetConsoleMode");
+        printf("SetConsoleMode\n");
 		return 0;
 	}
 
@@ -51,7 +59,7 @@ int main()
                 128,         // size of read buffer
                 &cNumRead) ) // number of records read
 		{
-            printf("ReadConsoleInput");
+            printf("ReadConsoleInput\n");
 			return 0;
 		}
 
@@ -109,7 +117,12 @@ int main()
 						}
 						case MOUSE_MOVED:
 						{
-							printf("%x,%x\n", mouserec.dwMousePosition.X, mouserec.dwMousePosition.Y);
+							GetConsoleScreenBufferInfo(hStdout, &bInfo);
+							y = bInfo.srWindow.Top;
+							printf("%x,%x\n",
+								mouserec.dwMousePosition.X,
+								mouserec.dwMousePosition.Y-y
+							);
 							break;
 						}
 						case MOUSE_WHEELED:
@@ -128,18 +141,23 @@ int main()
                 case WINDOW_BUFFER_SIZE_EVENT:
 				{
 					wbsrec = irInBuf[j].Event.WindowBufferSizeEvent;
-					printf("Resize:%x,%x\n", wbsrec.dwSize.X, wbsrec.dwSize.Y);
+					//printf("Resize:%x,%x\n", wbsrec.dwSize.X, wbsrec.dwSize.Y);
+
+					GetConsoleScreenBufferInfo(hStdout, &bInfo);
+					x = bInfo.srWindow.Right - bInfo.srWindow.Left + 1;
+					y = bInfo.srWindow.Bottom - bInfo.srWindow.Top + 1;
+					printf("Resize:%x,%x\n", x, y);
                     break;
 				}
                 case MENU_EVENT:
 				{
 					printf("MENU_EVENT\n");
+					exit(-1);
                     break;
 				}
                 case FOCUS_EVENT:
 				{
 					printf("FOCUS_EVENT\n");
-					exit(-1);
                     break;
 				}
                 default:
