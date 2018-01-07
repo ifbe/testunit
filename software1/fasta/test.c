@@ -4,6 +4,15 @@
 #include<fcntl.h>
 
 static unsigned char data[0x100000];
+int writeornot(int fd, char* buf, int len)
+{
+	int j;
+	for(j=0;j<len;j++)
+	{
+		if(buf[j] == '_')return 0;
+	}
+	return write(fd, buf, len);
+}
 int doit_line(char* buf, int len)
 {
 	int fd=0;
@@ -12,10 +21,9 @@ int doit_line(char* buf, int len)
 
 	k = 0;
 	c = 0;
-	for(j=0;j<len;j++)
+	for(j=0;j<=len;j++)
 	{
-		if(buf[j] == '*')buf[j] = '_';
-		if(buf[j] == '	')
+		if((j == len) | (buf[j] == '	'))
 		{
 			if(c == 0)
 			{
@@ -23,15 +31,16 @@ int doit_line(char* buf, int len)
 				buf[j] = 0;
 				fd = open(buf+k, O_CREAT|O_APPEND|O_RDWR, S_IRWXU|S_IRWXG|S_IRWXO);
 			}
-			if(c == 1)
+			if(c == 7)
 			{
 				//printf("%.*s\n", j-k, buf+k);
 				buf[j] = '\n';
-				write(fd, buf+k, j-k+1);
+				writeornot(fd, buf+k, j-k+1);
 			}
 			k = j+1;
 			c++;
 		}
+		else if(buf[j] == '*')buf[j] = '_';
 	}
 	if(fd != 0)close(fd);
 	else printf("error@line\n");
