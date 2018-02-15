@@ -123,15 +123,6 @@ add rsp,rax		;4801c4
 add rbp,rax		;4801c5
 add rsi,rax		;4801c6
 add rdi,rax		;4801c7
-add r8 ,rax		;4901c0
-add r9 ,rax		;4901c1
-add r10,rax		;4901c2
-add r11,rax		;4901c3
-add r12,rax		;4901c4
-add r13,rax		;4901c5
-add r14,rax		;4901c6
-add r15,rax		;4901c7
-
 add rax,rcx		;4801c8
 add rcx,rcx
 add rdx,rcx
@@ -140,15 +131,6 @@ add rsp,rcx
 add rbp,rcx
 add rsi,rcx
 add rdi,rcx
-add r8 ,rcx		;4901c8
-add r9 ,rcx
-add r10,rcx
-add r11,rcx
-add r12,rcx
-add r13,rcx
-add r14,rcx
-add r15,rcx
-
 add rax,rdx		;4801d0
 add rcx,rdx
 add rdx,rdx
@@ -157,15 +139,6 @@ add rsp,rdx
 add rbp,rdx
 add rsi,rdx
 add rdi,rdx
-add r8 ,rdx		;4901d0
-add r9 ,rdx
-add r10,rdx
-add r11,rdx
-add r12,rdx
-add r13,rdx
-add r14,rdx
-add r15,rdx
-
 add rax,rbx		;4801d8
 add rcx,rbx
 add rdx,rbx
@@ -174,15 +147,6 @@ add rsp,rbx
 add rbp,rbx
 add rsi,rbx
 add rdi,rbx
-add r8 ,rbx		;4901d8
-add r9 ,rbx
-add r10,rbx
-add r11,rbx
-add r12,rbx
-add r13,rbx
-add r14,rbx
-add r15,rbx
-
 add rax,rsp		;4801e0
 add rcx,rsp
 add rdx,rsp
@@ -191,15 +155,6 @@ add rsp,rsp
 add rbp,rsp
 add rsi,rsp
 add rdi,rsp
-add r8 ,rsp		;4901e0
-add r9 ,rsp
-add r10,rsp
-add r11,rsp
-add r12,rsp
-add r13,rsp
-add r14,rsp
-add r15,rsp
-
 add rax,rbp		;4801e8
 add rcx,rbp
 add rdx,rbp
@@ -208,15 +163,6 @@ add rsp,rbp
 add rbp,rbp
 add rsi,rbp
 add rdi,rbp
-add r8 ,rbp		;4901e8
-add r9 ,rbp
-add r10,rbp
-add r11,rbp
-add r12,rbp
-add r13,rbp
-add r14,rbp
-add r15,rbp
-
 add rax,rsi		;4801f0
 add rcx,rsi
 add rdx,rsi
@@ -225,15 +171,6 @@ add rsp,rsi
 add rbp,rsi
 add rsi,rsi
 add rdi,rsi
-add r8 ,rsi		;4901f0
-add r9 ,rsi
-add r10,rsi
-add r11,rsi
-add r12,rsi
-add r13,rsi
-add r14,rsi
-add r15,rsi
-
 add rax,rdi		;4801f8
 add rcx,rdi
 add rdx,rdi
@@ -242,6 +179,63 @@ add rsp,rdi
 add rbp,rdi
 add rsi,rdi
 add rdi,rdi
+
+add r8 ,rax		;4901c0
+add r9 ,rax		;4901c1
+add r10,rax		;4901c2
+add r11,rax		;4901c3
+add r12,rax		;4901c4
+add r13,rax		;4901c5
+add r14,rax		;4901c6
+add r15,rax		;4901c7
+add r8 ,rcx		;4901c8
+add r9 ,rcx
+add r10,rcx
+add r11,rcx
+add r12,rcx
+add r13,rcx
+add r14,rcx
+add r15,rcx
+add r8 ,rdx		;4901d0
+add r9 ,rdx
+add r10,rdx
+add r11,rdx
+add r12,rdx
+add r13,rdx
+add r14,rdx
+add r15,rdx
+add r8 ,rbx		;4901d8
+add r9 ,rbx
+add r10,rbx
+add r11,rbx
+add r12,rbx
+add r13,rbx
+add r14,rbx
+add r15,rbx
+add r8 ,rsp		;4901e0
+add r9 ,rsp
+add r10,rsp
+add r11,rsp
+add r12,rsp
+add r13,rsp
+add r14,rsp
+add r15,rsp
+add r8 ,rbp		;4901e8
+add r9 ,rbp
+add r10,rbp
+add r11,rbp
+add r12,rbp
+add r13,rbp
+add r14,rbp
+add r15,rbp
+add r8 ,rsi		;4901f0
+add r9 ,rsi
+add r10,rsi
+add r11,rsi
+add r12,rsi
+add r13,rsi
+add r14,rsi
+add r15,rsi
 add r8 ,rdi		;4901f8
 add r9 ,rdi
 add r10,rdi

@@ -89,15 +89,6 @@ mov esp,eax		;89c4
 mov ebp,eax		;89c5
 mov esi,eax		;89c6
 mov edi,eax		;89c7
-mov r8d ,eax	;4189c0
-mov r9d ,eax	;4189c1
-mov r10d,eax	;4189c2
-mov r11d,eax	;4189c3
-mov r12d,eax	;4189c4
-mov r13d,eax	;4189c5
-mov r14d,eax	;4189c6
-mov r15d,eax	;4189c7
-
 mov eax,ecx		;89c8
 mov ecx,ecx		;89c9
 mov edx,ecx		;89ca
@@ -106,6 +97,15 @@ mov esp,ecx		;89cc
 mov ebp,ecx		;89cd
 mov esi,ecx		;89ce
 mov edi,ecx		;89cf
+
+mov r8d ,eax	;4189c0
+mov r9d ,eax	;4189c1
+mov r10d,eax	;4189c2
+mov r11d,eax	;4189c3
+mov r12d,eax	;4189c4
+mov r13d,eax	;4189c5
+mov r14d,eax	;4189c6
+mov r15d,eax	;4189c7
 mov r8d ,ecx	;4189c8
 mov r9d ,ecx	;4189c9
 mov r10d,ecx	;4189ca
@@ -386,3 +386,123 @@ mov r12,r15
 mov r13,r15
 mov r14,r15
 mov r15,r15
+
+mov eax,r8d		;4c89e0
+mov ecx,r8d
+mov edx,r8d
+mov ebx,r8d
+mov esp,r8d
+mov ebp,r8d
+mov esi,r8d
+mov edi,r8d
+
+mov eax,r9d		;4c89e0
+mov ecx,r9d
+mov edx,r9d
+mov ebx,r9d
+mov esp,r9d
+mov ebp,r9d
+mov esi,r9d
+mov edi,r9d
+
+mov [rax],al
+mov [rcx],al
+mov [rdx],al
+mov [rbx],al
+mov [rsp],al
+mov [rbp],al
+mov [rsi],al
+mov [rdi],al
+mov [rax],cl
+mov [rcx],cl
+mov [rdx],cl
+mov [rbx],cl
+mov [rsp],cl
+mov [rbp],cl
+mov [rsi],cl
+mov [rdi],cl
+
+mov [rax],ax
+mov [rcx],ax
+mov [rdx],ax
+mov [rbx],ax
+mov [rsp],ax
+mov [rbp],ax
+mov [rsi],ax
+mov [rdi],ax
+mov [rax],cx
+mov [rcx],cx
+mov [rdx],cx
+mov [rbx],cx
+mov [rsp],cx
+mov [rbp],cx
+mov [rsi],cx
+mov [rdi],cx
+
+mov [rax],eax
+mov [rcx],eax
+mov [rdx],eax
+mov [rbx],eax
+mov [rsp],eax
+mov [rbp],eax
+mov [rsi],eax
+mov [rdi],eax
+mov [rax],ecx
+mov [rcx],ecx
+mov [rdx],ecx
+mov [rbx],ecx
+mov [rsp],ecx
+mov [rbp],ecx
+mov [rsi],ecx
+mov [rdi],ecx
+
+mov [r8],al
+mov [r9],al
+mov [r10],al
+mov [r11],al
+mov [r12],al
+mov [r13],al
+mov [r14],al
+mov [r15],al
+mov [r8],cl
+mov [r9],cl
+mov [r10],cl
+mov [r11],cl
+mov [r12],cl
+mov [r13],cl
+mov [r14],cl
+mov [r15],cl
+
+mov [r8],ax
+mov [r9],ax
+mov [r10],ax
+mov [r11],ax
+mov [r12],ax
+mov [r13],ax
+mov [r14],ax
+mov [r15],ax
+mov [r8],cx
+mov [r9],cx
+mov [r10],cx
+mov [r11],cx
+mov [r12],cx
+mov [r13],cx
+mov [r14],cx
+mov [r15],cx
+
+mov [r8],eax
+mov [r9],eax
+mov [r10],eax
+mov [r11],eax
+mov [r12],eax
+mov [r13],eax
+mov [r14],eax
+mov [r15],eax
+mov [r8],ecx
+mov [r9],ecx
+mov [r10],ecx
+mov [r11],ecx
+mov [r12],ecx
+mov [r13],ecx
+mov [r14],ecx
+mov [r15],ecx

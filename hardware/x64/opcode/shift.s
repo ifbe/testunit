@@ -1,3 +1,4 @@
+<<<<<<< Updated upstream
 [bits 64]
 shl spl,1		;40d0e4
 shl bpl,1		;40d0e5
@@ -569,3 +570,111 @@ ror r12,2
 ror r13,2
 ror r14,2
 ror r15,2		;49c1cf02
+=======
+[bits 64]
+shl eax,1
+shl ecx,1
+shl edx,1
+shl ebx,1
+shl esp,1
+shl ebp,1
+shl esi,1
+shl edi,1
+
+shr eax,1
+shr ecx,1
+shr edx,1
+shr ebx,1
+shr esp,1
+shr ebp,1
+shr esi,1
+shr edi,1
+
+shl eax,4
+shl ecx,4
+shl edx,4
+shl ebx,4
+shl esp,4
+shl ebp,4
+shl esi,4
+shl edi,4
+
+shr eax,4
+shr ecx,4
+shr edx,4
+shr ebx,4
+shr esp,4
+shr ebp,4
+shr esi,4
+shr edi,4
+
+shl rax,4
+shl rcx,4
+shl rdx,4
+shl rbx,4
+shl rsp,4
+shl rbp,4
+shl rsi,4
+shl rdi,4
+
+shr rax,4
+shr rcx,4
+shr rdx,4
+shr rbx,4
+shr rsp,4
+shr rbp,4
+shr rsi,4
+shr rdi,4
+
+shl eax,cl
+shl ecx,cl
+shl edx,cl
+shl ebx,cl
+shl esp,cl
+shl ebp,cl
+shl esi,cl
+shl edi,cl
+
+shr eax,cl
+shr ecx,cl
+shr edx,cl
+shr ebx,cl
+shr esp,cl
+shr ebp,cl
+shr esi,cl
+shr edi,cl
+
+shl r8d,7
+shl r9d,7
+shl r10d,7
+shl r11d,7
+shl r12d,7
+shl r13d,7
+shl r14d,7
+shl r15d,7
+shr r8d,7
+shr r9d,7
+shr r10d,7
+shr r11d,7
+shr r12d,7
+shr r13d,7
+shr r14d,7
+shr r15d,7
+
+shl r8,7
+shl r9,7
+shl r10,7
+shl r11,7
+shl r12,7
+shl r13,7
+shl r14,7
+shl r15,7
+shr r8,7
+shr r9,7
+shr r10,7
+shr r11,7
+shr r12,7
+shr r13,7
+shr r14,7
+shr r15,7
+>>>>>>> Stashed changes
