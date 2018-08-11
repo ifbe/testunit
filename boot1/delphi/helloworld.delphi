@@ -1,0 +1,10 @@
+procedure TForm1.Button1Click(Sender: TObject);  
+begin  
+  label1.Caption := 'Hello,World!';  
+end;  
+  
+procedure TForm1.FormCreate(Sender: TObject);  
+begin  
+end;  
+  
+end.
