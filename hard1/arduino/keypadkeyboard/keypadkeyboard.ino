@@ -10,7 +10,8 @@
 || | keyboard.
 || #
 */
-//#include <Keyboard.h>
+#include <Mouse.h>
+#include <Keyboard.h>
 #include <Keypad.h>
 
 const byte ROWS = 4; //four rows
@@ -42,6 +43,8 @@ void setup() {
     loopCount = 0;
     startTime = millis();
     msg = "";
+    Mouse.begin();
+    Keyboard.begin();
 }
 
 
@@ -60,6 +63,10 @@ void loop() {
     t[3] = analogRead(A1);
     if((lx!=t[0])|(ly!=t[1])|(rx!=t[2])|(ry!=t[3]))
     {
+        if(t[0] < 256)Mouse.move(-1, 0);
+        if(t[0] > 768)Mouse.move(1, 0);
+        if(t[1] < 256)Mouse.move(0, 1);
+        if(t[1] > 768)Mouse.move(0, -1);
         Serial.print(lx);
         Serial.print(',');
         Serial.print(ly);
@@ -85,14 +92,14 @@ void loop() {
                 switch (kpd.key[i].kstate) {  // Report active key state : IDLE, PRESSED, HOLD, or RELEASED
                     case PRESSED:
                     msg = " PRESSED.";
-                    //Keyboard.press(kpd.key[i].kchar);
+                    Keyboard.press(kpd.key[i].kchar);
                 break;
                     case HOLD:
                     msg = " HOLD.";
                 break;
                     case RELEASED:
                     msg = " RELEASED.";
-                    //Keyboard.release(kpd.key[i].kchar);
+                    Keyboard.release(kpd.key[i].kchar);
                 break;
                     case IDLE:
                     msg = " IDLE.";
