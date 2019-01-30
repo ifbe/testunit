@@ -1,11 +1,16 @@
-#include <WiFi.h>
+#include <ESP8266WiFi.h>
 #include <WiFiClient.h>
-#include <WebServer.h>
+#include <ESP8266WebServer.h>
 
-const char *ssid = "yourssid";
-const char *password = "password";
+#ifndef STASSID
+#define STASSID "yourssid"
+#define STAPSK  "password"
+#endif
 
-WebServer server(80);
+const char *ssid = STASSID;
+const char *password = STAPSK;
+
+ESP8266WebServer server(80);
 
 const int led = 13;
 
@@ -17,20 +22,24 @@ void handleRoot() {
   int hr = min / 60;
 
   snprintf(temp, 400,
-"<html><head>\
-<meta http-equiv='refresh' content='5'/>\
-<title>ESP32 Demo</title>\
-<style>\
-body { background-color: #cccccc; font-family: Arial, Helvetica, Sans-Serif; Color: #000088; }\
-</style>\
-</head>\
-<body>\
-<h1>Hello from ESP32!</h1>\
-<p>Uptime: %02d:%02d:%02d</p>\
-<img src=\"/test.svg\" />\
-</body></html>",
-  hr, min % 60, sec % 60
-  );
+
+           "<html>\
+  <head>\
+    <meta http-equiv='refresh' content='5'/>\
+    <title>ESP8266 Demo</title>\
+    <style>\
+      body { background-color: #cccccc; font-family: Arial, Helvetica, Sans-Serif; Color: #000088; }\
+    </style>\
+  </head>\
+  <body>\
+    <h1>Hello from ESP8266!</h1>\
+    <p>Uptime: %02d:%02d:%02d</p>\
+    <img src=\"/test.svg\" />\
+  </body>\
+</html>",
+
+           hr, min % 60, sec % 60
+          );
   server.send(200, "text/html", temp);
   digitalWrite(led, 0);
 }
@@ -57,29 +66,30 @@ void handleNotFound() {
 void setup(void) {
   pinMode(led, OUTPUT);
   digitalWrite(led, 0);
+  Serial.begin(115200);
 
+  // We start by connecting to a WiFi network
 
-    Serial.begin(115200);
-    delay(10);
+  Serial.println();
+  Serial.println();
+  Serial.print("Connecting to ");
+  Serial.println(ssid);
 
-    // We start by connecting to a WiFi network
+  /* Explicitly set the ESP8266 to be a WiFi-client, otherwise, it by default,
+     would try to act as both a client and an access-point and could cause
+     network-issues with your other WiFi-devices on your WiFi-network. */
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(ssid, password);
 
-    Serial.println();
-    Serial.println();
-    Serial.print("Connecting to ");
-    Serial.println(ssid);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
 
-    WiFi.begin(ssid, password);
-
-    while (WiFi.status() != WL_CONNECTED) {
-        delay(500);
-        Serial.print(".");
-    }
-
-    Serial.println("");
-    Serial.println("WiFi connected");
-    Serial.println("IP address: ");
-    Serial.println(WiFi.localIP());
+  Serial.println("");
+  Serial.println("WiFi connected");
+  Serial.println("IP address: ");
+  Serial.println(WiFi.localIP());
 
   server.on("/", handleRoot);
   server.on("/test.svg", drawGraph);
