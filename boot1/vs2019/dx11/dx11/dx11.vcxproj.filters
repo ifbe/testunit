@@ -39,13 +39,7 @@
     <ClInclude Include="src\graphicsclass.h">
       <Filter>源文件</Filter>
     </ClInclude>
-    <ClInclude Include="src\inputclass.h">
-      <Filter>源文件</Filter>
-    </ClInclude>
     <ClInclude Include="src\modelclass.h">
-      <Filter>源文件</Filter>
-    </ClInclude>
-    <ClInclude Include="src\systemclass.h">
       <Filter>源文件</Filter>
     </ClInclude>
   </ItemGroup>
@@ -73,12 +67,6 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="src\graphicsclass.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="src\inputclass.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-    <ClCompile Include="src\main.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="src\modelclass.cpp">
