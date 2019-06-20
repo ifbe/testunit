@@ -1,2 +1,2 @@
 all:
-	gcc ../libi2c.c mpu9250.c
+	gcc mpu9250.c -lm

@@ -1,30 +1,50 @@
-#define BYTE unsigned char
-#include<stdio.h>
-#include<string.h>
-#include<errno.h>
-#include<fcntl.h>
-#include<unistd.h>
-#include<linux/i2c.h>
-#include<linux/i2c-dev.h>
+#include <stdio.h>
+#include <string.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <sys/ioctl.h>
+#include <linux/i2c.h>
+#include <linux/i2c-dev.h>
+#define u8 unsigned char
+
+
+
+
+short xmin=-139;
+short xmax=243;
+short ymin=87;
+short ymax=472;
+short zmin=-146;
+short zmax=294;
 
 
 
 
 int fp;
-unsigned char outbuf[16];
-
-
-
-
-int systemi2c_write(BYTE dev,BYTE reg,BYTE* buf,BYTE count)
+int systemi2c_init()
+{
+	fp = open("/dev/i2c-1",O_RDWR);
+	if(fp<0)
+	{
+		printf("error open\n");
+		return fp;
+	}
+}
+int systemi2c_free()
+{
+	return 0;
+}
+int systemi2c_write(u8 dev, u8 reg, u8* buf, u8 len)
 {
 	int ret;
+	unsigned char outbuf[16];
 	struct i2c_msg messages[1];
 	struct i2c_rdwr_ioctl_data packets;
 
 	//which,what0,what1,what2......
 	outbuf[0] = reg;
-	for(ret=0;ret<count;ret++)
+	for(ret=0;ret<len;ret++)
 	{
 		outbuf[ret+1] = buf[ret];
 	}
@@ -32,7 +52,7 @@ int systemi2c_write(BYTE dev,BYTE reg,BYTE* buf,BYTE count)
 	//message
 	messages[0].addr  = dev;
 	messages[0].flags = 0;
-	messages[0].len   = count+1;
+	messages[0].len   = len+1;
 	messages[0].buf   = outbuf;
 
 	//transfer
@@ -48,8 +68,9 @@ int systemi2c_write(BYTE dev,BYTE reg,BYTE* buf,BYTE count)
 	return 1;
 }
 
-int systemi2c_read(BYTE dev,BYTE reg,BYTE* buf,BYTE count)
+int systemi2c_read(u8 dev, u8 reg, u8* buf, u8 len)
 {
+	unsigned char outbuf[16];
 	struct i2c_msg messages[2];
 	struct i2c_rdwr_ioctl_data packets;
 
@@ -63,7 +84,7 @@ int systemi2c_read(BYTE dev,BYTE reg,BYTE* buf,BYTE count)
 	//in
 	messages[1].addr  = dev;
 	messages[1].flags = I2C_M_RD;
-	messages[1].len   = count;
+	messages[1].len   = len;
 	messages[1].buf   = buf;
 
 	//send
@@ -76,20 +97,4 @@ int systemi2c_read(BYTE dev,BYTE reg,BYTE* buf,BYTE count)
 	}
 
 	return 1;
-}
-
-
-
-
-int systemi2c_init()
-{
-	fp = open("/dev/i2c-1",O_RDWR);
-	if(fp<0)
-	{
-		printf("error open\n");
-		return;
-	}
-}
-void systemi2c_kill()
-{
 }
