@@ -11,16 +11,6 @@
 
 
 
-short xmin=-139;
-short xmax=243;
-short ymin=87;
-short ymax=472;
-short zmin=-146;
-short zmax=294;
-
-
-
-
 int fp;
 int systemi2c_init()
 {

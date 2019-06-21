@@ -17,12 +17,12 @@
 
 //ak8963
 float ak8963_measure[3];
-short xmin=-139;
-short xmax=243;
-short ymin=87;
-short ymax=472;
-short zmin=-146;
-short zmax=294;
+short xmin = 9999;
+short xmax = -9999;
+short ymin = 9999;
+short ymax = -9999;
+short zmin = 9999;
+short zmax = -9999;
 //mpu9250
 float mpu9250_measure[10];
 //i
@@ -126,12 +126,12 @@ int initak8963()
 	u8 buf[0x10];
 
 	//AK8963_CNT2
-	buf[0]=0x1;
+	buf[0] = 0x1;
 	systemi2c_write(0xc,0xb,buf,1);
 	usleep(1000);
 
-	//AK8963_CNT2
-	buf[0]=0x16;
+	//AK8963_CNT1
+	buf[0] = 0x6;
 	systemi2c_write(0xc,0xa,buf,1);
 	usleep(1000);
 
@@ -144,36 +144,38 @@ int freeak8963()
 }
 int readak8963()
 {
-	int temp;
+	int x,y,z;
 	u8 buf[0x10];
 
-	//0xc.0x3b -> 0x20
+	//0xc[0x3,0x8]
 	systemi2c_read(0xc, 3, buf+0x3, 7);
-/*
-	for(temp=0;temp<6;temp++)
-	{
-		printf("%x ",buf[0x3+temp]);
-	}
-	printf("\n");
-*/
+
+
+	x = *(short*)(buf+0x3);
+	y=*(short*)(buf+0x5);
+	z=*(short*)(buf+0x7)	+1;	//ensure not 0
+	//printf("%d,%d,%d\n", x, y, z);
+
 	//mag
-	temp = *(short*)(buf+0x3);
-	//if(temp<zmin)zmin=temp;
-	//if(temp>zmax)zmax=temp;
-	temp = temp - (xmin+xmax)/2;
-	ak8963_measure[0] = temp * 4912.0 / 32760.0;
+	if(x < xmin)xmin = x;
+	if(x > xmax)xmax = x;
+	x = x - (xmin+xmax)/2;
+	if(0 == x)x = 1;
+	ak8963_measure[1] = x;
 
-	temp=*(short*)(buf+0x5);
-	//if(temp<zmin)zmin=temp;
-	//if(temp>zmax)zmax=temp;
-	temp = temp - (ymin+ymax)/2;
-	ak8963_measure[1] = temp * 4912.0 / 32760.0;
+	if(y < ymin)ymin = y;
+	if(y > ymax)ymax = y;
+	y = y - (ymin+ymax)/2;
+	if(0 == y)y = 1;
+	ak8963_measure[0] = y;
 
-	temp=*(short*)(buf+0x7)	+1;	//ensure not 0
-	//if(temp<zmin)zmin=temp;
-	//if(temp>zmax)zmax=temp;
-	temp = temp - (zmin+zmax)/2;
-	ak8963_measure[2] = temp * 4912.0 / 32760.0;
+	if(z < zmin)zmin = z;
+	if(z > zmax)zmax = z;
+	z = z - (zmin+zmax)/2;
+	if(0 == z)z = 1;
+	ak8963_measure[2] = -z;
+
+	printf("%d	%d	%d	%f\n", x, y, z, sqrt(x*x+y*y+z*z));
 /*
 	printf("%d	%d	%d	%d	%d	%d\n",
 		xmin,
@@ -183,13 +185,13 @@ int readak8963()
 		zmin,
 		zmax
 	);
-*/
+
 	printf("8963:	%f	%f	%f\n",
 		ak8963_measure[0],
 		ak8963_measure[1],
 		ak8963_measure[2]
 	);
-
+*/
 }
 
 
@@ -321,7 +323,7 @@ int readmpu9250()
 
 
 
-
+/*
 	printf("9250:	%f	%f	%f	%f	%f	%f\n",
 		mpu9250_measure[0],
 		mpu9250_measure[1],
@@ -330,7 +332,7 @@ int readmpu9250()
 		mpu9250_measure[4],
 		mpu9250_measure[5]
 	);
-
+*/
 	//printf("9250:	%f\n",mpu9250_measure[9]);
 }
 
