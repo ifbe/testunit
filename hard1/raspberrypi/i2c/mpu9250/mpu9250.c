@@ -8,8 +8,9 @@
 #include <linux/i2c.h>
 #include <linux/i2c-dev.h>
 #define u8 unsigned char
-#define Kp 100.0f
-#define Ki 0.005f
+#define Kp 2.0
+#define Ki 0.005
+#define halfT 0.0025
 
 
 
@@ -25,9 +26,9 @@ short zmax=294;
 //mpu9250
 float mpu9250_measure[10];
 //i
-float integralx = 0.0;
-float integraly = 0.0;
-float integralz = 0.0;
+float exInt = 0.0;
+float eyInt = 0.0;
+float ezInt = 0.0;
 //quaternion
 float q0 = 1.0;
 float q1 = 0.0;
@@ -340,9 +341,7 @@ void mahonyahrsupdate()
 	float norm,T;
 	float q0q0, q0q1, q0q2, q0q3, q1q1, q1q2, q1q3, q2q2, q2q3, q3q3;  
 	float hx, hy, bx, bz;
-	float halfvx, halfvy, halfvz, halfwx, halfwy, halfwz;
-	float halfex, halfey, halfez;
-	float qa, qb, qc;
+	float vx, vy, vz, wx, wy, wz, ex, ey, ez;
 
 	//value
 	float ax = mpu9250_measure[0];
@@ -382,63 +381,42 @@ void mahonyahrsupdate()
 	q3q3 = q3 * q3;   
 
 	// Reference direction of Earth's magnetic field
-	hx = 2.0f * (mx * (0.5f - q2q2 - q3q3) + my * (q1q2 - q0q3) + mz * (q1q3 + q0q2));
-	hy = 2.0f * (mx * (q1q2 + q0q3) + my * (0.5f - q1q1 - q3q3) + mz * (q2q3 - q0q1));
+	hx = 2.0*mx*(0.5 - q2q2 - q3q3) + 2.0*my*(q1q2 - q0q3) + 2.0*mz*(q1q3 + q0q2);
+	hy = 2.0*mx*(q1q2 + q0q3) + 2.0*my*(0.5 - q1q1 - q3q3) + 2.0*mz*(q2q3 - q0q1);
 
 	bx = sqrt(hx * hx + hy * hy);
-	bz = 2.0f * (mx * (q1q3 - q0q2) + my * (q2q3 + q0q1) + mz * (0.5f - q1q1 - q2q2));
+	bz = 2.0*mx*(q1q3 - q0q2) + 2.0*my*(q2q3 + q0q1) + 2.0*mz*(0.5 - q1q1 - q2q2);
 
+	// Estimated direction of gravity
+	vx = 2.0*(q1q3 - q0q2);
+	vy = 2.0*(q0q1 + q2q3);
+	vz = q0q0 - q1q1 - q2q2 + q3q3;
 
-	// Estimated direction of gravity and magnetic field
-	halfvx = q1q3 - q0q2;
-	halfvy = q0q1 + q2q3;
-	halfvz = q0q0 - 0.5f + q3q3;
-
-	halfwx = bx * (0.5f - q2q2 - q3q3) + bz * (q1q3 - q0q2);
-	halfwy = bx * (q1q2 - q0q3) + bz * (q0q1 + q2q3);
-	halfwz = bx * (q0q2 + q1q3) + bz * (0.5f - q1q1 - q2q2);  
+	// Estimated direction of magnetic
+	wx = 2.0*bx*(0.5 - q2q2 - q3q3) + 2.0*bz*(q1q3 - q0q2);
+	wy = 2.0*bx*(q1q2 - q0q3) + 2.0*bz*(q0q1 + q2q3);
+	wz = 2.0*bx*(q0q2 + q1q3) + 2.0*bz*(0.5 - q1q1 - q2q2);  
 
 	// Error is sum of cross product between estimated direction and measured direction of field vectors
-	halfex = (ay * halfvz - az * halfvy) + (my * halfwz - mz * halfwy);
-	halfey = (az * halfvx - ax * halfvz) + (mz * halfwx - mx * halfwz);
-	halfez = (ax * halfvy - ay * halfvx) + (mx * halfwy - my * halfwx);
+	ex = (ay * vz - az * vy) + (my * wz - mz * wy);
+	ey = (az * vx - ax * vz) + (mz * wx - mx * wz);
+	ez = (ax * vy - ay * vx) + (mx * wy - my * wx);
 
 	// Compute and apply integral feedback if enabled
-	if(Ki > 0.0f)
-	{
-		// integral error scaled by Ki
-		integralx += Ki * halfex * T;
-		integraly += Ki * halfey * T;
-		integralz += Ki * halfez * T;
-
-		gx += integralx;	// apply integral feedback
-		gy += integraly;
-		gz += integralz;
-	}
-	else
-	{
-		integralx = 0.0f;	// prevent integral windup
-		integraly = 0.0f;
-		integralz = 0.0f;
-	}
+	exInt = exInt + ex * Ki * halfT;
+	eyInt = eyInt + ey * Ki * halfT;
+	ezInt = ezInt + ez * Ki * halfT;
 
 	// Apply proportional feedback
-	gx += Kp * halfex;
-	gy += Kp * halfey;
-	gz += Kp * halfez;
-	
+	gx = gx + Kp*ex + exInt;
+	gy = gy + Kp*ey + eyInt;
+	gz = gz + Kp*ez + ezInt;
 
 	// Integrate rate of change of quaternion
-	gx *= 0.5f * T;		// pre-multiply common factors
-	gy *= 0.5f * T;
-	gz *= 0.5f * T;
-	qa = q0;
-	qb = q1;
-	qc = q2;
-	q0 += (-qb * gx - qc * gy - q3 * gz);
-	q1 += (qa * gx + qc * gz - q3 * gy);
-	q2 += (qa * gy - qb * gz + q3 * gx);
-	q3 += (qa * gz + qb * gy - qc * gx); 
+	q0 += (-q1 * gx - q2 * gy - q3 * gz)*halfT;
+	q1 += (q0 * gx + q2 * gz - q3 * gy)*halfT;
+	q2 += (q0 * gy - q1 * gz + q3 * gx)*halfT;
+	q3 += (q0 * gz + q1 * gy - q2 * gx)*halfT;
 	
 
 	// Normalise quaternion
