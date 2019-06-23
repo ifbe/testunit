@@ -1,4 +1,6 @@
 #include <Wire.h>
+#include "BluetoothSerial.h"
+BluetoothSerial SerialBT;
 
 int val = 290;
 void setup()
@@ -7,6 +9,8 @@ void setup()
   Serial.begin(115200);
   Serial.println("@serial ok!");
 
+  SerialBT.begin("ESP32test");
+  Serial.println("serialbt ok!");
 
   Wire.begin();
 
@@ -47,6 +51,12 @@ void loop()
 
   if(Serial.available()){
     j = Serial.readBytesUntil('\n', c, 5);
+    c[j] = 0;
+
+    val = atoi((char*)c);
+  }
+  if(SerialBT.available()){
+    j = SerialBT.readBytesUntil('\n', c, 5);
     c[j] = 0;
 
     val = atoi((char*)c);
