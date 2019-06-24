@@ -8,7 +8,7 @@
 #include <linux/i2c.h>
 #include <linux/i2c-dev.h>
 #define u8 unsigned char
-#define Kp 2.0
+#define Kp 100
 #define Ki 0.005
 #define halfT 0.0025
 
@@ -131,7 +131,7 @@ int initak8963()
 	usleep(1000);
 
 	//AK8963_CNT1
-	buf[0] = 0x6;
+	buf[0] = 0x16;
 	systemi2c_write(0xc,0xa,buf,1);
 	usleep(1000);
 
@@ -151,33 +151,37 @@ int readak8963()
 	systemi2c_read(0xc, 3, buf+0x3, 7);
 
 
-	x = *(short*)(buf+0x3);
-	y=*(short*)(buf+0x5);
-	z=*(short*)(buf+0x7)	+1;	//ensure not 0
-	//printf("%d,%d,%d\n", x, y, z);
+	x = *(short*)(buf+3);
+	y = *(short*)(buf+5);
+	z = *(short*)(buf+7);
+	printf("raw:	%x	%x	%x	%x	%x	%x\n",
+		buf[3],buf[4],buf[5],buf[6],buf[7],buf[8]);
 
-	//mag
-	if(x < xmin)xmin = x;
-	if(x > xmax)xmax = x;
-	x = x - (xmin+xmax)/2;
-	if(0 == x)x = 1;
+	if((0 != x)|(0 != y)|(0 != z)){
+		if(x < xmin)xmin = x;
+		if(x > xmax)xmax = x;
+		x = x - (xmin+xmax)/2;
+		if(0 == x)x = 1;
+
+		if(y < ymin)ymin = y;
+		if(y > ymax)ymax = y;
+		y = y - (ymin+ymax)/2;
+		if(0 == y)y = 1;
+
+		if(z < zmin)zmin = z;
+		if(z > zmax)zmax = z;
+		z = z - (zmin+zmax)/2;
+		if(0 == z)z = 1;
+	}
+	else z = 1;
+
 	ak8963_measure[1] = x;
-
-	if(y < ymin)ymin = y;
-	if(y > ymax)ymax = y;
-	y = y - (ymin+ymax)/2;
-	if(0 == y)y = 1;
 	ak8963_measure[0] = y;
-
-	if(z < zmin)zmin = z;
-	if(z > zmax)zmax = z;
-	z = z - (zmin+zmax)/2;
-	if(0 == z)z = 1;
 	ak8963_measure[2] = -z;
 
-	printf("%d	%d	%d	%f\n", x, y, z, sqrt(x*x+y*y+z*z));
-/*
-	printf("%d	%d	%d	%d	%d	%d\n",
+	//printf("8963:	%d	%d	%d	%f\n", x, y, z, sqrt(x*x+y*y+z*z));
+
+	printf("delta:	%d	%d	%d	%d	%d	%d\n",
 		xmin,
 		xmax,
 		ymin,
@@ -191,7 +195,6 @@ int readak8963()
 		ak8963_measure[1],
 		ak8963_measure[2]
 	);
-*/
 }
 
 
@@ -285,39 +288,39 @@ int readmpu9250()
 
 
 	//accel
-	temp=(reg[0]<<8) + reg[1];
-	if(temp>32768)temp = temp-65536;
+	temp = (reg[0]<<8) + reg[1];
+	if(temp > 32767)temp -= 0x10000;
 	mpu9250_measure[0] = temp * 9.8 / 16384.0;
 
-	temp=(reg[2]<<8) + reg[3];
-	if(temp>32768)temp = temp-65536;
+	temp = (reg[2]<<8) + reg[3];
+	if(temp > 32767)temp -= 0x10000;
 	mpu9250_measure[1] = temp * 9.8 / 16384.0;
 
-	temp=(reg[4]<<8) + reg[5] +1;		//ensure not 0
-	if(temp>32768)temp = temp-65536;
+	temp = (reg[4]<<8) + reg[5];
+	if(temp > 32767)temp -= 0x10000;
 	mpu9250_measure[2] = temp * 9.8 / 16384.0;
 
 
 
 
 	//temp
-	temp=(reg[6]<<8) + reg[7];
+	temp = (reg[6]<<8) + reg[7];
 	mpu9250_measure[9] = temp / 100.0;
 
 
 
 
 	//gyro
-	temp=(reg[ 8]<<8) + reg[ 9];
-	if(temp>32768)temp = temp-65536;
+	temp = (reg[ 8]<<8) + reg[ 9];
+	if(temp > 32767)temp -= 0x10000;
 	mpu9250_measure[3] = temp / 57.3 / 16.4;
 
-	temp=(reg[10]<<8) + reg[11];
-	if(temp>32768)temp = temp-65536;
+	temp = (reg[10]<<8) + reg[11];
+	if(temp > 32767)temp -= 0x10000;
 	mpu9250_measure[4] = temp / 57.3 / 16.4;
 
-	temp=(reg[12]<<8) + reg[13];
-	if(temp>32768)temp = temp-65536;
+	temp = (reg[12]<<8) + reg[13];
+	if(temp > 32767)temp -= 0x10000;
 	mpu9250_measure[5] = temp / 57.3 / 16.4;
 
 
