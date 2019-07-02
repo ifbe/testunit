@@ -1,3 +1,10 @@
+inmp441:
+vcc	3.3v
+l/r	gnd
+ws	io22
+sck	io26
+sd	io34
+
 max98357:
 vcc	5v
 lrc	io22

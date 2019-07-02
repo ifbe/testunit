@@ -4,7 +4,7 @@
 #include "I2S.h"
 
 const int record_time = 60;  // second
-const char filename[] = "/sound.wav";
+const char filename[] = "/record.wav";
 
 const int headerSize = 44;
 const int waveDataSize = record_time * 88000;
@@ -19,6 +19,8 @@ void setup() {
   Serial.begin(115200);
   if (!SD.begin()) Serial.println("SD begin failed");
   CreateWavHeader(header, waveDataSize);
+
+  Serial.println("start!");
   SD.remove(filename);
   file = SD.open(filename, FILE_WRITE);
   if (!file) return;

@@ -1,0 +1,5 @@
+1	3v3	5v
+2	-	5v
+3	-	gnd
+4	-	tx
+5	gnd	rx
