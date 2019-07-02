@@ -1,0 +1,13 @@
+inmp441:
+vcc	3.3v
+l/r	gnd
+ws	io22
+sck	io26
+sd	io34
+
+tfcard:
+vcc	3.3v
+ss	io5
+sck	io18
+miso	io19
+mosi	io23

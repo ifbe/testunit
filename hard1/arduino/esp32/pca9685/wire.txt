@@ -1,0 +1,5 @@
+pca9685:
+vcc	3.3v
+vin	5v
+scl	io22
+sda	io21

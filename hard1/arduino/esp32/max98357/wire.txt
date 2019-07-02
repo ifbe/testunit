@@ -1,0 +1,12 @@
+max98357:
+vcc	5v
+lrc	io22
+din	io25
+bclk	io26
+
+tfcard:
+vcc	3.3v
+ss	io5
+sck	io18
+miso	io19
+mosi	io23
