@@ -2,15 +2,14 @@
 #include "BluetoothSerial.h"
 BluetoothSerial SerialBT;
 
-
-//hcsr04
-const int trigpin = 32;
-const int echopin = 33;
-long duration;
-long distance;
-
-//pca9685
-int val = 290;
+//[0,5]=left, [6,11]=right
+//[0,1]=near, [2,3]=mid, [4,5]=front, [6,7]=front, [8,9]=mid, [10,11]=near
+//{0,2,4,6,8,10}=leg, {1,3,5,7,9,11}=foot
+int val[12] = {
+  290,290,290,290,
+  290,290,290,290,
+  290,290,290,290
+};
 
 
 
@@ -24,10 +23,6 @@ void setup()
 
   SerialBT.begin("ESP32test");
   Serial.println("serialbt ok!");
-
-
-  pinMode(trigpin, OUTPUT);
-  pinMode(echopin, INPUT);
 
 
   Wire.begin();
@@ -72,71 +67,37 @@ void loop()
     j = Serial.readBytesUntil('\n', c, 5);
     c[j] = 0;
 
-    val = atoi((char*)c);
+    j = c[0]-'a';
+    if((j>=0)&&(j<12))val[j] = atoi((char*)(c+1));
   }
   if(SerialBT.available()){
     j = SerialBT.readBytesUntil('\n', c, 5);
     c[j] = 0;
 
-    val = atoi((char*)c);
+    if((j>=0)&&(j<12))val[j] = atoi((char*)(c+1));
   }
-  Serial.println(val);
 
 
 //1: set values
   Wire.beginTransmission(0x40);
   Wire.write(0x6);
 
-  Wire.write(0x0);
-  Wire.write(0x0);
-  Wire.write(val & 0xff);
-  Wire.write(val >> 8);
+  for(j=0;j<12;j++){
+    Serial.print(val[j]);
+    Serial.print(' ');
 
-  Wire.write(0x0);
-  Wire.write(0x0);
-  Wire.write(val & 0xff);
-  Wire.write(val >> 8);
-
-  Wire.write(0x0);
-  Wire.write(0x0);
-  Wire.write(val & 0xff);
-  Wire.write(val >> 8);
- 
-  Wire.write(0x0);
-  Wire.write(0x0);
-  Wire.write(val & 0xff);
-  Wire.write(val >> 8);
-
-  Wire.write(0x0);
-  Wire.write(0x0);
-  Wire.write(val & 0xff);
-  Wire.write(val >> 8);
-
-  Wire.write(0x0);
-  Wire.write(0x0);
-  Wire.write(val & 0xff);
-  Wire.write(val >> 8);
+    Wire.write(0x0);
+    Wire.write(0x0);
+    Wire.write(val[j] & 0xff);
+    Wire.write(val[j] >> 8);
+  }
+  Serial.println();
 
   Wire.endTransmission();  
   delay(1);
 
 
-//2.sr04
-  digitalWrite(trigpin, LOW);
-  delayMicroseconds(2);
-  digitalWrite(trigpin, HIGH);
-  delayMicroseconds(10);
-  digitalWrite(trigpin, LOW);
-
-  duration = pulseIn(echopin, HIGH);
-  distance = duration/2*340/1000;
-
-  Serial.print("distance: ");
-  Serial.print(distance);
-  Serial.println("mm");
-
-
-//3.debug print
+//2.debug print
   Wire.beginTransmission(0x40);
   Wire.write(0x00);
   err = Wire.endTransmission();
