@@ -8,9 +8,19 @@
 #include <linux/i2c.h>
 #include <linux/i2c-dev.h>
 #define u8 unsigned char
+
+//
 #define Kp 100
 #define Ki 0.005
 #define halfT 0.0025
+
+//0=250dps, 1=500dps, 2=1000dps, 3=2000dps
+#define gyr_cfg 2
+#define gyr_max 1000
+
+//0=2g, 1=4g, 2=8g, 3=16g
+#define acc_cfg 0
+#define acc_max 2*9.8
 
 
 
@@ -236,8 +246,8 @@ usleep(1000);
 
 	//GYRO_CONFIG
 	systemi2c_read(0x68,0x1b,reg,1);
-	reg[0] &= 0xe5;
-	reg[0] |= (3<<3);
+	reg[0] &= 0xe7;
+	reg[0] |= (gyro_cfg<<3);
 	systemi2c_write(0x68,0x1b,reg,1);
 //system("i2cdump -y 1 0x68");
 usleep(1000);
@@ -245,7 +255,7 @@ usleep(1000);
 	//ACCEL_CONFIG
 	systemi2c_read(0x68,0x1c,reg,1);
 	reg[0] &= 0xe7;
-	reg[0] |= (0<<3);
+	reg[0] |= (acc_cfg<<3);
 	systemi2c_write(0x68,0x1c,reg,1);
 //system("i2cdump -y 1 0x68");
 usleep(1000);

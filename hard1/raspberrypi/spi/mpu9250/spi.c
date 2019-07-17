@@ -7,9 +7,15 @@
 #include <linux/spi/spidev.h>	//Needed for SPI port
 #define u8 unsigned char
 #define u64 unsigned long long
+#define PI 3.1415926535897932384626433832795
 
+//0=250dps, 1=500dps, 2=1000dps, 3=2000dps
+#define gyr_cfg 2
+#define gyr_max 1000
 
-
+//0=2g, 1=4g, 2=8g, 3=16g
+#define acc_cfg 0
+#define acc_max 2*9.8
 
 //SPI_MODE_0 (0,0) 	CPOL = 0, CPHA = 0, idle low, data on rising edge, output on falling edge
 //SPI_MODE_1 (0,1) 	CPOL = 0, CPHA = 1, idle low, data on falling edge, output on rising edge
@@ -207,6 +213,7 @@ int ak8963inspi_write(int fd, u8 reg, u8* buf, int len)
 int main(int argc, char** argv)
 {
 	int j;
+	float f[9];
 	int acc[3];
 	int gyr[3];
 	int mag[3];
@@ -222,9 +229,60 @@ int main(int argc, char** argv)
 		return 0;
 	}
 
-	//MPUREG_USER_CTRL, MPUREG_I2C_MST_CTRL
+
+//init mpu9250
+	//reset
+	systemspi_write_byte(fd, 0x6b, 0x80);
+	usleep(1000);
+
+	//clock
+	systemspi_write_byte(fd, 0x6b, 0x01);
+	usleep(1000);
+
+	//enable
+	systemspi_write_byte(fd, 0x6c, 0x00);
+	usleep(1000);
+
+	//CONFIG
+	systemspi_write_byte(fd, 0x1a, 0x03);
+	usleep(1000);
+
+	//SMPLRT_DIV
+	systemspi_write_byte(fd, 0x19, 0x04);
+	usleep(1000);
+
+	//GYRO_CONFIG
+	j = systemspi_read_byte(fd, 0x1b|0x80);
+	systemspi_write_byte(fd, 0x1b, (j&0xe7)|(gyr_cfg<<3));
+	usleep(1000);
+
+	//ACCEL_CONFIG
+	j = systemspi_read_byte(fd, 0x1c|0x80);
+	systemspi_write_byte(fd, 0x1c, (j&0xe7)|(acc_cfg<<3));
+	usleep(1000);
+
+	//ACCEL_CONFIG2
+	j = systemspi_read_byte(fd, 0x1d|0x80);
+	systemspi_write_byte(fd, 0x1d, (j&0xf0)|0x3);
+	usleep(1000);
+
+	//INT_PIN_CFG
+	systemspi_write_byte(fd, 0x37, 0x22);
+	usleep(1000);
+
+	//INT_ENABLE
+	systemspi_write_byte(fd, 0x38, 0x01);
+	usleep(1000);
+
+
+//enable ak8963
+	//MPUREG_USER_CTRL
 	systemspi_write_byte(fd, 0x6a, 0x20);
+	usleep(1000);
+
+	//MPUREG_I2C_MST_CTRL
 	systemspi_write_byte(fd, 0x24, 0xd);
+	usleep(1000*10);
 
 	//check 8963.whoami
 	ak8963inspi_read(fd, 0, buf, 1);
@@ -234,15 +292,14 @@ int main(int argc, char** argv)
 	}
 
 
-//init mpu9250
-
-
 //init ak8963
 	buf[0] = 1;
 	ak8963inspi_write(fd, 0xb, buf, 1);
+	usleep(1000);
 
 	buf[0] = 0x16;
 	ak8963inspi_write(fd, 0xa, buf, 1);
+	usleep(1000);
 
 
 //debug print
@@ -287,7 +344,7 @@ int main(int argc, char** argv)
 		mag[1] = *(short*)(buf+14);
 		mag[0] = *(short*)(buf+16);
 		mag[2] = -(*(short*)(buf+18));
-
+/*
 		printf(
 			"acc:	%d	%d	%d\n"
 			"gyr:	%d	%d	%d\n"
@@ -296,6 +353,17 @@ int main(int argc, char** argv)
 			gyr[0], gyr[1], gyr[2],
 			mag[0], mag[1], mag[2]
 		);
+*/
+		f[0] = gyr[0] * gyr_max / 32768.0 * PI / 180.0;
+		f[1] = gyr[1] * gyr_max / 32768.0 * PI / 180.0;
+		f[2] = gyr[2] * gyr_max / 32768.0 * PI / 180.0;
+		f[3] = acc[0] * acc_max / 32768.0;
+		f[4] = acc[1] * acc_max / 32768.0;
+		f[5] = acc[2] * acc_max / 32768.0;
+		f[6] = mag[0] * 4192.0 / 32760.0;
+		f[7] = mag[1] * 4192.0 / 32760.0;
+		f[8] = mag[2] * 4192.0 / 32760.0;
+		printf("%f,%f,%f,%f,%f,%f,%f,%f,%f\n",f[0],f[1],f[2],f[3],f[4],f[5],f[6],f[7],f[8]);
 	}
 
 	SpiClosePort(0);
