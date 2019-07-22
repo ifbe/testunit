@@ -7,6 +7,7 @@
 #include <sys/ioctl.h>
 #include <linux/i2c.h>
 #include <linux/i2c-dev.h>
+#define PI 3.1415926535897932384626433832795
 #define u8 unsigned char
 
 //
@@ -25,16 +26,7 @@
 
 
 
-//ak8963
-float ak8963_measure[3];
-short xmin = 9999;
-short xmax = -9999;
-short ymin = 9999;
-short ymax = -9999;
-short zmin = 9999;
-short zmax = -9999;
-//mpu9250
-float mpu9250_measure[10];
+float measure[10];
 //i
 float exInt = 0.0;
 float eyInt = 0.0;
@@ -131,222 +123,65 @@ int systemi2c_read(u8 dev, u8 reg, u8* buf, u8 len)
 
 
 
-int initak8963()
+int initlsm9ds1()
 {
-	u8 buf[0x10];
-
-	//AK8963_CNT2
-	buf[0] = 0x1;
-	systemi2c_write(0xc,0xb,buf,1);
-	usleep(1000);
-
-	//AK8963_CNT1
-	buf[0] = 0x16;
-	systemi2c_write(0xc,0xa,buf,1);
-	usleep(1000);
-
-	//
 	return 1;
 }
-int freeak8963()
+int freelsm9ds1()
 {
 	return 0;
 }
-int readak8963()
+int readlsm9ds1()
 {
-	int x,y,z;
-	u8 buf[0x10];
+	short t;
+	u8 reg[32];
 
-	//0xc[0x3,0x8]
-	systemi2c_read(0xc, 3, buf+0x3, 7);
+	t = systemi2c_read(0x6a, 0x18, reg+0, 6);
+	t = systemi2c_read(0x6a, 0x19, reg+1, 5);
+	t = systemi2c_read(0x6a, 0x1a, reg+2, 4);
+	t = systemi2c_read(0x6a, 0x1b, reg+3, 3);
+	t = systemi2c_read(0x6a, 0x1c, reg+4, 2);
+	t = systemi2c_read(0x6a, 0x1d, reg+5, 1);
+	//printf("%02x %02x %02x %02x %02x %02x\n", reg[0],reg[1],reg[2],reg[3],reg[4],reg[5]);
 
-
-	x = *(short*)(buf+3);
-	y = *(short*)(buf+5);
-	z = *(short*)(buf+7);
-	printf("raw:	%x	%x	%x	%x	%x	%x\n",
-		buf[3],buf[4],buf[5],buf[6],buf[7],buf[8]);
-
-	if((0 != x)|(0 != y)|(0 != z)){
-		if(x < xmin)xmin = x;
-		if(x > xmax)xmax = x;
-		x = x - (xmin+xmax)/2;
-		if(0 == x)x = 1;
-
-		if(y < ymin)ymin = y;
-		if(y > ymax)ymax = y;
-		y = y - (ymin+ymax)/2;
-		if(0 == y)y = 1;
-
-		if(z < zmin)zmin = z;
-		if(z > zmax)zmax = z;
-		z = z - (zmin+zmax)/2;
-		if(0 == z)z = 1;
-	}
-	else z = 1;
-
-	ak8963_measure[1] = x;
-	ak8963_measure[0] = y;
-	ak8963_measure[2] = -z;
-
-	//printf("8963:	%d	%d	%d	%f\n", x, y, z, sqrt(x*x+y*y+z*z));
-
-	printf("delta:	%d	%d	%d	%d	%d	%d\n",
-		xmin,
-		xmax,
-		ymin,
-		ymax,
-		zmin,
-		zmax
-	);
-
-	printf("8963:	%f	%f	%f\n",
-		ak8963_measure[0],
-		ak8963_measure[1],
-		ak8963_measure[2]
-	);
-}
+	t = *(short*)(reg+0);
+	measure[0] = t * 500.0/32768 * PI/180.0;
+	t = *(short*)(reg+2);
+	measure[1] =-t * 500.0/32768 * PI/180.0;
+	t = *(short*)(reg+4);
+	measure[2] = t * 500.0/32768 * PI/180.0;
 
 
+	systemi2c_read(0x6a, 0x28, reg+0, 6);
+	systemi2c_read(0x6a, 0x29, reg+1, 5);
+	systemi2c_read(0x6a, 0x2a, reg+2, 4);
+	systemi2c_read(0x6a, 0x2b, reg+3, 3);
+	systemi2c_read(0x6a, 0x2c, reg+4, 2);
+	systemi2c_read(0x6a, 0x2d, reg+5, 1);
+	//printf("%02x %02x %02x %02x %02x %02x\n", reg[0],reg[1],reg[2],reg[3],reg[4],reg[5]);
+
+	t = *(short*)(reg+0);
+	measure[3] = t * 9.8*8 / 32768.0;
+	t = *(short*)(reg+2);
+	measure[4] =-t * 9.8*8 / 32768.0;
+	t = *(short*)(reg+4);
+	measure[5] = t * 9.8*8 / 32768.0;
 
 
-int initmpu9250()
-{
-	u8 reg[0x20];
+	systemi2c_read(0x1c, 0x28, reg+0, 6);
+	systemi2c_read(0x1c, 0x29, reg+1, 5);
+	systemi2c_read(0x1c, 0x2a, reg+2, 4);
+	systemi2c_read(0x1c, 0x2b, reg+3, 3);
+	systemi2c_read(0x1c, 0x2c, reg+4, 2);
+	systemi2c_read(0x1c, 0x2d, reg+5, 1);
+	//printf("%02x %02x %02x %02x %02x %02x\n", reg[0],reg[1],reg[2],reg[3],reg[4],reg[5]);
 
-	//PWR_MGMT_1	reset
-	reg[0]=0x80;
-	systemi2c_write(0x68,0x6b,reg,1);
-//system("i2cdump -y 1 0x68");
-usleep(1000);
-
-	//PWR_MGMT_1	clock
-	reg[0]=0x01;
-	systemi2c_write(0x68,0x6b,reg,1);
-//system("i2cdump -y 1 0x68");
-usleep(1000);
-
-	//PWR_MGMT_2	enable
-	reg[0]=0x00;
-	systemi2c_write(0x68,0x6c,reg,1);
-//system("i2cdump -y 1 0x68");
-usleep(1000);
-
-	//CONFIG
-	reg[0]=0x3;
-	systemi2c_write(0x68,0x1a,reg,1);
-//system("i2cdump -y 1 0x68");
-usleep(1000);
-
-	//SMPLRT_DIV
-	reg[0]=0x4;
-	systemi2c_write(0x68,0x19,reg,1);
-//system("i2cdump -y 1 0x68");
-usleep(1000);
-
-	//GYRO_CONFIG
-	systemi2c_read(0x68,0x1b,reg,1);
-	reg[0] &= 0xe7;
-	reg[0] |= (gyro_cfg<<3);
-	systemi2c_write(0x68,0x1b,reg,1);
-//system("i2cdump -y 1 0x68");
-usleep(1000);
-
-	//ACCEL_CONFIG
-	systemi2c_read(0x68,0x1c,reg,1);
-	reg[0] &= 0xe7;
-	reg[0] |= (acc_cfg<<3);
-	systemi2c_write(0x68,0x1c,reg,1);
-//system("i2cdump -y 1 0x68");
-usleep(1000);
-
-	//ACCEL_CONFIG2
-	systemi2c_read(0x68,0x1d,reg,1);
-	reg[0] &= 0xf0;
-	reg[0] |= 0x3;
-	systemi2c_write(0x68,0x1d,reg,1);
-//system("i2cdump -y 1 0x68");
-usleep(1000);
-
-	//INT_PIN_CFG
-	reg[0]=0x22;
-	systemi2c_write(0x68,0x37,reg,1);
-//system("i2cdump -y 1 0x68");
-usleep(1000);
-
-	//INT_ENABLE
-	reg[0]=0x1;
-	systemi2c_write(0x68,0x38,reg,1);
-//system("i2cdump -y 1 0x68");
-usleep(1000);
-
-	return 1;
-}
-int freempu9250()
-{
-	return 0;
-}
-int readmpu9250()
-{
-	int temp;
-	u8 reg[0x20];
-
-	//0x68.0x3b -> 0x00
-	systemi2c_read(0x68, 0x3b, reg+0, 14);
-
-
-
-
-	//accel
-	temp = (reg[0]<<8) + reg[1];
-	if(temp > 32767)temp -= 0x10000;
-	mpu9250_measure[3] = temp * 9.8 / 16384.0;
-
-	temp = (reg[2]<<8) + reg[3];
-	if(temp > 32767)temp -= 0x10000;
-	mpu9250_measure[4] = temp * 9.8 / 16384.0;
-
-	temp = (reg[4]<<8) + reg[5];
-	if(temp > 32767)temp -= 0x10000;
-	mpu9250_measure[5] = temp * 9.8 / 16384.0;
-
-
-
-
-	//temp
-	temp = (reg[6]<<8) + reg[7];
-	mpu9250_measure[9] = temp / 100.0;
-
-
-
-
-	//gyro
-	temp = (reg[ 8]<<8) + reg[ 9];
-	if(temp > 32767)temp -= 0x10000;
-	mpu9250_measure[0] = temp / 57.3 / 16.4;
-
-	temp = (reg[10]<<8) + reg[11];
-	if(temp > 32767)temp -= 0x10000;
-	mpu9250_measure[1] = temp / 57.3 / 16.4;
-
-	temp = (reg[12]<<8) + reg[13];
-	if(temp > 32767)temp -= 0x10000;
-	mpu9250_measure[2] = temp / 57.3 / 16.4;
-
-
-
-
-/*
-	printf("9250:	%f	%f	%f	%f	%f	%f\n",
-		mpu9250_measure[0],
-		mpu9250_measure[1],
-		mpu9250_measure[2],
-		mpu9250_measure[3],
-		mpu9250_measure[4],
-		mpu9250_measure[5]
-	);
-*/
-	//printf("9250:	%f\n",mpu9250_measure[9]);
+	t = *(short*)(reg+0);
+	measure[6] =-t * 400.0 / 32768.0;
+	t = *(short*)(reg+2);
+	measure[7] =-t * 400.0 / 32768.0;
+	t = *(short*)(reg+4);
+	measure[8] = t * 400.0 / 32768.0;
 }
 
 
@@ -359,17 +194,17 @@ void mahonyahrsupdate()
 	float vx, vy, vz, wx, wy, wz, ex, ey, ez;
 
 	//value
-	float gx = mpu9250_measure[0];
-	float gy = mpu9250_measure[1];
-	float gz = mpu9250_measure[2];
+	float gx = measure[0];
+	float gy = measure[1];
+	float gz = measure[2];
 
-	float ax = mpu9250_measure[3];
-	float ay = mpu9250_measure[4];
-	float az = mpu9250_measure[5];
+	float ax = measure[3];
+	float ay = measure[4];
+	float az = measure[5];
 
-	float mx = ak8963_measure[0];
-	float my = ak8963_measure[1];
-	float mz = ak8963_measure[2];
+	float mx = measure[6];
+	float my = measure[7];
+	float mz = measure[8];
 
 	// Normalise accelerometer measurement
 	norm = sqrt(ax * ax + ay * ay + az * az);
@@ -459,14 +294,13 @@ void mahonyahrsupdate()
 void main()
 {
 	systemi2c_init();
-	initmpu9250();
-	initak8963();
+	initlsm9ds1();
 
 	while(1)
 	{
-		readmpu9250();
-		readak8963();
+		readlsm9ds1();
+		//printf(	"%f	%f	%f	%f	%f	%f	%f	%f	%f\n",
+			//measure[0],measure[1],measure[2],measure[3],measure[4],measure[5],measure[6],measure[7],measure[8]);
 		mahonyahrsupdate();
 	}
-	freempu9250();
 }

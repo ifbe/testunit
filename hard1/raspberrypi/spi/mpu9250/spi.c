@@ -305,13 +305,16 @@ int main(int argc, char** argv)
 //debug print
 	//mpu9250: read must | 0x80
 	systemspi_read(fd, 0|0x80, buf, 128);
+/*
 	for(j=0;j<128;j++){
 		printf("%02x ", buf[j]);
 		if((j%16) == 15)printf("\n");
 	}
+*/
 
 
 //start loop
+	usleep(1000*1000);
 	while(1){
 		//20byte: [0x3b,0x48] + [0x49,0x4e]
 		systemspi_write_byte(fd, 0x25, 0xc | 0x80);
@@ -363,7 +366,9 @@ int main(int argc, char** argv)
 		f[6] = mag[0] * 4192.0 / 32760.0;
 		f[7] = mag[1] * 4192.0 / 32760.0;
 		f[8] = mag[2] * 4192.0 / 32760.0;
-		printf("%f,%f,%f,%f,%f,%f,%f,%f,%f\n",f[0],f[1],f[2],f[3],f[4],f[5],f[6],f[7],f[8]);
+		//printf("%f,%f,%f,%f,%f,%f,%f,%f,%f\n",f[0],f[1],f[2],f[3],f[4],f[5],f[6],f[7],f[8]);
+		//printf("%f,%f,%f\n",f[6],f[7],f[8]);
+		printf("%f,%f,%f\n", f[0],f[1],f[2]);
 	}
 
 	SpiClosePort(0);
