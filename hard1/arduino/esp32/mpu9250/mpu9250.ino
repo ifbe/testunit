@@ -1,14 +1,16 @@
 #include <Wire.h>
 #include <WiFi.h>
 #include <WiFiAP.h>
+#include <WebServer.h>
 #include "AsyncUDP.h"
 #include "BluetoothSerial.h"
+#define thisname "mpu9250"
 
 //bt
 BluetoothSerial SerialBT;
 
 //i'm accesspoint
-const char* ap_ssid = "balance";
+const char* ap_ssid = thisname;
 const char* ap_pass = "88888888";
 char ap_stat = 0;
 
@@ -20,6 +22,9 @@ char sta_stat = 0;
 //udp server
 AsyncUDP udp;
 int port = 1234;
+
+//tcp server
+WebServer server(80);
 
 //0=250dps, 1=500dps, 2=1000dps, 3=2000dps
 #define gyr_cfg 2
@@ -182,13 +187,6 @@ void loop()
   
 
 //0: get command
-  if(WL_CONNECTED == WiFi.status()){
-    if(0 == sta_stat){
-      sta_stat = 1;
-      Serial.print("sta.ip: ");
-      Serial.println(WiFi.localIP());
-    }
-  }
   if(Serial.available()){
     j = Serial.readBytesUntil('\n', c, 5);
     c[j] = 0;
@@ -201,10 +199,55 @@ void loop()
     otto_parse(c, j);
   }
 
+  if(WL_CONNECTED == WiFi.status()){
+    if(0 == sta_stat){
+      sta_stat = 1;
+      Serial.print("sta.ip: ");
+      Serial.println(WiFi.localIP());
+    }
+  }
+
+  server.handleClient();
+
   readvalue();
 
   imuupdate(measure[0],measure[1],measure[2],measure[3],measure[4],measure[5]);
 }
+
+void handleRoot() {
+  char buf[32];
+  String message;
+  //digitalWrite(LED_BUILTIN, 1);
+
+  message  = dtostrf(q0, 3, 3, buf);
+  message += ',';
+  message += dtostrf(q1, 3, 3, buf);
+  message += ',';
+  message += dtostrf(q2, 3, 3, buf);
+  message += ',';
+  message += dtostrf(q3, 3, 3, buf);
+  message += '\n';
+
+  server.send(200, "text/plain", message);
+  //digitalWrite(LED_BUILTIN, 0);
+}
+void handleNotFound() {
+  //digitalWrite(LED_BUILTIN, 1);
+  String message = "File Not Found\n\n";
+  message += "URI: ";
+  message += server.uri();
+  message += "\nMethod: ";
+  message += (server.method() == HTTP_GET) ? "GET" : "POST";
+  message += "\nArguments: ";
+  message += server.args();
+  message += "\n";
+  for (uint8_t i = 0; i < server.args(); i++) {
+    message += " " + server.argName(i) + ": " + server.arg(i) + "\n";
+  }
+  server.send(404, "text/plain", message);
+  //digitalWrite(LED_BUILTIN, 0);
+}
+
 
 
 
@@ -216,7 +259,7 @@ void init_serial()
 }
 void init_bluetooth()
 {
-  SerialBT.begin("hexapod");
+  SerialBT.begin(thisname);
   Serial.println("serialbt ok!");
 }
 void init_wifi()
@@ -264,6 +307,13 @@ void init_udpserver()
     //
     otto_parse(packet.data(), packet.length());
   });
+}
+void init_tcpserver(){
+  server.on("/", handleRoot);
+
+  server.onNotFound(handleNotFound);
+
+  server.begin();
 }
 void init_i2c()
 {
@@ -360,11 +410,14 @@ void init_var()
 }
 void setup()
 {
+  //pinMode(LED_BUILTIN, OUTPUT);
   init_serial();
-  init_bluetooth();
 
+  init_bluetooth();
   init_wifi();
+
   init_udpserver();
+  init_tcpserver();
 
   init_i2c();
   init_var();
