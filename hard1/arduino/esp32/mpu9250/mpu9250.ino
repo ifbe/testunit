@@ -108,17 +108,16 @@ void imuupdate(
   tx = atan2(2*(q0*q1+q2*q3),1-2*(q1*q1+q2*q2))*180/3.141592653;
   ty = asin(2*q0*q2 - 2*q1*q3)*180/3.141592653;
   tz = atan2(2*(q0*q3+q1*q2),1-2*(q2*q2+q3*q3))*180/3.141592653;
-
+/*
   Serial.print(tx);
-  Serial.print(' ');
+  Serial.print(',');
 
   Serial.print(ty);
-  Serial.print(' ');
+  Serial.print(',');
 
   Serial.print(tz);
-  Serial.print(' ');
-
-  Serial.println();
+  Serial.print('\n');
+*/
 }
 void readvalue()
 {
@@ -162,23 +161,20 @@ void readvalue()
   tmp = (c[4]<<8) + c[5];
   if(tmp > 32767)tmp -= 0x10000;
   measure[5] = tmp * acc_max / 32768.0;
-/*
+
   Serial.print(measure[0]);
-  Serial.print(' ');
+  Serial.print(',');
   Serial.print(measure[1]);
-  Serial.print(' ');
+  Serial.print(',');
   Serial.print(measure[2]);
-  Serial.print(' ');
+  Serial.print(',');
 
   Serial.print(measure[3]);
-  Serial.print(' ');
+  Serial.print(',');
   Serial.print(measure[4]);
-  Serial.print(' ');
+  Serial.print(',');
   Serial.print(measure[5]);
-  Serial.print(' ');
-
-  Serial.println("");
-*/
+  Serial.print('\n');
 }
 void loop()
 {
@@ -211,7 +207,7 @@ void loop()
 
   readvalue();
 
-  imuupdate(measure[0],measure[1],measure[2],measure[3],measure[4],measure[5]);
+  //imuupdate(measure[0],measure[1],measure[2],measure[3],measure[4],measure[5]);
 }
 
 void handleRoot() {
