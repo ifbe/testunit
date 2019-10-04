@@ -1,6 +1,7 @@
 #include <Wire.h>
 #include <WiFi.h>
 #include <WiFiAP.h>
+#include <WebServer.h>
 #include "AsyncUDP.h"
 #include "BluetoothSerial.h"
 
@@ -13,13 +14,16 @@ const char* ap_pass = "88888888";
 char ap_stat = 0;
 
 //i'm station
-const char* sta_ssid = "********";
-const char* sta_pass = "********";
+const char* sta_ssid = "Tenda_1F34E0";
+const char* sta_pass = "52755227";
 char sta_stat = 0;
 
 //udp server
 AsyncUDP udp;
 int port = 1234;
+
+//tcp server
+WebServer server(80);
 
 //hcsr04
 const int trigpin = 32;
@@ -40,6 +44,42 @@ int val[6] = {
 
 
 
+void handleRoot() {
+  String msg;
+  //digitalWrite(LED_BUILTIN, 1);
+
+  msg = "<html>";
+  msg += "a: " + String(val[0]) + "<br>\n";
+  msg += "b: " + String(val[1]) + "<br>\n";
+  msg += "c: " + String(val[2]) + "<br>\n";
+  msg += "d: " + String(val[3]) + "<br>\n";
+  msg += "e: " + String(val[4]) + "<br>\n";
+  msg += "f: " + String(val[5]) + "<br>\n";
+  msg += "</html>";
+
+  server.send(200, "text/html", msg);
+  //digitalWrite(LED_BUILTIN, 0);
+}
+void handleNotFound() {
+  //digitalWrite(LED_BUILTIN, 1);
+  String msg = "File Not Found\n\n";
+  msg += "URI: ";
+  msg += server.uri();
+  msg += "\nMethod: ";
+  msg += (server.method() == HTTP_GET) ? "GET" : "POST";
+  msg += "\nArguments: ";
+  msg += server.args();
+  msg += "\n";
+  for (uint8_t i = 0; i < server.args(); i++) {
+    msg += " " + server.argName(i) + ": " + server.arg(i) + "\n";
+  }
+  server.send(404, "text/plain", msg);
+  //digitalWrite(LED_BUILTIN, 0);
+}
+
+
+
+
 void otto_parse(unsigned char* buf, int len)
 {
   int j = buf[0]-'a';
@@ -47,7 +87,7 @@ void otto_parse(unsigned char* buf, int len)
 }
 void loop()
 {
-  char j;
+  int j;
   int err;
   unsigned char c[32];
 
@@ -59,15 +99,23 @@ void loop()
       Serial.println(WiFi.localIP());
     }
   }
+  server.handleClient();
+
   if(Serial.available()){
     j = Serial.readBytesUntil('\n', c, 5);
-    c[j] = 0;
-    otto_parse(c, j);
+    if(j>0){
+      Serial.println(j);
+      c[j] = 0;
+      otto_parse(c, j);
+    }
   }
   if(SerialBT.available()){
     j = SerialBT.readBytesUntil('\n', c, 5);
-    c[j] = 0;
-    otto_parse(c, j);
+    if(j>0){
+      Serial.println(j);
+      c[j] = 0;
+      otto_parse(c, j);
+    }
   }
 
 
@@ -195,6 +243,40 @@ void init_udpserver()
     otto_parse(packet.data(), packet.length());
   });
 }
+void init_tcpserver(){
+  server.on("/", handleRoot);
+
+  server.on("/a-", []() {
+    val[0] += 10;
+    handleRoot();
+  });
+
+  server.on("/a+", []() {
+    val[0] += 10;
+    handleRoot();
+  });
+/*
+  server.on("/a/{}", []() {
+    String str = server.pathArg(0);
+    val[0] = str.toInt();
+    handleRoot();
+  });
+*/
+  server.on("/{}/{}", []() {
+    String tmp = server.pathArg(0);
+    String str = server.pathArg(1);
+    int idx = tmp[0]-'a';
+    if((idx<0)|(idx>5))idx = 0;
+    Serial.println(idx);
+
+    val[idx] = str.toInt();
+    handleRoot();
+  });
+
+  server.onNotFound(handleNotFound);
+
+  server.begin();
+}
 void init_hcsr04()
 {
   pinMode(trigpin, OUTPUT);
@@ -234,12 +316,14 @@ void init_i2c()
 }
 void setup()
 {
-  init_serial();
-  init_bluetooth();
-
-  init_wifi();
-  init_udpserver();
-
   init_hcsr04();
   init_i2c();
+
+  init_serial();
+  init_bluetooth();
+  init_wifi();
+
+  init_udpserver();
+  init_tcpserver();
+
 }
