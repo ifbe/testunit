@@ -11,19 +11,19 @@ UINT		g_winWidth(640);
 UINT		g_winHeight(480);
 
 //d3d thing
-ID3D11Device*           g_device(NULL);
-ID3D11DeviceContext*    g_deviceContext(NULL);
-IDXGISwapChain*         g_swapChain(NULL);
+ID3D11Device*           g_dx11device(NULL);
+ID3D11DeviceContext*    g_dx11context(NULL);
+IDXGISwapChain*         g_dx11swapchain(NULL);
 ID3D11DepthStencilView* g_depthStencilView(NULL);
 ID3D11RenderTargetView* g_renderTargetView(NULL);
 
-//my thing
+//buf thing
 ID3D11VertexShader*     g_pVertexShader = NULL;
 ID3D11PixelShader*      g_pPixelShader = NULL;
 ID3D11InputLayout*      g_pVertexLayout = NULL;
 ID3D11Buffer*           g_pVertexBuffer = NULL;
 
-//
+//my own
 char vshader[] =
 "struct VSin{\n"
 	"float4 where : POSITION;\n"
@@ -55,16 +55,22 @@ void Render()
 {
 	// 绘制青色背景
 	float color[4] = {0.f, 1.f, 1.f, 1.0f};
-	g_deviceContext->ClearRenderTargetView(g_renderTargetView,reinterpret_cast<float*>(&color));
-	g_deviceContext->ClearDepthStencilView(g_depthStencilView,D3D11_CLEAR_DEPTH|D3D11_CLEAR_STENCIL,1.f,0);
+	g_dx11context->ClearRenderTargetView(g_renderTargetView,reinterpret_cast<float*>(&color));
+	g_dx11context->ClearDepthStencilView(g_depthStencilView,D3D11_CLEAR_DEPTH|D3D11_CLEAR_STENCIL,1.f,0);
 
 	// 正式的场景绘制工作
-	g_deviceContext->VSSetShader(g_pVertexShader, nullptr, 0);
-	g_deviceContext->PSSetShader(g_pPixelShader, nullptr, 0);
-	g_deviceContext->Draw(3, 0);
+	g_dx11context->VSSetShader(g_pVertexShader, nullptr, 0);
+	g_dx11context->PSSetShader(g_pPixelShader, nullptr, 0);
+	g_dx11context->IASetInputLayout(g_pVertexLayout);
+
+	UINT stride = 32;
+	UINT offset = 0;
+	g_dx11context->IASetVertexBuffers(0, 1, &g_pVertexBuffer, &stride, &offset);
+	g_dx11context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	g_dx11context->Draw(3, 0);
 
 	// 显示
-	g_swapChain->Present(0,0);
+	g_dx11swapchain->Present(0,0);
 }
 void Freemyctx()
 {
@@ -73,9 +79,12 @@ int Initmyctx()
 {
 	HRESULT hr;
 
-	// Compile the vertex shader
+	//1. Compile vshader and pshader
     ID3DBlob* VSBlob = NULL;
 	ID3DBlob* VSError= NULL;
+	ID3DBlob* PSBlob = NULL;
+	ID3DBlob* PSError= NULL;
+
 	hr = D3DCompile(
 		vshader, sizeof(vshader), "vs",
 		0, 0,	//define, include
@@ -88,16 +97,6 @@ int Initmyctx()
 		return 0;
 	}
 
-	// Create the vertex shader
-	hr = g_device->CreateVertexShader(VSBlob->GetBufferPointer(), VSBlob->GetBufferSize(), NULL, &g_pVertexShader );
-	if(FAILED(hr)){	
-		VSBlob->Release();
-        return hr;
-	}
-
-	// Compile the pixel shader
-	ID3DBlob* PSBlob = NULL;
-	ID3DBlob* PSError= NULL;
 	hr = D3DCompile(
 		pshader, sizeof(pshader), "ps",
 		0, 0,	//define, include
@@ -110,19 +109,34 @@ int Initmyctx()
 		return 0;
 	}
 
-	// Create the pixel shader
-	hr = g_device->CreatePixelShader(PSBlob->GetBufferPointer(), PSBlob->GetBufferSize(), NULL, &g_pPixelShader );
+	//2. Create vshader and pshader
+	hr = g_dx11device->CreateVertexShader(VSBlob->GetBufferPointer(), VSBlob->GetBufferSize(), NULL, &g_pVertexShader );
+	if(FAILED(hr)){	
+		VSBlob->Release();
+        return hr;
+	}
+
+	hr = g_dx11device->CreatePixelShader(PSBlob->GetBufferPointer(), PSBlob->GetBufferSize(), NULL, &g_pPixelShader );
 	if(FAILED(hr)){
 		PSBlob->Release();
 		return hr;
 	}
 
+	//3. input layout
+	D3D11_INPUT_ELEMENT_DESC dies[] = {
+		{"POSITION", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0},
+		{   "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0,16, D3D11_INPUT_PER_VERTEX_DATA, 0}
+	};
+	g_dx11device->CreateInputLayout(dies, 2, VSBlob->GetBufferPointer(), VSBlob->GetBufferSize(), &g_pVertexLayout);
+
+
+
 
 	// 设置三角形顶点
 	float vertices[][8] = {
-		{  0.0f, 50.0f, 50.0f, 1.0, 0.0f, 1.0f, 0.0f, 1.0f},
-		{ 50.0f,-50.0f, 50.0f, 1.0, 0.0f, 0.0f, 1.0f, 1.0f},
-		{-50.0f,-50.0f, 50.0f, 1.0, 1.0f, 0.0f, 0.0f, 1.0f}
+		{ 0.0f, 0.5f, 0.0f, 1.0,        1.0f, 0.0f, 0.0f, 1.0f},
+		{ 0.5f,-0.5f, 0.0f, 1.0,        0.0f, 1.0f, 0.0f, 1.0f},
+		{-0.5f,-0.5f, 0.0f, 1.0,        0.0f, 0.0f, 1.0f, 1.0f}
 	};
 
 	// 设置顶点缓冲区描述
@@ -137,18 +151,11 @@ int Initmyctx()
 	D3D11_SUBRESOURCE_DATA Data;
 	ZeroMemory(&Data, sizeof(Data));
 	Data.pSysMem = vertices;
-	hr = g_device->CreateBuffer(&vbd, &Data, &g_pVertexBuffer);
+	hr = g_dx11device->CreateBuffer(&vbd, &Data, &g_pVertexBuffer);
 	if(FAILED(hr)){
 		MessageBox(NULL, "CreateBuffer", "Error", MB_OK);
 		return hr;
 	}
-
-	// 输入装配阶段的顶点缓冲区设置
-	UINT stride = 32;
-	UINT offset = 0;
-	g_deviceContext->IASetVertexBuffers(0, 1, &g_pVertexBuffer, &stride, &offset);
-	g_deviceContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-	g_deviceContext->IASetInputLayout(g_pVertexLayout);
 
 	return 1;
 }
@@ -161,9 +168,9 @@ void FreeD3D11()
 	g_depthStencilView->Release();
 	g_renderTargetView->Release();
 
-	g_swapChain->Release();
-	g_deviceContext->Release();
-	g_device->Release();
+	g_dx11swapchain->Release();
+	g_dx11context->Release();
+	g_dx11device->Release();
 }
 BOOL InitD3D11()
 {
@@ -182,10 +189,10 @@ BOOL InitD3D11()
 		createDeviceFlags,
 		NULL, 0,					// 默认的特征等级数组
 		D3D11_SDK_VERSION,
-		&g_device,
+		&g_dx11device,
 		&myFeatureLevel,
-		&g_deviceContext);
-
+		&g_dx11context
+	);
 	if(FAILED(hr))
 	{
 		MessageBox(NULL, "Create d3d11 device failed!", "error",MB_OK);
@@ -194,7 +201,7 @@ BOOL InitD3D11()
 
 	// b.4X多重采样质量等级
 	UINT m4xMsaaQuality(0);
-	g_device->CheckMultisampleQualityLevels(
+	g_dx11device->CheckMultisampleQualityLevels(
 		DXGI_FORMAT_R8G8B8A8_UNORM,
 		4,
 		&m4xMsaaQuality);
@@ -220,12 +227,12 @@ BOOL InitD3D11()
 
 	// d.创建交换链
 	IDXGIDevice *dxgiDevice(NULL);
-	g_device->QueryInterface(__uuidof(IDXGIDevice),(void**)(&dxgiDevice));
+	g_dx11device->QueryInterface(__uuidof(IDXGIDevice),(void**)(&dxgiDevice));
 	IDXGIAdapter *dxgiAdapter(NULL);
 	dxgiDevice->GetParent(__uuidof(IDXGIAdapter),(void**)(&dxgiAdapter));
 	IDXGIFactory *dxgiFactory(NULL);
 	dxgiAdapter->GetParent(__uuidof(IDXGIFactory),(void**)(&dxgiFactory));
-	hr = dxgiFactory->CreateSwapChain(g_device,&sd,&g_swapChain);
+	hr = dxgiFactory->CreateSwapChain(g_dx11device, &sd, &g_dx11swapchain);
 	if(FAILED(hr))
 	{
 		MessageBox(NULL, "Create swap chain failed!", "error",MB_OK);
@@ -237,8 +244,8 @@ BOOL InitD3D11()
 
 	// e.创建渲染目标视图
 	ID3D11Texture2D *backBuffer(NULL);
-	g_swapChain->GetBuffer(0,__uuidof(ID3D11Texture2D),reinterpret_cast<void**>(&backBuffer));
-	hr = g_device->CreateRenderTargetView(backBuffer,NULL,&g_renderTargetView);
+	g_dx11swapchain->GetBuffer(0,__uuidof(ID3D11Texture2D),reinterpret_cast<void**>(&backBuffer));
+	hr = g_dx11device->CreateRenderTargetView(backBuffer,NULL,&g_renderTargetView);
 	if(FAILED(hr))
 	{
 		MessageBox(NULL, "Create render target view failed!", "error",MB_OK);
@@ -261,13 +268,13 @@ BOOL InitD3D11()
 	depthStencilDesc.MiscFlags			= 0;
 
 	ID3D11Texture2D *depthStencilBuffer(NULL);
-	hr = g_device->CreateTexture2D(&depthStencilDesc,NULL,&depthStencilBuffer);
+	hr = g_dx11device->CreateTexture2D(&depthStencilDesc,NULL,&depthStencilBuffer);
 	if(FAILED(hr))
 	{
 		MessageBox(NULL, "Create depth stencil buffer failed!", "error",MB_OK);
 		return FALSE;
 	}
-	hr = g_device->CreateDepthStencilView(depthStencilBuffer,NULL,&g_depthStencilView);
+	hr = g_dx11device->CreateDepthStencilView(depthStencilBuffer,NULL,&g_depthStencilView);
 	if(FAILED(hr))
 	{
 		MessageBox(NULL, "Create depth stencil view failed!", "error",MB_OK);
@@ -275,7 +282,7 @@ BOOL InitD3D11()
 	}
 
 	// g.将视图绑定到输出合并器阶段
-	g_deviceContext->OMSetRenderTargets(1,&g_renderTargetView,g_depthStencilView);
+	g_dx11context->OMSetRenderTargets(1,&g_renderTargetView,g_depthStencilView);
 	depthStencilBuffer->Release();
 
 	// h.设置视口
@@ -286,7 +293,7 @@ BOOL InitD3D11()
 	vp.Height	= static_cast<float>(g_winHeight);
 	vp.MinDepth = 0.f;
 	vp.MaxDepth = 1.f;
-	g_deviceContext->RSSetViewports(1,&vp);
+	g_dx11context->RSSetViewports(1,&vp);
 
 	return TRUE;
 }
