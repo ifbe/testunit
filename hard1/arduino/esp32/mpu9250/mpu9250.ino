@@ -35,10 +35,11 @@ WebServer server(80);
 #define acc_max 2*9.8
 
 //
-#define halfT 0.001
-#define Kp 100.0f
-#define Ki 0.005f
-
+#define halfT 0.005
+#define Kp 2.0
+#define Ki 0.005
+static long prevtime;
+static long currtime;
 static float measure[10];
 
 //????
@@ -47,10 +48,10 @@ static float integraly;
 static float integralz;
 
 //quaternion
-static float q0;
-static float q1;
-static float q2;
-static float q3;
+static float qw;
+static float qx;
+static float qy;
+static float qz;
 
 
 
@@ -67,24 +68,23 @@ void imuupdate(
   float norm;
   float vx, vy, vz;
   float ex, ey, ez;
-  float tx, ty, tz;
   
   
   //normalize a
-  norm = sqrt(ax*ax+ay*ay+az*az);
-  ax = ax/norm;
-  ay = ay/norm;
-  az = az/norm;
+  norm = 1.0 / sqrt(ax*ax+ay*ay+az*az);
+  ax = ax * norm;
+  ay = ay * norm;
+  az = az * norm;
   
   
   //
-  vx = 2*(q1*q3 - q0*q2);
-  vy = 2*(q0*q1 + q2*q3);
-  vz = q0*q0 - q1*q1 - q2*q2 + q3*q3;
+  vx = 2*(qx*qz - qw*qy);
+  vy = 2*(qw*qx + qy*qz);
+  vz = qw*qw - qx*qx - qy*qy + qz*qz;
   
-  ex = (ay*vz - az*vy);
-  ey = (az*vx - ax*vz);
-  ez = (ax*vy - ay*vx);
+  ex = vy*az - vz*ay;
+  ey = vz*ax - vx*az;
+  ez = vx*ay - vy*ax;
   
   integralx += ex*Ki;
   integraly += ey*Ki;
@@ -94,36 +94,36 @@ void imuupdate(
   gy = gy + Kp*ey + integraly;
   gz = gz + Kp*ez + integralz;
   
-  q0 = q0 + (-q1*gx - q2*gy - q3*gz)*halfT;
-  q1 = q1 + (q0*gx + q2*gz - q3*gy)*halfT;
-  q2 = q2 + (q0*gy - q1*gz + q3*gx)*halfT;
-  q3 = q3 + (q0*gz + q1*gy - q2*gx)*halfT;
+  qw = qw + (-qx*gx - qy*gy - qz*gz)*halfT;
+  qx = qx + (qw*gx + qy*gz - qz*gy)*halfT;
+  qy = qy + (qw*gy - qx*gz + qz*gx)*halfT;
+  qz = qz + (qw*gz + qx*gy - qy*gx)*halfT;
   
-  norm = sqrt(q0*q0 + q1*q1 + q2*q2 + q3*q3);
-  q0 = q0 / norm;
-  q1 = q1 / norm;
-  q2 = q2 / norm;
-  q3 = q3 / norm;
+  norm = 1.0 / sqrt(qw*qw + qx*qx + qy*qy + qz*qz);
+  qw = qw * norm;
+  qx = qx * norm;
+  qy = qy * norm;
+  qz = qz * norm;
 
-  tx = atan2(2*(q0*q1+q2*q3),1-2*(q1*q1+q2*q2))*180/3.141592653;
-  ty = asin(2*q0*q2 - 2*q1*q3)*180/3.141592653;
-  tz = atan2(2*(q0*q3+q1*q2),1-2*(q2*q2+q3*q3))*180/3.141592653;
-/*
-  Serial.print(tx);
+
+  vx = atan2(2*(qw*qx+qy*qz),1-2*(qx*qx+qy*qy))*180/3.141592653;
+  vy = asin(2*qw*qy - 2*qx*qz)*180/3.141592653;
+  vz = atan2(2*(qw*qz+qx*qy),1-2*(qy*qy+qz*qz))*180/3.141592653;
+
+  Serial.print(vx);
   Serial.print(',');
 
-  Serial.print(ty);
+  Serial.print(vy);
   Serial.print(',');
 
-  Serial.print(tz);
+  Serial.print(vz);
   Serial.print('\n');
-*/
 }
 void readvalue()
 {
   char j;
   long tmp;
-  unsigned char c[32];
+  unsigned char buf[32];
 
   Wire.beginTransmission(0x68);
   Wire.write(0x3b);
@@ -133,35 +133,45 @@ void readvalue()
   Wire.requestFrom(0x68, 14);
   while (Wire.available())
   {
-    c[j] = Wire.read();
+    buf[j] = Wire.read();
     j++;
   }
+/*
+  for(j=0;j<7;j++){
+    tmp = buf[j*2+0];
+    buf[j*2+0] = buf[j*2+1];
+    buf[j*2+1] = tmp;
 
+    tmp = *(short*)(buf+j*2);
+    Serial.print(tmp);
+    Serial.print(',');
+  }
+  Serial.print('\n');*/
 
-  tmp = (c[8]<<8) + c[9];
-  if(tmp > 32767)tmp -= 0x10000;
+  for(j=0;j<7;j++){
+    tmp = buf[j*2+0];
+    buf[j*2+0] = buf[j*2+1];
+    buf[j*2+1] = tmp;
+  }
+
+  tmp = *(short*)(buf+8);
   measure[0] = tmp * gyr_max / 32768.0 * PI / 180.0;
 
-  tmp = (c[10]<<8) + c[11];
-  if(tmp > 32767)tmp -= 0x10000;
+  tmp = *(short*)(buf+10);
   measure[1] = tmp * gyr_max / 32768.0 * PI / 180.0;
 
-  tmp = (c[12]<<8) + c[13];
-  if(tmp > 32767)tmp -= 0x10000;
+  tmp = *(short*)(buf+12);
   measure[2] = tmp * gyr_max / 32768.0 * PI / 180.0;
 
-  tmp = (c[0]<<8) + c[1];
-  if(tmp > 32767)tmp -= 0x10000;
-  measure[3] = tmp * acc_max / 32768.0;
+  tmp = *(short*)(buf+0);
+  measure[3] =-tmp * acc_max / 32768.0;
 
-  tmp = (c[2]<<8) + c[3];
-  if(tmp > 32767)tmp -= 0x10000;
-  measure[4] = tmp * acc_max / 32768.0;
+  tmp = *(short*)(buf+2);
+  measure[4] =-tmp * acc_max / 32768.0;
 
-  tmp = (c[4]<<8) + c[5];
-  if(tmp > 32767)tmp -= 0x10000;
-  measure[5] = tmp * acc_max / 32768.0;
-
+  tmp = *(short*)(buf+4);
+  measure[5] =-tmp * acc_max / 32768.0;
+/*
   Serial.print(measure[0]);
   Serial.print(',');
   Serial.print(measure[1]);
@@ -174,13 +184,12 @@ void readvalue()
   Serial.print(measure[4]);
   Serial.print(',');
   Serial.print(measure[5]);
-  Serial.print('\n');
+  Serial.print('\n');*/
 }
 void loop()
 {
   char j;
   unsigned char c[32];
-  
 
 //0: get command
   if(Serial.available()){
@@ -203,11 +212,17 @@ void loop()
     }
   }
 
+  do{
+    currtime = millis();
+  }while(currtime - prevtime < 10);
+  //Serial.println(currtime - prevtime);
+  prevtime = currtime;
+
   server.handleClient();
 
   readvalue();
 
-  //imuupdate(measure[0],measure[1],measure[2],measure[3],measure[4],measure[5]);
+  imuupdate(measure[0],measure[1],measure[2],measure[3],measure[4],measure[5]);
 }
 
 void handleRoot() {
@@ -215,13 +230,13 @@ void handleRoot() {
   String message;
   //digitalWrite(LED_BUILTIN, 1);
 
-  message  = dtostrf(q0, 3, 3, buf);
+  message  = dtostrf(qw, 3, 3, buf);
   message += ',';
-  message += dtostrf(q1, 3, 3, buf);
+  message += dtostrf(qx, 3, 3, buf);
   message += ',';
-  message += dtostrf(q2, 3, 3, buf);
+  message += dtostrf(qy, 3, 3, buf);
   message += ',';
-  message += dtostrf(q3, 3, 3, buf);
+  message += dtostrf(qz, 3, 3, buf);
   message += '\n';
 
   server.send(200, "text/plain", message);
@@ -400,8 +415,8 @@ void init_i2c()
 }
 void init_var()
 {
-  q0 = 1.0;
-  q1 = q2 = q3 = 0.0;
+  qw = 1.0;
+  qx = qy = qz = 0.0;
   integralx = integraly = integralz = 0.0;
 }
 void setup()
@@ -417,4 +432,6 @@ void setup()
 
   init_i2c();
   init_var();
+
+  prevtime = millis();
 }
