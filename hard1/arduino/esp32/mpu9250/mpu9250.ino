@@ -35,11 +35,15 @@ WebServer server(80);
 #define acc_max 2*9.8
 
 //
-#define halfT 0.005
+static long enqueue;
+static long dequeue;
+hw_timer_t * timer0 = NULL;
+hw_timer_t * timer1 = NULL;
+
+//
+#define halfT (0.01/2)
 #define Kp 2.0
 #define Ki 0.005
-static long prevtime;
-static long currtime;
 static float measure[10];
 
 //????
@@ -191,6 +195,15 @@ void loop()
   char j;
   unsigned char c[32];
 
+  //i2c
+  if(dequeue != enqueue){
+    readvalue();
+
+    imuupdate(measure[0],measure[1],measure[2],measure[3],measure[4],measure[5]);
+
+    dequeue = enqueue;
+  }
+
 //0: get command
   if(Serial.available()){
     j = Serial.readBytesUntil('\n', c, 5);
@@ -212,18 +225,21 @@ void loop()
     }
   }
 
-  do{
-    currtime = millis();
-  }while(currtime - prevtime < 10);
-  //Serial.println(currtime - prevtime);
-  prevtime = currtime;
-
   server.handleClient();
-
-  readvalue();
-
-  imuupdate(measure[0],measure[1],measure[2],measure[3],measure[4],measure[5]);
 }
+void IRAM_ATTR onTimer0() {
+  //portENTER_CRITICAL_ISR(&timerMux);
+  enqueue++;
+  //portEXIT_CRITICAL_ISR(&timerMux);
+}
+void IRAM_ATTR onTimer1() {
+  //portENTER_CRITICAL_ISR(&timerMux);
+  Serial.println("timer1");
+  //portEXIT_CRITICAL_ISR(&timerMux);
+}
+
+
+
 
 void handleRoot() {
   char buf[32];
@@ -433,5 +449,15 @@ void setup()
   init_i2c();
   init_var();
 
-  prevtime = millis();
+  enqueue = 0;
+  dequeue = 0;
+  timer0 = timerBegin(0, 80, true);
+  timerAttachInterrupt(timer0, &onTimer0, true);
+  timerAlarmWrite(timer0, 10*1000, true);
+  timerAlarmEnable(timer0);
+
+  timer1 = timerBegin(1, 80, true);
+  timerAttachInterrupt(timer1, &onTimer1, true);
+  timerAlarmWrite(timer1, 1000*1000, true);
+  timerAlarmEnable(timer1);
 }
