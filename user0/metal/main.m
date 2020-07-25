@@ -1,7 +1,9 @@
 #import <Cocoa/Cocoa.h>
-UInt8* data;
+#import <Metal/Metal.h>
+#import <MetalKit/MetalKit.h>
 NSInteger width = 1024;
 NSInteger height = 768;
+const int uniformBufferCount = 3;
 
 
 
@@ -26,6 +28,8 @@ NSLog(@"init MyApplicationDelegate");
 }
 - (void)applicationDidFinishLaunching:(NSNotification*)noti{
 	NSLog(@"applicationDidFinishLaunching");
+	[NSApp setActivationPolicy:NSApplicationActivationPolicyRegular];
+	[NSApp activateIgnoringOtherApps:YES];
 }
 - (void)applicationShouldTerminate{
 	NSLog(@"applicationShouldTerminate");
@@ -96,56 +100,36 @@ NSLog(@"init MyWindowDelegate");
 
 
 
-@interface MyView : NSView {
-}
+@interface MyView : MTKView
 @end
 
-@implementation MyView
-- (id)initWithFrame:(NSRect)rect{
-NSLog(@"initWithFrame");
-	self = [super initWithFrame:rect];
-	if(nil != self){
-	}
-	return self;
+@implementation MyView {
+    id <MTLLibrary> _library;
+    id <MTLCommandQueue> _commandQueue;
+    id <MTLRenderPipelineState> _pipelineState;
+    id <MTLDepthStencilState> _depthState;
+    dispatch_semaphore_t _semaphore;
+    id <MTLBuffer> _uniformBuffers[uniformBufferCount];
+    id <MTLBuffer> _vertexBuffer;
+    int uniformBufferIndex;
+    long frame;
 }
-- (void)drawRect:(NSRect)rect
+- (id)initWithFrame:(CGRect)inFrame {
+NSLog(@"initWithFrame");
+    id<MTLDevice> device = MTLCreateSystemDefaultDevice();
+    self = [super initWithFrame:inFrame device:device];
+    if (self) {
+        [self setup];
+    }
+    return self;
+}
+- (void)setup {
+NSLog(@"setup");
+}
+- (void)drawRect:(CGRect)rect
 {
 NSLog(@"drawRect");
-	//[[NSColor redColor] setFill];
-	//NSRectFill(rect);
-	//[super drawRect:rect];
-
-	//Fill pixel buffer with color data
-	for (int y=0; y<height; y++) {
-		for (int x=0; x<width; x++) {
-
-			int index = 4*(x+y*width);
-			data[index+0] = x/4;
-			data[index+1] = y/4;
-			data[index+2] = 0;
-			data[index+3] = 255;
-		}
-	}
-
-	// Create a CGImage with the pixel data
-	NSInteger dataLength = width * height * 4;
-	CGDataProviderRef provider = CGDataProviderCreateWithData(NULL, data, dataLength, NULL);
-	CGColorSpaceRef colorspace = CGColorSpaceCreateDeviceRGB();
-	CGImageRef image = CGImageCreate(
-		width, height, 8, 32, width * 4, colorspace,
-		kCGBitmapByteOrder32Big | kCGImageAlphaPremultipliedLast,
-		provider, NULL, true, kCGRenderingIntentDefault
-	);
-
-	//draw
-	CGContextRef ctx = (CGContextRef)[[NSGraphicsContext currentContext] CGContext];
-	CGRect renderRect = CGRectMake(0., 0., 1024, 768);
-	CGContextDrawImage(ctx, renderRect, image);
-
-	//Clean up
-	CGColorSpaceRelease(colorspace);
-	CGDataProviderRelease(provider);
-	CGImageRelease(image);
+	[super drawRect:rect];
 }
 -(void)mouseDown:(NSEvent *)event{
 NSLog(@"mouseDown");
@@ -160,11 +144,10 @@ int main(int argc, const char* argv[])
 	//app
 	[NSAutoreleasePool new];
 	[NSApplication sharedApplication];
-	[NSApp setActivationPolicy:NSApplicationActivationPolicyRegular];
 
 	MyApplicationDelegate* applicationdelegate = [[[MyApplicationDelegate alloc] init] autorelease];
 	[NSApp setDelegate:applicationdelegate];
-	//[NSApp activateIgnoringOtherApps:YES];
+	[NSApp finishLaunching];
 
 
 	//menu
@@ -208,9 +191,6 @@ int main(int argc, const char* argv[])
 
 
 	//view
-	data = (UInt8*)malloc(sizeof(UInt8) * 4 * width * height);
-	if(0 == data)return 0;
-
 	MyView* myview = [[[MyView alloc] initWithFrame:windowRect] autorelease];
 	[window setContentView:myview];
 
@@ -241,6 +221,5 @@ int main(int argc, const char* argv[])
 		[NSApp sendEvent:event];
 	}
 
-	free(data);
 	return 0;
 }
