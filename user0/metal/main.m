@@ -1,6 +1,18 @@
 #import <Cocoa/Cocoa.h>
 #import <Metal/Metal.h>
 #import <MetalKit/MetalKit.h>
+enum VertexAttributes {
+	VertexAttributePosition = 0,
+	VertexAttributeColor = 1,
+};
+enum BufferIndex  {
+	MeshVertexBuffer = 0,
+	FrameUniformBuffer = 1,
+};
+struct Vertex {
+	float position[3];
+	unsigned char color[4];
+};
 NSInteger width = 1024;
 NSInteger height = 768;
 const int uniformBufferCount = 3;
@@ -104,31 +116,118 @@ NSLog(@"init MyWindowDelegate");
 @end
 
 @implementation MyView {
-    id <MTLLibrary> _library;
-    id <MTLCommandQueue> _commandQueue;
-    id <MTLRenderPipelineState> _pipelineState;
-    id <MTLDepthStencilState> _depthState;
-    dispatch_semaphore_t _semaphore;
-    id <MTLBuffer> _uniformBuffers[uniformBufferCount];
-    id <MTLBuffer> _vertexBuffer;
-    int uniformBufferIndex;
-    long frame;
+	id<MTLDevice> device;
+	id <MTLRenderPipelineState> _pipelineState;
+	id <MTLDepthStencilState> _depthState;
+
+	id <MTLLibrary> _library;
+	id <MTLCommandQueue> _commandQueue;
+
+	id <MTLBuffer> _vertexBuffer;
+	long frame;
 }
 - (id)initWithFrame:(CGRect)inFrame {
 NSLog(@"initWithFrame");
-    id<MTLDevice> device = MTLCreateSystemDefaultDevice();
-    self = [super initWithFrame:inFrame device:device];
-    if (self) {
-        [self setup];
-    }
-    return self;
+	device = MTLCreateSystemDefaultDevice();
+
+	self = [super initWithFrame:inFrame device:device];
+	if (self) {
+		[self setup];
+	}
+	return self;
 }
 - (void)setup {
 NSLog(@"setup");
+	// Set view settings.
+	self.colorPixelFormat = MTLPixelFormatBGRA8Unorm;
+	self.depthStencilPixelFormat = MTLPixelFormatDepth32Float_Stencil8;
+
+	// Load shaders.
+	NSError *error = nil;
+	_library = [self.device newLibraryWithFile: @"shaders.metallib" error:&error];
+	if (!_library) {
+		NSLog(@"Failed to load library. error %@", error);
+		exit(0);
+	}
+	id <MTLFunction> vertFunc = [_library newFunctionWithName:@"vert"];
+	id <MTLFunction> fragFunc = [_library newFunctionWithName:@"frag"];
+
+	// Create depth state.
+	MTLDepthStencilDescriptor *depthDesc = [MTLDepthStencilDescriptor new];
+	depthDesc.depthCompareFunction = MTLCompareFunctionLess;
+	depthDesc.depthWriteEnabled = YES;
+	_depthState = [self.device newDepthStencilStateWithDescriptor:depthDesc];
+
+	// Create vertex descriptor.
+	MTLVertexDescriptor *vertDesc = [MTLVertexDescriptor new];
+	vertDesc.attributes[VertexAttributePosition].format = MTLVertexFormatFloat3;
+	vertDesc.attributes[VertexAttributePosition].offset = 0;
+	vertDesc.attributes[VertexAttributePosition].bufferIndex = MeshVertexBuffer;
+	vertDesc.attributes[VertexAttributeColor].format = MTLVertexFormatUChar4;
+	vertDesc.attributes[VertexAttributeColor].offset = 4*3;
+	vertDesc.attributes[VertexAttributeColor].bufferIndex = MeshVertexBuffer;
+	vertDesc.layouts[MeshVertexBuffer].stride = 4*4;
+	vertDesc.layouts[MeshVertexBuffer].stepRate = 1;
+	vertDesc.layouts[MeshVertexBuffer].stepFunction = MTLVertexStepFunctionPerVertex;
+
+	// Create pipeline state.
+	MTLRenderPipelineDescriptor *pipelineDesc = [MTLRenderPipelineDescriptor new];
+	pipelineDesc.sampleCount = self.sampleCount;
+	pipelineDesc.vertexFunction = vertFunc;
+	pipelineDesc.fragmentFunction = fragFunc;
+	pipelineDesc.vertexDescriptor = vertDesc;
+	pipelineDesc.colorAttachments[0].pixelFormat = self.colorPixelFormat;
+	pipelineDesc.depthAttachmentPixelFormat = self.depthStencilPixelFormat;
+	pipelineDesc.stencilAttachmentPixelFormat = self.depthStencilPixelFormat;
+	_pipelineState = [self.device newRenderPipelineStateWithDescriptor:pipelineDesc error:&error];
+	if (!_pipelineState) {
+		NSLog(@"Failed to create pipeline state, error %@", error);
+		exit(0);
+	}
+
+	// Create vertices.
+	struct Vertex verts[] = {
+		{{-0.5,-0.5, 0}, {255, 0, 0, 255}},
+		{{   0, 0.5, 0}, {0, 255, 0, 255}},
+		{{0.5, -0.5, 0}, {0, 0, 255, 255}}
+	};
+	_vertexBuffer = [self.device
+		newBufferWithBytes:verts
+		length:sizeof(verts)
+		options:MTLResourceStorageModeShared
+	];
+
+	// Create command queue
+	_commandQueue = [self.device newCommandQueue];
 }
 - (void)drawRect:(CGRect)rect
 {
 NSLog(@"drawRect");
+	// Create a command buffer.
+	id <MTLCommandBuffer> commandBuffer = [_commandQueue commandBuffer];
+
+	MTLViewport vp = {
+		.originX = 0.0,
+		.originY = 0.0,
+		.width = self.drawableSize.width,
+		.height= self.drawableSize.height,
+		.znear= 0.0,
+		.zfar = 1.0
+	};
+
+	// Encode render command.
+	id <MTLRenderCommandEncoder> encoder =
+		[commandBuffer renderCommandEncoderWithDescriptor:self.currentRenderPassDescriptor];
+	[encoder setViewport:vp];
+	[encoder setDepthStencilState:_depthState];
+	[encoder setRenderPipelineState:_pipelineState];
+	[encoder setVertexBuffer:_vertexBuffer offset:0 atIndex:MeshVertexBuffer];
+	[encoder drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:3];
+	[encoder endEncoding];
+
+	[commandBuffer presentDrawable:self.currentDrawable];
+	[commandBuffer commit];
+
 	[super drawRect:rect];
 }
 -(void)mouseDown:(NSEvent *)event{

@@ -197,6 +197,15 @@ NSLog(@"init MyWindowDelegate");
 	}
 	return self;
 }
+- (BOOL)canBecomeKeyWindow{
+	NSLog(@"canBecomeKeyWindow");
+	return YES;
+}
+
+- (BOOL)canBecomeMainWindow{
+	NSLog(@"canBecomeMainWindow");
+	return YES;
+}
 - (void)windowWillBeginSheet:(NSNotification*)noti{
 	NSLog(@"windowWillBeginSheet");
 }
