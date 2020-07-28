@@ -15,7 +15,6 @@ struct Vertex {
 };
 NSInteger width = 1024;
 NSInteger height = 768;
-const int uniformBufferCount = 3;
 
 
 
@@ -117,14 +116,14 @@ NSLog(@"init MyWindowDelegate");
 
 @implementation MyView {
 	id<MTLDevice> device;
-	id <MTLRenderPipelineState> _pipelineState;
-	id <MTLDepthStencilState> _depthState;
+	id<MTLCommandQueue> _commandQueue;
 
-	id <MTLLibrary> _library;
-	id <MTLCommandQueue> _commandQueue;
+	id<MTLLibrary> _shader;
+	id<MTLRenderPipelineState> _pipelineState;
+	id<MTLDepthStencilState> _depthState;
 
-	id <MTLBuffer> _vertexBuffer;
-	long frame;
+	id<MTLBuffer> _vertexBuffer;
+	id<MTLBuffer> _uniformBuffer;
 }
 - (id)initWithFrame:(CGRect)inFrame {
 NSLog(@"initWithFrame");
@@ -144,13 +143,13 @@ NSLog(@"setup");
 
 	// Load shaders.
 	NSError *error = nil;
-	_library = [self.device newLibraryWithFile: @"shaders.metallib" error:&error];
-	if (!_library) {
+	_shader = [self.device newLibraryWithFile: @"shaders.out" error:&error];
+	if (!_shader) {
 		NSLog(@"Failed to load library. error %@", error);
 		exit(0);
 	}
-	id <MTLFunction> vertFunc = [_library newFunctionWithName:@"vert"];
-	id <MTLFunction> fragFunc = [_library newFunctionWithName:@"frag"];
+	id <MTLFunction> vertFunc = [_shader newFunctionWithName:@"vert"];
+	id <MTLFunction> fragFunc = [_shader newFunctionWithName:@"frag"];
 
 	// Create depth state.
 	MTLDepthStencilDescriptor *depthDesc = [MTLDepthStencilDescriptor new];
@@ -196,6 +195,10 @@ NSLog(@"setup");
 		length:sizeof(verts)
 		options:MTLResourceStorageModeShared
 	];
+	_uniformBuffer = [self.device
+		newBufferWithLength:sizeof(64)
+		options:MTLResourceCPUCacheModeWriteCombined
+	];
 
 	// Create command queue
 	_commandQueue = [self.device newCommandQueue];
@@ -203,6 +206,27 @@ NSLog(@"setup");
 - (void)drawRect:(CGRect)rect
 {
 NSLog(@"drawRect");
+	float (*mat)[4] = (float (*)[4])[_uniformBuffer contents];
+        mat[0][0] = 1.0;
+        mat[0][1] = 0.0;
+        mat[0][2] = 0.0;
+        mat[0][3] = 0.0;
+
+        mat[1][0] = 0.0;
+        mat[1][1] = 1.0;
+        mat[1][2] = 0.0;
+        mat[1][3] = 0.0;
+
+        mat[2][0] = 0.0;
+        mat[2][1] = 0.0;
+        mat[2][2] = 1.0;
+        mat[2][3] = 0.0;
+
+        mat[3][0] = 0.5;
+        mat[3][1] = 0.5;
+        mat[3][2] = 0.0;
+        mat[3][3] = 1.0;
+
 	// Create a command buffer.
 	id <MTLCommandBuffer> commandBuffer = [_commandQueue commandBuffer];
 
@@ -215,13 +239,20 @@ NSLog(@"drawRect");
 		.zfar = 1.0
 	};
 
+	// clear color
+	MTLRenderPassDescriptor* passdesc = self.currentRenderPassDescriptor;
+	passdesc.depthAttachment.loadAction = MTLLoadActionClear;
+	passdesc.depthAttachment.clearDepth = 1.0;
+	passdesc.colorAttachments[0].loadAction = MTLLoadActionClear;
+	passdesc.colorAttachments[0].clearColor = MTLClearColorMake(0.5, 0.5, 0.5, 1.0);
+
 	// Encode render command.
-	id <MTLRenderCommandEncoder> encoder =
-		[commandBuffer renderCommandEncoderWithDescriptor:self.currentRenderPassDescriptor];
+	id <MTLRenderCommandEncoder> encoder = [commandBuffer renderCommandEncoderWithDescriptor:passdesc];
 	[encoder setViewport:vp];
 	[encoder setDepthStencilState:_depthState];
 	[encoder setRenderPipelineState:_pipelineState];
 	[encoder setVertexBuffer:_vertexBuffer offset:0 atIndex:MeshVertexBuffer];
+	[encoder setVertexBuffer:_uniformBuffer offset:0 atIndex:FrameUniformBuffer];
 	[encoder drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:3];
 	[encoder endEncoding];
 
