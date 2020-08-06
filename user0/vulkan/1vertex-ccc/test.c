@@ -15,47 +15,44 @@ const char* deviceExtensions[] = {
 
 //0
 static void* glfw;	//for fun
+static VkInstance instance;
 //1
 static GLFWwindow* window = 0;
-//2
-static VkInstance instance;
-//3
 VkSurfaceKHR surface;
-//4
+//2
 VkPhysicalDevice physicaldevice = VK_NULL_HANDLE;
 VkDevice logicaldevice;
-//5
+//3
 VkQueue graphicQueue;
 VkQueue presentQueue;
-//6
+VkCommandPool commandPool;
+//4
 VkSwapchainKHR swapChain;
 VkFormat swapChainImageFormat;
 VkExtent2D swapChainExtent;
-//
 uint32_t swapChainImageCount;
-VkImage swapChainImages[256];
 VkImageView swapChainImageViews[256];
-VkFramebuffer swapChainFramebuffers[256];
-VkFence imagesInFlight[256];
-//7
+//5
+VkBuffer vertexBuffer;
+VkDeviceMemory vertexBufferMemory;
+//6
 VkRenderPass renderPass;
 VkPipelineLayout pipelineLayout;
 VkPipeline graphicsPipeline;
-//8
-VkCommandPool commandPool;
+VkFramebuffer swapChainFramebuffers[256];
 VkCommandBuffer commandBuffers[256];
-//
-VkBuffer vertexBuffer;
-VkDeviceMemory vertexBufferMemory;
-//
+//7
 #define MAX_FRAMES_IN_FLIGHT 2
 VkSemaphore imageAvailableSemaphores[2];
 VkSemaphore renderFinishedSemaphores[2];
 VkFence inFlightFences[2];
+VkFence imagesInFlight[256];
 size_t currentFrame = 0;
 
 
 
+
+#define VERTEXCOUNT 3
 typedef float vec1[1];
 typedef float vec2[2];
 typedef float vec3[3];
@@ -88,30 +85,12 @@ int initglfw()
 
 
 
-int freeglfwwindow()
-{
-	glfwDestroyWindow(window);
-	return 0;
-}
-int initglfwwindow()
-{
-	window = glfwCreateWindow(1024, 768, "Vulkan window", 0, 0);
-	if(0 == window){
-		printf("error@glfwCreateWindow\n");
-		return -1;
-	}
-	return 0;
-}
-
-
-
-
-int freevkinstance()
+int freeinstance()
 {
 	vkDestroyInstance(instance, 0);
 	return 0;
 }
-int initvkinstance()
+int initinstance()
 {
 	uint32_t layerCount;
 	vkEnumerateInstanceLayerProperties(&layerCount, 0);
@@ -161,12 +140,30 @@ int initvkinstance()
 
 
 
-int freevksurface()
+int freeglfwwindow()
+{
+	glfwDestroyWindow(window);
+	return 0;
+}
+int initglfwwindow()
+{
+	window = glfwCreateWindow(1024, 768, "Vulkan window", 0, 0);
+	if(0 == window){
+		printf("error@glfwCreateWindow\n");
+		return -1;
+	}
+	return 0;
+}
+
+
+
+
+int freesurface()
 {
 	vkDestroySurfaceKHR(instance, surface, 0);
 	return 0;
 }
-int initvksurface()
+int initsurface()
 {
 	if (glfwCreateWindowSurface(instance, window, 0, &surface) != VK_SUCCESS) {
 		printf("error@glfwCreateWindowSurface\n");
@@ -263,10 +260,10 @@ int checkSwapChain(VkPhysicalDevice device) {
 
 	return 1;
 }
-int freevkphysicaldevice() {
+int freephysicaldevice() {
 	return 0;
 }
-int initvkphysicaldevice() {
+int initphysicaldevice() {
 	uint32_t count = 0;
 	vkEnumeratePhysicalDevices(instance, &count, 0);
 	if(0 == count) {
@@ -288,12 +285,12 @@ int initvkphysicaldevice() {
 		cc = checkSwapChain(devs[j]);
 
 		printf("%d,%d,%d\n",aa,bb,cc);
-		if((aa >= 0)&&(bb >= 0)&&(cc >= 0)){
+		if((aa >= 0)&&(bb >= 0)&&(cc > 0)){
 			if(phy < 0)phy = j;
 		}
 	}
 	if(phy < 0){
-		printf("no physicaldevica\ne");
+		printf("no physicaldevice\n");
 		return -2;
 	}
 
@@ -305,10 +302,10 @@ int initvkphysicaldevice() {
 
 
 
-int freevklogicaldevice() {
+int freelogicaldevice() {
 	return 0;
 }
-int initvklogicaldevice() {
+int initlogicaldevice() {
 	int graphic, present;
 	checkPhysicalDeviceQueueFamilyProperties(physicaldevice, &graphic, &present);
 	printf("graphic=%d,present=%d\n",graphic,present);
@@ -347,9 +344,17 @@ int initvklogicaldevice() {
 		return -1;
 	}
 
-	//get queue
+	//queue
 	vkGetDeviceQueue(logicaldevice, graphic, 0, &graphicQueue);
 	vkGetDeviceQueue(logicaldevice, present, 0, &presentQueue);
+
+	//pool
+	VkCommandPoolCreateInfo poolInfo = {};
+	poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+	poolInfo.queueFamilyIndex = graphic;
+	if (vkCreateCommandPool(logicaldevice, &poolInfo, 0, &commandPool) != VK_SUCCESS) {
+		printf("error@vkCreateCommandPool\n");
+	}
 	return 0;
 }
 
@@ -364,10 +369,10 @@ int getmax(int a, int b)
 {
 	return a > b ? a : b;
 }
-int freevkswapchain() {
+int freeswapchain() {
 	return 0;
 }
-int initvkswapchain() {
+int initswapchain() {
 	//capability
 	VkSurfaceCapabilitiesKHR capabilities;
 	vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicaldevice, surface, &capabilities);
@@ -456,21 +461,11 @@ int initvkswapchain() {
 	}
 
 	vkGetSwapchainImagesKHR(logicaldevice, swapChain, &swapChainImageCount, 0);
+	VkImage swapChainImages[swapChainImageCount];
 	vkGetSwapchainImagesKHR(logicaldevice, swapChain, &swapChainImageCount, swapChainImages);
 
 	swapChainImageFormat = surfaceFormat.format;
 	swapChainExtent = extent;
-	return 0;
-}
-
-
-
-
-int freeimageview(){
-	return 0;
-}
-int initimageview(){
-	int j;
 	for(j=0;j<swapChainImageCount; j++) {
 		VkImageViewCreateInfo createInfo = {};
 		createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
@@ -576,6 +571,7 @@ int freepipeline() {
 	return 0;
 }
 int initpipeline() {
+	//----------------shader----------------
 	int ret;
 	VkShaderModule vertShaderModule;
 	VkShaderModule fragShaderModule;
@@ -605,8 +601,7 @@ int initpipeline() {
 	VkPipelineShaderStageCreateInfo shaderStages[] = {vertShaderStageInfo, fragShaderStageInfo};
 
 
-
-
+	//----------------vertex layout----------------
 	VkVertexInputBindingDescription bindingDescription = {};
 	bindingDescription.binding = 0;
 	bindingDescription.stride = 4*(2+3);
@@ -628,14 +623,13 @@ int initpipeline() {
 	vertexInputInfo.pVertexBindingDescriptions = &bindingDescription;
 	vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions;
 
-
-
-
 	VkPipelineInputAssemblyStateCreateInfo inputAssembly = {};
 	inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
 	inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 	inputAssembly.primitiveRestartEnable = VK_FALSE;
 
+
+	//----------------viewport, scissor----------------
 	VkViewport viewport = {};
 	viewport.x = 0.0f;
 	viewport.y = 0.0f;
@@ -656,6 +650,8 @@ int initpipeline() {
 	viewportState.scissorCount = 1;
 	viewportState.pScissors = &scissor;
 
+
+	//----------------rasterizer----------------
 	VkPipelineRasterizationStateCreateInfo rasterizer = {};
 	rasterizer.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
 	rasterizer.depthClampEnable = VK_FALSE;
@@ -666,11 +662,15 @@ int initpipeline() {
 	rasterizer.frontFace = VK_FRONT_FACE_CLOCKWISE;
 	rasterizer.depthBiasEnable = VK_FALSE;
 
+
+	//----------------multisample----------------
 	VkPipelineMultisampleStateCreateInfo multisampling = {};
 	multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
 	multisampling.sampleShadingEnable = VK_FALSE;
 	multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
 
+
+	//----------------blend----------------
 	VkPipelineColorBlendAttachmentState colorBlendAttachment = {};
 	colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
 	colorBlendAttachment.blendEnable = VK_FALSE;
@@ -686,6 +686,8 @@ int initpipeline() {
 	colorBlending.blendConstants[2] = 0.0f;
 	colorBlending.blendConstants[3] = 0.0f;
 
+
+	//----------------pipeline----------------
 	VkPipelineLayoutCreateInfo pipelineLayoutInfo = {};
 	pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
 	pipelineLayoutInfo.setLayoutCount = 0;
@@ -708,11 +710,12 @@ int initpipeline() {
 	pipelineInfo.renderPass = renderPass;
 	pipelineInfo.subpass = 0;
 	pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
-
 	if (vkCreateGraphicsPipelines(logicaldevice, VK_NULL_HANDLE, 1, &pipelineInfo, 0, &graphicsPipeline) != VK_SUCCESS) {
 		printf("error@vkCreateGraphicsPipelines\n");
 	}
 
+
+	//cleanup
 	vkDestroyShaderModule(logicaldevice, fragShaderModule, 0);
 	vkDestroyShaderModule(logicaldevice, vertShaderModule, 0);
 	return 0;
@@ -748,26 +751,6 @@ int initframebuffer(){
 
 
 
-int freecommandpool(){
-	return 0;
-}
-int initcommandpool(){
-	int graphic, present;
-	checkPhysicalDeviceQueueFamilyProperties(physicaldevice, &graphic, &present);
-
-	VkCommandPoolCreateInfo poolInfo = {};
-	poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-	poolInfo.queueFamilyIndex = graphic;
-
-	if (vkCreateCommandPool(logicaldevice, &poolInfo, 0, &commandPool) != VK_SUCCESS) {
-		printf("error@vkCreateCommandPool\n");
-	}
-	return 0;
-}
-
-
-
-
 int findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) {
 	VkPhysicalDeviceMemoryProperties memProperties;
 	vkGetPhysicalDeviceMemoryProperties(physicaldevice, &memProperties);
@@ -780,17 +763,19 @@ int findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) {
 	return -1;
 }
 int freevertexbuffer(){
+	vkDestroyBuffer(logicaldevice, vertexBuffer, 0);
+	vkFreeMemory(logicaldevice, vertexBufferMemory, 0);
 	return 0;
 }
 int initvertexbuffer(){
 	VkBufferCreateInfo bufferInfo = {};
 	bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-	bufferInfo.size = 4*(3+2)*3;
+	bufferInfo.size = 4*(3+2)*VERTEXCOUNT;
 	bufferInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
 	bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
 	if (vkCreateBuffer(logicaldevice, &bufferInfo, 0, &vertexBuffer) != VK_SUCCESS) {
-		printf("failed to create vertex buffer!");
+		printf("error@vkCreateBuffer:vertex\n");
 	}
 
 	VkMemoryRequirements memRequirements;
@@ -827,7 +812,6 @@ int initcommandbuffer() {
 	allocInfo.commandPool = commandPool;
 	allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
 	allocInfo.commandBufferCount = swapChainImageCount;
-
 	if (vkAllocateCommandBuffers(logicaldevice, &allocInfo, commandBuffers) != VK_SUCCESS) {
 		printf("failed to allocate command buffers!");
 	}
@@ -948,21 +932,30 @@ void drawFrame() {
 }
 int main()
 {
+	//glfw, vulkan
 	initglfw();
-	initglfwwindow();
+	initinstance();
 
-	initvkinstance();
-	initvksurface();
-	initvkphysicaldevice();
-	initvklogicaldevice();
-	initvkswapchain();
-	initimageview();
+	//window, surface
+	initglfwwindow();
+	initsurface();
+
+	//logicaldevice <- physicaldevice
+	//swapchain <- physicaldevice, logicaldevice, surface
+	initphysicaldevice();
+	initlogicaldevice();
+	initswapchain();
+
+	//pipeline <- renderpass
+	//framebuffer <- imageview, renderpass
+	//commandbuffer <- renderpass, pipeline, framebuffer, vertex
 	initrenderpass();
 	initpipeline();
 	initframebuffer();
-	initcommandpool();
 	initvertexbuffer();
 	initcommandbuffer();
+
+	//fence
 	initsyncobject();
 
 	while (!glfwWindowShouldClose(window)) {
@@ -974,18 +967,18 @@ int main()
 	freesyncobject();
 	freecommandbuffer();
 	freevertexbuffer();
-	freecommandpool();
 	freeframebuffer();
 	freepipeline();
 	freerenderpass();
-	freeimageview();
-	freevkswapchain();
-	freevklogicaldevice();
-	freevkphysicaldevice();
-	freevksurface();
-	freevkinstance();
 
+	freeswapchain();
+	freelogicaldevice();
+	freephysicaldevice();
+
+	freesurface();
 	freeglfwwindow();
+
+	freeinstance();
 	freeglfw();
 	return 0;
 }
