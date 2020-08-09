@@ -89,7 +89,7 @@ int initinstance()
 
 
 
-	VkApplicationInfo appInfo;
+	VkApplicationInfo appInfo = {};
 	appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
 	appInfo.pApplicationName = "Hello Triangle";
 	appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
@@ -105,7 +105,7 @@ int initinstance()
 		printf("%4d:%s\n", j, extension[j]);
 	}
 
-	VkInstanceCreateInfo createInfo;
+	VkInstanceCreateInfo createInfo = {};
 	createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
 	createInfo.pApplicationInfo = &appInfo;
 	createInfo.enabledExtensionCount = count;
@@ -294,7 +294,7 @@ int initlogicaldevice() {
 
 
 	//queue create info
-	VkDeviceQueueCreateInfo queueCreateInfos[2];
+	VkDeviceQueueCreateInfo queueCreateInfos[2] = {};
 	float queuePriority = 1.0f;
 
 	queueCreateInfos[0].sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
@@ -309,11 +309,11 @@ int initlogicaldevice() {
 
 
 	//device feature
-	VkPhysicalDeviceFeatures deviceFeatures = {0};
+	VkPhysicalDeviceFeatures deviceFeatures = {};
 
 
 	//devicecreateinfo
-	VkDeviceCreateInfo createInfo;
+	VkDeviceCreateInfo createInfo = {};
 	createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
 	createInfo.queueCreateInfoCount = 2;
 	createInfo.pQueueCreateInfos = queueCreateInfos;
