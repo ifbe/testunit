@@ -970,7 +970,7 @@ int initcommandbuffer() {
 		VkBuffer vertexBuffers[] = {vertexBuffer};
 		VkDeviceSize offsets[] = {0};
 		vkCmdBindVertexBuffers(commandBuffers[i], 0, 1, vertexBuffers, offsets);
-		vkCmdDraw(commandBuffers[i], 4*(3+3)*VERTEXCOUNT, 1, 0, 0);
+		vkCmdDraw(commandBuffers[i], VERTEXCOUNT, 1, 0, 0);
 
 		vkCmdEndRenderPass(commandBuffers[i]);
 
