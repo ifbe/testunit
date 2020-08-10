@@ -227,11 +227,14 @@ int checkPhysicalDeviceQueueFamilyProperties(VkPhysicalDevice device, int* gg, i
 		if(presentSupport){
 			presentwhich = j;
 		}
-	}
 
-	if(gg)gg[0] = graphicwhich;
-	if(pp)pp[0] = presentwhich;
-	return (graphicSupport >= 0) && (presentSupport >= 0);
+		if((graphicSupport > 0) && (presentSupport > 0)){
+			if(gg)gg[0] = graphicwhich;
+			if(pp)pp[0] = presentwhich;
+			return 1;
+		}
+	}
+	return 0;
 }
 int checkSwapChain(VkPhysicalDevice device) {
 	//capability
@@ -292,7 +295,7 @@ int initphysicaldevice() {
 		cc = checkSwapChain(devs[j]);
 
 		printf("%d,%d,%d\n",aa,bb,cc);
-		if((aa >= 0)&&(bb >= 0)&&(cc > 0)){
+		if((aa >= 0)&&(bb > 0)&&(cc > 0)){
 			if(phy < 0)phy = j;
 		}
 	}
