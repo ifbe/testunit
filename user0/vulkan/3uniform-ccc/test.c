@@ -1,5 +1,6 @@
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -31,22 +32,28 @@ VkSwapchainKHR swapChain;
 VkFormat swapChainImageFormat;
 VkExtent2D swapChainExtent;
 uint32_t swapChainImageCount;
-VkImageView swapChainImageViews[256];
+VkImageView swapChainImageViews[16];
 //
 VkImage depthImage;
 VkDeviceMemory depthImageMemory;
 VkImageView depthImageView;
+//6
+VkRenderPass renderPass;
+VkDescriptorSetLayout descsetLayout;
+VkPipelineLayout pipelineLayout;
+VkPipeline graphicsPipeline;
+VkFramebuffer swapChainFramebuffers[16];
+VkCommandBuffer commandBuffers[16];
 //5
 VkBuffer vertexBuffer;
 VkDeviceMemory vertexBufferMemory;
 VkBuffer indexBuffer;
 VkDeviceMemory indexBufferMemory;
-//6
-VkRenderPass renderPass;
-VkPipelineLayout pipelineLayout;
-VkPipeline graphicsPipeline;
-VkFramebuffer swapChainFramebuffers[256];
-VkCommandBuffer commandBuffers[256];
+//
+VkBuffer uniformBuffers[16];
+VkDeviceMemory uniformBuffersMemory[16];
+VkDescriptorPool descriptorPool;
+VkDescriptorSet descriptorSets[16];
 //7
 #define MAX_FRAMES_IN_FLIGHT 2
 VkSemaphore imageAvailableSemaphores[2];
@@ -54,33 +61,39 @@ VkSemaphore renderFinishedSemaphores[2];
 VkFence inFlightFences[2];
 VkFence imagesInFlight[256];
 size_t currentFrame = 0;
+float time = 0.0;
 
 
 
 #define VERTEXCOUNT 8
 #define INDICECOUNT 12
-typedef float vec1[1];
 typedef float vec2[2];
 typedef float vec3[3];
 typedef float vec4[4];
+typedef float mat2[2][2];
+typedef float mat3[3][3];
+typedef float mat4[4][4];
 struct Vertex {
     vec3 pos;
     vec3 color;
 };
 struct Vertex vertices[] = {
-	{{-0.25f,-0.25f, 0.0}, {1.0f, 0.0f, 0.0f}},
-	{{ 0.50f,-0.25f, 0.0}, {0.0f, 1.0f, 0.0f}},
-	{{ 0.50f, 0.50f, 1.0}, {0.0f, 0.0f, 1.0f}},
-	{{-0.25f, 0.50f, 1.0}, {1.0f, 1.0f, 1.0f}},
+	{{-0.25f,-0.25f,-0.25f}, {1.0f, 0.0f, 0.0f}},
+	{{ 0.50f,-0.25f,-0.25f}, {0.0f, 1.0f, 0.0f}},
+	{{ 0.50f, 0.25f, 0.25f}, {0.0f, 0.0f, 1.0f}},
+	{{-0.25f, 0.25f, 0.25f}, {1.0f, 1.0f, 1.0f}},
 
-	{{-0.50f,-0.50f, 1.0}, {0.0f, 1.0f, 1.0f}},
-	{{ 0.25f,-0.50f, 1.0}, {1.0f, 0.0f, 1.0f}},
-	{{ 0.25f, 0.25f, 0.0}, {0.0f, 0.0f, 0.0f}},
-	{{-0.50f, 0.25f, 0.0}, {1.0f, 1.0f, 1.0f}}
+	{{-0.50f,-0.25f, 0.25f}, {0.0f, 1.0f, 1.0f}},
+	{{ 0.25f,-0.25f, 0.25f}, {1.0f, 0.0f, 1.0f}},
+	{{ 0.25f, 0.25f,-0.25f}, {0.0f, 0.0f, 0.0f}},
+	{{-0.50f, 0.25f,-0.25f}, {1.0f, 1.0f, 1.0f}}
 };
 uint16_t indices[] = {
 	0, 1, 2, 2, 3, 0,
 	4, 5, 6, 6, 7, 4
+};
+struct UniformBufferObject {
+	mat4 wvp;
 };
 
 
@@ -632,7 +645,6 @@ int initrenderpass(){
 	depthAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 	depthAttachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
-
 	VkAttachmentReference depthAttachmentRef = {};
 	depthAttachmentRef.attachment = 1;
 	depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
@@ -666,6 +678,32 @@ int initrenderpass(){
 
 	if (vkCreateRenderPass(logicaldevice, &renderPassInfo, 0, &renderPass) != VK_SUCCESS) {
 		printf("error@vkCreateRenderPass\n");
+	}
+	return 0;
+}
+
+
+
+
+int freedescsetlayout() {
+	return 0;
+}
+int initdescsetlayout() {
+	VkDescriptorSetLayoutBinding uboLayoutBinding = {};
+	uboLayoutBinding.binding = 0;
+	uboLayoutBinding.descriptorCount = 1;
+	uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	uboLayoutBinding.pImmutableSamplers = 0;
+	uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+
+	VkDescriptorSetLayoutCreateInfo layoutInfo = {};
+	layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+	layoutInfo.bindingCount = 1;
+	layoutInfo.pBindings = &uboLayoutBinding;
+
+	if (vkCreateDescriptorSetLayout(logicaldevice, &layoutInfo, 0, &descsetLayout) != VK_SUCCESS) {
+		printf("error@vkCreateDescriptorSetLayout\n");
+		return -1;
 	}
 	return 0;
 }
@@ -832,8 +870,8 @@ int initpipeline() {
 	//----------------pipeline----------------
 	VkPipelineLayoutCreateInfo pipelineLayoutInfo = {};
 	pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-	pipelineLayoutInfo.setLayoutCount = 0;
-	pipelineLayoutInfo.pushConstantRangeCount = 0;
+	pipelineLayoutInfo.setLayoutCount = 1;
+	pipelineLayoutInfo.pSetLayouts = &descsetLayout;
 	if(vkCreatePipelineLayout(logicaldevice, &pipelineLayoutInfo, 0, &pipelineLayout) != VK_SUCCESS) {
 		printf("error@vkCreatePipelineLayout\n");
 	}
@@ -973,6 +1011,112 @@ int initindicebuffer(){
 
 
 
+int createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer* buffer, VkDeviceMemory* bufferMemory) {
+	VkBufferCreateInfo bufferInfo = {};
+	bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+	bufferInfo.size = size;
+	bufferInfo.usage = usage;
+	bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+	if (vkCreateBuffer(logicaldevice, &bufferInfo, 0, buffer) != VK_SUCCESS) {
+		printf("error@vkCreateBuffer\n");
+		return -1;
+	}
+
+	VkMemoryRequirements memRequirements;
+	vkGetBufferMemoryRequirements(logicaldevice, *buffer, &memRequirements);
+
+	VkMemoryAllocateInfo allocInfo = {};
+	allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+	allocInfo.allocationSize = memRequirements.size;
+	allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, properties);
+
+	if (vkAllocateMemory(logicaldevice, &allocInfo, 0, bufferMemory) != VK_SUCCESS) {
+		printf("error@vkAllocateMemory\n");
+		return -2;
+	}
+
+	vkBindBufferMemory(logicaldevice, *buffer, *bufferMemory, 0);
+	return 0;
+}
+int freeuniformbuffers() {
+	return 0;
+}
+int inituniformbuffers() {
+	VkDeviceSize bufferSize = sizeof(struct UniformBufferObject);
+
+	for (size_t i = 0; i < swapChainImageCount; i++) {
+		createBuffer(
+			bufferSize,
+			VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+			&uniformBuffers[i],
+			&uniformBuffersMemory[i]
+		);
+	}
+	return 0;
+}
+
+
+
+
+int freedescriptor(){
+	return 0;
+}
+int initdescriptor() {
+	VkDescriptorPoolSize poolSize = {};
+	poolSize.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	poolSize.descriptorCount = swapChainImageCount;
+
+	VkDescriptorPoolCreateInfo poolInfo = {};
+	poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+	poolInfo.poolSizeCount = 1;
+	poolInfo.pPoolSizes = &poolSize;
+	poolInfo.maxSets = swapChainImageCount;
+
+	if (vkCreateDescriptorPool(logicaldevice, &poolInfo, 0, &descriptorPool) != VK_SUCCESS) {
+		printf("error@vkCreateDescriptorPool\n");
+		return -1;
+	}
+
+
+	int j;
+	VkDescriptorSetLayout layouts[swapChainImageCount];
+	for(j=0;j<swapChainImageCount;j++)layouts[j] = descsetLayout;
+
+	VkDescriptorSetAllocateInfo allocInfo = {};
+	allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+	allocInfo.descriptorPool = descriptorPool;
+	allocInfo.descriptorSetCount = swapChainImageCount;
+	allocInfo.pSetLayouts = layouts;
+
+	if (vkAllocateDescriptorSets(logicaldevice, &allocInfo, descriptorSets) != VK_SUCCESS) {
+		printf("error@vkAllocateDescriptorSets\n");
+		return -2;
+	}
+
+	for (size_t i = 0; i < swapChainImageCount; i++) {
+		VkDescriptorBufferInfo bufferInfo = {};
+		bufferInfo.buffer = uniformBuffers[i];
+		bufferInfo.offset = 0;
+		bufferInfo.range = sizeof(struct UniformBufferObject);
+
+		VkWriteDescriptorSet descriptorWrite = {};
+		descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		descriptorWrite.dstSet = descriptorSets[i];
+		descriptorWrite.dstBinding = 0;
+		descriptorWrite.dstArrayElement = 0;
+		descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+		descriptorWrite.descriptorCount = 1;
+		descriptorWrite.pBufferInfo = &bufferInfo;
+
+		vkUpdateDescriptorSets(logicaldevice, 1, &descriptorWrite, 0, 0);
+	}
+	return 0;
+}
+
+
+
+
 int freecommandbuffer(){
 	return 0;
 }
@@ -1020,6 +1164,7 @@ int initcommandbuffer() {
 		VkDeviceSize offsets[] = {0};
 		vkCmdBindVertexBuffers(commandBuffers[i], 0, 1, vertexBuffers, offsets);
 		vkCmdBindIndexBuffer(commandBuffers[i], indexBuffer, 0, VK_INDEX_TYPE_UINT16);
+		vkCmdBindDescriptorSets(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSets[i], 0, 0);
         vkCmdDrawIndexed(commandBuffers[i], 2*INDICECOUNT, 1, 0, 0, 0);
 
 		vkCmdEndRenderPass(commandBuffers[i]);
@@ -1062,11 +1207,33 @@ int initsyncobject(){
 
 
 
+void updateUniformBuffer(uint32_t currentImage) {
+/*	static auto startTime = std::chrono::high_resolution_clock::now();
+	auto currentTime = std::chrono::high_resolution_clock::now();
+	float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
+*/
+	float c = cos(time);
+	float s = sin(time);
+	time += 0.01;
+
+	struct UniformBufferObject ubo;
+	ubo.wvp[0][0] = 1.0;ubo.wvp[0][1] = 0.0;ubo.wvp[0][2] = 0.0;ubo.wvp[0][3] = 0.0;
+	ubo.wvp[1][0] = 0.0;ubo.wvp[1][1] =   c;ubo.wvp[1][2] =  -s;ubo.wvp[1][3] = 0.0;
+	ubo.wvp[2][0] = 0.0;ubo.wvp[2][1] =   s;ubo.wvp[2][2] =   c;ubo.wvp[2][3] = 0.0;
+	ubo.wvp[3][0] = 0.0;ubo.wvp[3][1] = 0.0;ubo.wvp[3][2] = 0.5;ubo.wvp[3][3] = 1.0;
+
+	void* data;
+	vkMapMemory(logicaldevice, uniformBuffersMemory[currentImage], 0, sizeof(ubo), 0, &data);
+	memcpy(data, &ubo, sizeof(ubo));
+	vkUnmapMemory(logicaldevice, uniformBuffersMemory[currentImage]);
+}
 void drawFrame() {
 	vkWaitForFences(logicaldevice, 1, &inFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
 
 	uint32_t imageIndex;
 	vkAcquireNextImageKHR(logicaldevice, swapChain, UINT64_MAX, imageAvailableSemaphores[currentFrame], VK_NULL_HANDLE, &imageIndex);
+
+	updateUniformBuffer(imageIndex);
 
 	if (imagesInFlight[imageIndex] != VK_NULL_HANDLE) {
 		vkWaitForFences(logicaldevice, 1, &imagesInFlight[imageIndex], VK_TRUE, UINT64_MAX);
@@ -1123,17 +1290,21 @@ int main()
 	initswapchain();
 	initdepthstencil();
 
-	//pipeline <- renderpass
+	//pipeline <- renderpass, descsetlayout
 	//framebuffer <- imageview, renderpass
 	//commandbuffer <- renderpass, pipeline, framebuffer, vertex, indice
 	initrenderpass();
+	initdescsetlayout();
 	initpipeline();
 	initframebuffer();
+
 	initvertexbuffer();
 	initindicebuffer();
-	initcommandbuffer();
+	inituniformbuffers();
 
-	//fence
+	//...
+	initdescriptor();
+	initcommandbuffer();
 	initsyncobject();
 
 	while (!glfwWindowShouldClose(window)) {
@@ -1143,12 +1314,15 @@ int main()
 	vkDeviceWaitIdle(logicaldevice);
 
 	freesyncobject();
-
 	freecommandbuffer();
+	freedescriptor();
+	freeuniformbuffers();
 	freeindicebuffer();
 	freevertexbuffer();
+
 	freeframebuffer();
 	freepipeline();
+	freedescsetlayout();
 	freerenderpass();
 
 	freedepthstencil();
