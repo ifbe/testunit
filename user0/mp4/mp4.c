@@ -3,6 +3,7 @@
 typedef unsigned char u8;
 typedef unsigned short u16;
 typedef unsigned int u32;
+typedef unsigned long long u64;
 #define hex32(a,b,c,d) (a|(b<<8)|(c<<16)|(d<<24))
 char* tabs = "																";
 //
@@ -47,7 +48,7 @@ void print8(void* buf, int len)
 
 
 
-int parse_mdat(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
+u64 parse_mdat(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 {
 	printf("%.*smdat\n",depth,tabs);
 	return 0;
@@ -837,7 +838,7 @@ int parse(FILE* fp, unsigned char (*p)[0x1000], int depth)
 {
 	//printf("%x,%x,%x,%x\n",p[4],p[5],p[6],p[7]);
 	int j=0;
-	int k = 0;
+	u64 k = 0;
 
 	unsigned char* buf = p[depth];
 	for(;;){
@@ -847,7 +848,12 @@ int parse(FILE* fp, unsigned char (*p)[0x1000], int depth)
 		if(ret <= 0)return 0;
 
 		k = (buf[0]<<24)+(buf[1]<<16)+(buf[2]<<8)+buf[3];
-		printf("[%x,%x)=%.4s\n",j,j+k,buf+4);
+		if(k <= 1){
+			k = (buf[8]<<24)+(buf[9]<<16)+(buf[10]<<8)+buf[11];
+			k = k<<32;
+			k += (buf[12]<<24)+(buf[13]<<16)+(buf[14]<<8)+buf[15];
+		}
+		printf("[%x,%llx)=%.4s\n",j,j+k,buf+4);
 
 		switch(*(unsigned int*)(buf+4)){
 		case hex32('f','t','y','p'):
@@ -1103,7 +1109,7 @@ int main(int argc, char** argv)
 	if(!fp)return 0;
 
 	int ret = parse(fp, tmp, 0);
-
+/*
 	int sample_size;
 	int sample_in_file;
 	for(;;){
@@ -1112,7 +1118,7 @@ int main(int argc, char** argv)
 
 		if(scanf("%f", &pts) <= 0)break;
 	}
-
+*/
 	fclose(fp);
 	return 0;
 }
