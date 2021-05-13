@@ -5,28 +5,36 @@ typedef unsigned short u16;
 typedef unsigned int u32;
 typedef unsigned long long u64;
 #define hex32(a,b,c,d) (a|(b<<8)|(c<<16)|(d<<24))
-char* tabs = "																";
+char* tabs = "								";
+struct savetrak{
+u32 size;
+u32 type;
+
+int mvhd_offs;
+int mvhd_size;
 //
-int mvhd_offs = 0;
-int mvhd_size = 0;
+int mdhd_offs;
+int mdhd_size;
 //
-int mdhd_offs = 0;
-int mdhd_size = 0;
+int stts_offs;
+int stts_size;
 //
-int stts_offs = 0;
-int stts_size = 0;
+int stsc_offs;
+int stsc_size;
 //
-int stsc_offs = 0;
-int stsc_size = 0;
+int stco_offs;
+int stco_size;
+int co64_offs;
+int co64_size;
 //
-int stco_offs = 0;
-int stco_size = 0;
+int stsz_offs;
+int stsz_size;
 //
-int stsz_offs = 0;
-int stsz_size = 0;
-//
-int stsd_offs = 0;
-int stsd_size = 0;
+int stsd_offs;
+int stsd_size;
+};
+static struct savetrak trackdef[16];
+static int trackcnt = 0;
 
 
 
@@ -38,6 +46,14 @@ u16 swap16(u16 in)
 u32 swap32(u32 in)
 {
 	return (in>>24) | ((in>>8)&0xff00) | ((in<<8)&0xff0000) | (in<<24);
+}
+u64 swap64(u64 in)
+{
+	u64 lo = in&0xffffffff;
+	u64 hi = (in>>32)&0xffffffff;
+	lo = swap32(lo);
+	hi = swap32(hi);
+	return (lo<<32) | hi;
 }
 void print8(void* buf, int len)
 {
@@ -113,8 +129,8 @@ int parse_mvhd(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 	printf("%.*snext_trackID=%x\n",depth,tabs,
 		swap32(m->next_trackID));
 
-	mvhd_offs = off;
-	mvhd_size = end-off;
+	trackdef[trackcnt].mvhd_offs = off;
+	trackdef[trackcnt].mvhd_size = end-off;
 	return 0;
 }
 
@@ -151,8 +167,8 @@ int parse_stsd(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 		if(j >= end)break;
 	}
 
-	stsd_offs = off;
-	stsd_size = end-off;
+	trackdef[trackcnt].stsd_offs = off;
+	trackdef[trackcnt].stsd_size = end-off;
 	return 0;
 }
 struct stts_inner{
@@ -188,8 +204,8 @@ int parse_stts(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 		if(j >= end)break;
 	}
 
-	stts_offs = off;
-	stts_size = end-off;
+	trackdef[trackcnt].stts_offs = off;
+	trackdef[trackcnt].stts_size = end-off;
 	return 0;
 }
 int parse_stts_get_sample(struct stts* stts, int t)
@@ -282,8 +298,8 @@ int parse_stsc(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 		if(j >= end)break;
 	}
 
-	stsc_offs = off;
-	stsc_size = end-off;
+	trackdef[trackcnt].stsc_offs = off;
+	trackdef[trackcnt].stsc_size = end-off;
 	return 0;
 }
 int parse_stsc_get_chunk(struct stsc* stsc, int sample, int* chunk, int* this_chunk_first_sample)
@@ -336,22 +352,33 @@ int parse_stsz(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 	printf("%.*ssample_count=%x\n",depth,tabs,
 		count);
 
-	int j=off+20;
-	u32 k;
+	u32* buf = (void*)p[depth];
+	int ret;
+
+	int j=off+20;	//file offset
+	u32 k;		//0 to count
 	u32 at = 0;
 	u32 sz = 0;
 	for(k=0;k<count;k++){
-		sz = swap32(m->eachsize[k]);
+		if(0 == (k%0x400)){
+			fseek(fp, j, SEEK_SET);
+			//if(ret < 0)
+
+			ret = fread(buf, 1, 0x1000, fp);
+			if(ret <= 0)break;
+		}
+
+		sz = swap32(buf[k%0x400]);
 		printf("%.*s[%x,%x):id=%x,at=%x,sz=%x\n",depth+1,tabs, j,j+4,
-			k, at, sz);
+			k+1, at, sz);
 		at += sz;
 
 		j += 4;
 		if(j >= end)break;
 	}
 
-	stsz_offs = off;
-	stsz_size = end-off;
+	trackdef[trackcnt].stsz_offs = off;
+	trackdef[trackcnt].stsz_size = end-off;
 	return 0;
 }
 int parse_stsz_get_sampleinchunkoff(struct stsz* stsz, int sample, int this_chunk_first_sample, int* sample_size)
@@ -393,8 +420,8 @@ int parse_stco(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 		if(j >= end)break;
 	}
 
-	stco_offs = off;
-	stco_size = end-off;
+	trackdef[trackcnt].stco_offs = off;
+	trackdef[trackcnt].stco_size = end-off;
 	return 0;
 }
 int parse_stco_get_chunkinfileoff(struct stco* stco, int chunk)
@@ -402,6 +429,43 @@ int parse_stco_get_chunkinfileoff(struct stco* stco, int chunk)
 	int max = swap32(stco->size);
 	if(chunk > max)return -1;
 	return swap32(stco->offs[chunk-1]);
+}
+struct co64{	//chunk offset
+	u32 size;
+	u32 co64;
+	u8 ver;
+	u8 flag[3];
+	u32 chunk_count;
+	u64 offs[];
+};
+int parse_co64(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
+{
+	struct co64* m = (void*)(p[depth-1]);
+	int end = off + swap32(m->size);
+	int count = swap32(m->chunk_count);
+	printf("%.*sver=%x\n",depth,tabs, m->ver);
+	printf("%.*sdesc_count=%x\n",depth,tabs,
+		count);
+
+	int j=off+16;
+	u32 k=0;
+	for(k=0;k<count;k++){
+		printf("%.*s[%x,%x):offs=%llx\n",depth+1,tabs, j,j+4,
+		swap64(m->offs[k]) );
+
+		j += 4;
+		if(j >= end)break;
+	}
+
+	trackdef[trackcnt].co64_offs = off;
+	trackdef[trackcnt].co64_size = end-off;
+	return 0;
+}
+int parse_co64_get_chunkinfileoff(struct co64* co64, int chunk)
+{
+	int max = swap32(co64->size);
+	if(chunk > max)return -1;
+	return swap64(co64->offs[chunk-1]);
 }
 int parse_stbl(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 {
@@ -439,6 +503,9 @@ int parse_stbl(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 			break;
 		case hex32('s','t','c','o'):
 			parse_stco(fp, j, p, depth+1);
+			break;
+		case hex32('c','o','6','4'):
+			parse_co64(fp, j, p, depth+1);
 			break;
 		}
 
@@ -611,11 +678,9 @@ int parse_mdhd(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 		duration, (float)duration/(float)scale);
 	printf("%.*slanguage=%x\n",depth,tabs,
 		swap16(m->language));
-	printf("%.*snext_trackID=%x\n",depth,tabs,
-		swap16(m->predefined));
 
-	mdhd_offs = off;
-	mdhd_size = end-off;
+	trackdef[trackcnt].mdhd_offs = off;
+	trackdef[trackcnt].mdhd_size = end-off;
 	return 0;
 }
 struct hdlr{
@@ -624,7 +689,7 @@ struct hdlr{
 	u8 ver;
 	u8 flag[3];
 	u32 predefined;
-	char handlertype[4];
+	u32 handlertype;
 		//vide = video track
 		//soun = audio track
 		//hint = hint track
@@ -639,14 +704,16 @@ int parse_hdlr(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 	printf("%.*spredefined=%x\n",depth,tabs,
 		swap32(m->predefined));
 	printf("%.*shandlertype=%.4s\n",depth,tabs,
-		m->handlertype);
+		(char*)&m->handlertype);
 	printf("%.*sname=%s\n",depth,tabs,
 		m->name);
+
+	trackdef[trackcnt].type = m->handlertype;
 	return 0;
 }
 int parse_mdia(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 {
-	//printf("%.*strak\n",depth,tabs);
+	//printf("%.*smdia\n",depth,tabs);
 	unsigned char* pre = p[depth-1];
 	int end = off + swap32(*(u32*)pre);
 
@@ -747,6 +814,8 @@ int parse_trak(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 	unsigned char* pre = p[depth-1];
 	int end = off + swap32(*(u32*)pre);
 
+	trackdef[trackcnt].type = 0;
+
 	int j=off+8;
 	int k=0;
 	unsigned char* buf = p[depth];
@@ -754,7 +823,7 @@ int parse_trak(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 		fseek(fp, j, SEEK_SET);
 
 		int ret = fread(buf, 1, 0x1000, fp);
-		if(ret <= 0)return 0;
+		if(ret <= 0)break;
 
 		k = (buf[0]<<24)+(buf[1]<<16)+(buf[2]<<8)+buf[3];
 		printf("%.*s[%x,%x)=%.4s\n",depth,tabs, j,j+k,buf+4);
@@ -775,6 +844,8 @@ int parse_trak(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 		j += k;
 		if(j >= end)break;
 	}
+
+	trackcnt += 1;
 	return 0;
 }
 int parse_udta(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
@@ -889,36 +960,48 @@ int getsample(FILE* fp, u8 (*tmp)[0x1000], float pts, int* sample_sz)
 	int ret;
 
 	struct mvhd* mvhd = (void*)tmp[MVHD];
+	int mvhd_offs = trackdef[0].mvhd_offs;
+	int mvhd_size = trackdef[0].mvhd_size;
 	printf("[%x,%x]mvhd\n", mvhd_offs, mvhd_size);
 	ret = fseek(fp, mvhd_offs, SEEK_SET);
 	ret = fread(mvhd, 1, 0x1000, fp);
 	//print8(mvhd, 8);
 
 	struct mdhd* mdhd = (void*)tmp[MDHD];
-	printf("[%x,%x]mdhd\n", mdhd_offs, stts_size);
+	int mdhd_offs = trackdef[0].mdhd_offs;
+	int mdhd_size = trackdef[0].mdhd_size;
+	printf("[%x,%x]mdhd\n", mdhd_offs, mdhd_size);
 	ret = fseek(fp, mdhd_offs, SEEK_SET);
 	ret = fread(mdhd, 1, 0x1000, fp);
 	//print8(mdhd, 8);
 
 	struct stts* stts = (void*)tmp[STTS];
+	int stts_offs = trackdef[0].stts_offs;
+	int stts_size = trackdef[0].stts_size;
 	printf("[%x,%x]stts\n", stts_offs, stts_size);
 	ret = fseek(fp, stts_offs, SEEK_SET);
 	ret = fread(stts, 1, 0x1000, fp);
 	//print8(stts, 8);
 
 	struct stsc* stsc = (void*)(tmp[STSC]);
+	int stsc_offs = trackdef[0].stsc_offs;
+	int stsc_size = trackdef[0].stsc_size;
 	printf("[%x,%x]stsc\n", stsc_offs, stsc_size);
 	ret = fseek(fp, stsc_offs, SEEK_SET);
 	ret = fread(stsc, 1, 0x1000, fp);
 	//print8(stsc, 8);
 
 	struct stco* stco = (void*)(tmp[STCO]);
+	int stco_offs = trackdef[0].stco_offs;
+	int stco_size = trackdef[0].stco_size;
 	printf("[%x,%x]stco\n", stco_offs, stco_size);
 	ret = fseek(fp, stco_offs, SEEK_SET);
 	ret = fread(stco, 1, 0x1000, fp);
 	//print8(stco, 8);
 
 	struct stsz* stsz = (void*)(tmp[STSZ]);
+	int stsz_offs = trackdef[0].stsz_offs;
+	int stsz_size = trackdef[0].stsz_size;
 	printf("[%x,%x]stsz\n", stsz_offs, stsz_size);
 	ret = fseek(fp, stsz_offs, SEEK_SET);
 	ret = fread(stsz, 1, 0x1000, fp);
@@ -1048,6 +1131,8 @@ int codec(FILE* fp, int off, u8* buf, int len)
 	int ret;
 	u32 fmt;
 	struct stsd* stsd = (void*)buf;
+	int stsd_offs = trackdef[0].stsd_offs;
+	int stsd_size = trackdef[0].stsd_size;
 	printf("[%x,%x]stsd\n", stsd_offs, stsd_size);
 	ret = fseek(fp, stsd_offs, SEEK_SET);
 	ret = fread(stsd, 1, 0x1000, fp);
@@ -1109,6 +1194,12 @@ int main(int argc, char** argv)
 	if(!fp)return 0;
 
 	int ret = parse(fp, tmp, 0);
+
+	int j;
+	printf("--------------------------------\n");
+	for(j=0;j<trackcnt;j++){
+		printf("trak[%d]=%.4s\n", j, (char*)&trackdef[j].type);
+	}
 /*
 	int sample_size;
 	int sample_in_file;
