@@ -16,22 +16,24 @@ int mvhd_size;
 int mdhd_offs;
 int mdhd_size;
 //
+int stsd_offs;
+int stsd_size;
+//
+int ctts_offs;
+int ctts_size;
 int stts_offs;
 int stts_size;
 //
 int stsc_offs;
 int stsc_size;
 //
+int stsz_offs;
+int stsz_size;
+//
 int stco_offs;
 int stco_size;
 int co64_offs;
 int co64_size;
-//
-int stsz_offs;
-int stsz_size;
-//
-int stsd_offs;
-int stsd_size;
 };
 static struct savetrak trackdef[16];
 static int trackcnt = 0;
@@ -187,6 +189,29 @@ int parse_stsd(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 	trackdef[trackcnt].stsd_size = end-off;
 	return 0;
 }
+
+
+
+
+struct ctts{	//pts to dts table
+	u32 size;
+	u32 ctts;
+	u8 ver;
+	u8 flag[3];
+	u32 time_to_sample_count;
+	u8 tmp[];
+}__attribute__((packed));
+int parse_ctts(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
+{
+	struct ctts* m = (void*)(p[depth-1]);
+	int end = off + swap32(m->size);
+	int count = swap32(m->time_to_sample_count);
+	printf("%.*sver=%x\n",depth,tabs, m->ver);
+};
+
+
+
+
 struct stts_inner{
 	u32 count;
 	u32 duration;
@@ -505,11 +530,14 @@ int parse_stbl(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 		case hex32('s','t','s','d'):
 			parse_stsd(fp, j, p, depth+1);
 			break;
-		case hex32('s','t','t','s'):
-			parse_stts(fp, j, p, depth+1);
-			break;
 		case hex32('s','t','s','s'):
 			parse_stss(fp, j, p, depth+1);
+			break;
+		case hex32('c','t','t','s'):
+			parse_ctts(fp, j, p, depth+1);
+			break;
+		case hex32('s','t','t','s'):
+			parse_stts(fp, j, p, depth+1);
 			break;
 		case hex32('s','t','s','c'):
 			parse_stsc(fp, j, p, depth+1);
@@ -1193,11 +1221,12 @@ int parse(FILE* fp, unsigned char (*p)[0x1000], int depth)
 
 #define MVHD 0
 #define MDHD 1
-#define STTS 2
-#define STSC 3
-#define STCO 4
+#define CTTS 2
+#define STTS 3
+#define STSC 4
 #define STSZ 5
-#define STSD 6
+#define STCO 6
+#define CO64 7
 int getsample(FILE* fp, u8 (*tmp)[0x1000], float pts, int* sample_sz)
 {
 	int ret;
@@ -1217,6 +1246,14 @@ int getsample(FILE* fp, u8 (*tmp)[0x1000], float pts, int* sample_sz)
 	ret = fseek(fp, mdhd_offs, SEEK_SET);
 	ret = fread(mdhd, 1, 0x1000, fp);
 	//print8(mdhd, 8);
+
+	struct ctts* ctts = (void*)tmp[CTTS];
+	int ctts_offs = trackdef[0].ctts_offs;
+	int ctts_size = trackdef[0].ctts_size;
+	printf("[%x,%x]ctts\n", ctts_offs, ctts_size);
+	ret = fseek(fp, ctts_offs, SEEK_SET);
+	ret = fread(ctts, 1, 0x1000, fp);
+	//print8(ctts, 8);
 
 	struct stts* stts = (void*)tmp[STTS];
 	int stts_offs = trackdef[0].stts_offs;
@@ -1250,16 +1287,19 @@ int getsample(FILE* fp, u8 (*tmp)[0x1000], float pts, int* sample_sz)
 	ret = fread(stsz, 1, 0x1000, fp);
 	//print8(stsz, 8);
 
-	//1.pts -> mp4 time
+	//0.pts -> dts
+	float dts = pts;	//todo:ctts
+
+	//1.dts -> mp4 time
 	int scale = swap32(mdhd->time_scale);
 	int duration = swap32(mdhd->time_duration);
 	float total = (float)duration / scale;
-	if((pts < 0.0) | (pts > total)){
+	if((dts < 0.0) | (dts > total)){
 		printf("err1: must between[0,%f)\n", total);
 		return 0;
 	}
-	int mp4time = pts * scale;
-	printf("pts=%f,mp4time=%d\n",pts,mp4time);
+	int mp4time = dts * scale;
+	printf("pts=%f,dts=%f,mp4time=%d\n",pts,dts,mp4time);
 
 	//2.(stts)mp4 time -> sample number
 	int sample = parse_stts_get_sample(stts, mp4time);
