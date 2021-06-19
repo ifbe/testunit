@@ -489,12 +489,14 @@ int parse_co64(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 		count);
 
 	int j=off+16;
-	u32 k=0;
-	for(k=0;k<count;k++){
-		printf("%.*s[%x,%x):offs=%llx\n",depth+1,tabs, j,j+4,
-		swap64(m->offs[k]) );
+	int k;
+	u32 t=0;
+	for(t=0;t<count;t++){
+		k = j+8;
+		printf("%.*s[%x,%x):offs=%llx\n",depth+1,tabs, j,k,
+		swap64(m->offs[t]) );
 
-		j += 4;
+		j = k;
 		if(j >= end)break;
 	}
 
