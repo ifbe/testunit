@@ -26,7 +26,6 @@ int stts_size;
 //
 int stsc_offs;
 int stsc_size;
-//
 int stsz_offs;
 int stsz_size;
 //
@@ -193,6 +192,10 @@ int parse_stsd(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 
 
 
+struct ctts_inner{
+	u32 samplecount;
+	u32 deltatime;
+}__attribute__((packed));
 struct ctts{	//pts to dts table
 	u32 size;
 	u32 ctts;
@@ -207,6 +210,22 @@ int parse_ctts(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 	int end = off + swap32(m->size);
 	int count = swap32(m->time_to_sample_count);
 	printf("%.*sver=%x\n",depth,tabs, m->ver);
+	printf("%.*scount=%x\n",depth,tabs, count);
+
+	int j=off+16;
+	u32 k=0;
+	u8* buf = m->tmp;
+	for(;count>0;count--){
+		printf("%.*s[%x,%x):count=%x,deltatime=%x\n",depth+1,tabs, j,j+8,
+			swap32(*(u32*)buf), swap32(*(u32*)(buf+4)));
+
+		j += 8;
+		buf += 8;
+		if(j >= end)break;
+	}
+
+	trackdef[trackcnt].ctts_offs = off;
+	trackdef[trackcnt].ctts_size = end-off;
 };
 
 
@@ -302,6 +321,8 @@ int parse_stss(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 	}
 	return 0;
 }
+
+#define stsc_perpage (0x1000/12)
 struct stsc_inner{
 	u32 first_chunk;
 	u32 sample_per_chunk;
@@ -327,15 +348,26 @@ int parse_stsc(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 	printf("%.*sdesc_count=%x\n",depth,tabs,
 		count);
 
-	int j=off+16;
-	u32 k=0;
-	u8* buf = m->tmp;
-	for(;count>0;count--){
-		printf("%.*s[%x,%x):1st=%x,per=%x,id=%x\n",depth+1,tabs, j,j+12,
-		swap32(*(u32*)buf), swap32(*(u32*)(buf+4)), swap32(*(u32*)(buf+8)) );
+	u32* buf = (void*)p[depth];
+	int ret;
 
-		j += 12;
-		buf += 12;
+	int j=off+16, k;
+	int t, v;
+	for(t=0;t<count;t++){
+		v = t % stsc_perpage;
+		if(0 == v){
+			fseek(fp, j, SEEK_SET);
+			//if(ret < 0)
+
+			ret = fread(buf, 1, 0x1000, fp);
+			if(ret <= 0)break;
+		}
+
+		k = j+12;
+		printf("%.*s[%x,%x):1st=%x,per=%x,id=%x\n",depth+1,tabs, j,k,
+		swap32(buf[v*3+0]), swap32(buf[v*3+1]), swap32(buf[v*3+2]) );
+
+		j = k;
 		if(j >= end)break;
 	}
 
@@ -373,6 +405,8 @@ int parse_stsc_get_chunk(struct stsc* stsc, int sample, int* chunk, int* this_ch
 
 	return -2;
 }
+
+#define stsz_perpage (0x1000/4)
 struct stsz{	//sample size
 	u32 size;
 	u32 stsz;
@@ -401,7 +435,7 @@ int parse_stsz(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 	u32 at = 0;
 	u32 sz = 0;
 	for(k=0;k<count;k++){
-		if(0 == (k%0x400)){
+		if(0 == (k % stsz_perpage)){
 			fseek(fp, j, SEEK_SET);
 			//if(ret < 0)
 
@@ -409,7 +443,7 @@ int parse_stsz(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 			if(ret <= 0)break;
 		}
 
-		sz = swap32(buf[k%0x400]);
+		sz = swap32(buf[k % stsz_perpage]);
 		printf("%.*s[%x,%x):id=%x,at=%x,sz=%x\n",depth+1,tabs, j,j+4,
 			k+1, at, sz);
 		at += sz;
@@ -434,6 +468,8 @@ int parse_stsz_get_sampleinchunkoff(struct stsz* stsz, int sample, int this_chun
 	*sample_size = swap32(stsz->eachsize[sample-1]);
 	return offs;
 }
+
+#define stco_perpage (0x1000/4)
 struct stco{	//chunk offset
 	u32 size;
 	u32 stco;
@@ -451,13 +487,26 @@ int parse_stco(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 	printf("%.*sdesc_count=%x\n",depth,tabs,
 		count);
 
-	int j=off+16;
-	u32 k=0;
-	for(k=0;k<count;k++){
-		printf("%.*s[%x,%x):offs=%x\n",depth+1,tabs, j,j+4,
-		swap32(m->offs[k]) );
+	u32* buf = (void*)p[depth];
+	int ret;
 
-		j += 4;
+	int j=off+16;
+	int k;
+	u32 t=0;
+	for(t=0;t<count;t++){
+		if(0 == (t % stco_perpage)){
+			fseek(fp, j, SEEK_SET);
+			//if(ret < 0)
+
+			ret = fread(buf, 1, 0x1000, fp);
+			if(ret <= 0)break;
+		}
+
+		k = j+4;
+		printf("%.*s[%x,%x):offs=%x\n",depth+1,tabs, j,k,
+		swap32(buf[t % stco_perpage]) );
+
+		j = k;
 		if(j >= end)break;
 	}
 
@@ -471,6 +520,8 @@ int parse_stco_get_chunkinfileoff(struct stco* stco, int chunk)
 	if(chunk > max)return -1;
 	return swap32(stco->offs[chunk-1]);
 }
+
+#define co64_perpage (0x1000/8)
 struct co64{	//chunk offset
 	u32 size;
 	u32 co64;
@@ -488,13 +539,24 @@ int parse_co64(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 	printf("%.*sdesc_count=%x\n",depth,tabs,
 		count);
 
+	u64* buf = (void*)p[depth];
+	int ret;
+
 	int j=off+16;
 	int k;
 	u32 t=0;
 	for(t=0;t<count;t++){
+		if(0 == (t % co64_perpage)){
+			fseek(fp, j, SEEK_SET);
+			//if(ret < 0)
+
+			ret = fread(buf, 1, 0x1000, fp);
+			if(ret <= 0)break;
+		}
+
 		k = j+8;
 		printf("%.*s[%x,%x):offs=%llx\n",depth+1,tabs, j,k,
-		swap64(m->offs[t]) );
+		swap64(buf[t % co64_perpage]) );
 
 		j = k;
 		if(j >= end)break;
@@ -1484,6 +1546,12 @@ int main(int argc, char** argv)
 	printf("--------------------------------\n");
 	for(j=0;j<trackcnt;j++){
 		printf("trak[%d]=%.4s\n", j, (char*)&trackdef[j].type);
+		printf(".ctts@%x_%x\n", trackdef[j].ctts_offs, trackdef[j].ctts_size);
+		printf(".stts@%x_%x\n", trackdef[j].stts_offs, trackdef[j].stts_size);
+		printf(".stsc@%x_%x\n", trackdef[j].stsc_offs, trackdef[j].stsc_size);
+		printf(".stsz@%x_%x\n", trackdef[j].stsz_offs, trackdef[j].stsz_size);
+		printf(".stco@%x_%x\n", trackdef[j].stco_offs, trackdef[j].stco_size);
+		printf(".co64@%x_%x\n", trackdef[j].co64_offs, trackdef[j].co64_size);
 	}
 /*
 	int sample_size;
