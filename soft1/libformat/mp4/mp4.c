@@ -154,6 +154,20 @@ int parse_mfhd(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 
 
 
+struct SampleEntry{
+    u8 reserved[6];
+    u16 data_reference_index;  ///一个2个字节来描述的 数据索引
+}
+struct VisualSampleEntry{
+	struct SampleEntry;
+    u16 pre_defined2;     //2个字节的保留位
+    u16 reserved;    //2个字节的保留位
+    u32 pre_defined3;    //3*4个字节的保留位
+    u16 width;             //2个字节的宽度
+    u16 height;                //2个字节的高度
+    u32 horizresolution; // 72 dpi    //纵向dpi,4字节
+    u32 vertresolution; // 72 dpi    //横向dpi 4字节
+};
 struct stsd{	//sample description
 	u32 size;
 	u32 stsd;
@@ -192,6 +206,7 @@ int parse_stsd(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 
 
 
+#define ctts_perpage (0x1000/8)
 struct ctts_inner{
 	u32 samplecount;
 	u32 deltatime;
@@ -212,15 +227,26 @@ int parse_ctts(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 	printf("%.*sver=%x\n",depth,tabs, m->ver);
 	printf("%.*scount=%x\n",depth,tabs, count);
 
-	int j=off+16;
-	u32 k=0;
-	u8* buf = m->tmp;
-	for(;count>0;count--){
-		printf("%.*s[%x,%x):count=%x,deltatime=%x\n",depth+1,tabs, j,j+8,
-			swap32(*(u32*)buf), swap32(*(u32*)(buf+4)));
+	u32* buf = (void*)p[depth];
+	int ret;
 
-		j += 8;
-		buf += 8;
+	int j=off+16, k;
+	int t, v;
+	for(t=0;t<count;t++){
+		v = t % ctts_perpage;
+		if(0 == v){
+			fseek(fp, j, SEEK_SET);
+			//if(ret < 0)
+
+			ret = fread(buf, 1, 0x1000, fp);
+			if(ret <= 0)break;
+		}
+
+		k = j+8;
+		printf("%.*s[%x,%x):count=%x,deltatime=%x\n",depth+1,tabs, j,k,
+			swap32(buf[v*2+0]), swap32(buf[v*2+1]) );
+
+		j = k;
 		if(j >= end)break;
 	}
 
@@ -231,6 +257,7 @@ int parse_ctts(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 
 
 
+#define stts_perpage (0x1000/8)
 struct stts_inner{
 	u32 count;
 	u32 duration;
@@ -252,15 +279,26 @@ int parse_stts(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 	printf("%.*sdesc_count=%x\n",depth,tabs,
 		count);
 
-	int j=off+16;
-	u32 k=0;
-	u8* buf = m->tmp;
-	for(;count>0;count--){
-		printf("%.*s[%x,%x):count=%x,duration=%x\n",depth+1,tabs, j,j+8,
-			swap32(*(u32*)buf), swap32(*(u32*)(buf+4)));
+	u32* buf = (void*)p[depth];
+	int ret;
 
-		j += 8;
-		buf += 8;
+	int j=off+16, k;
+	int t, v;
+	for(t=0;t<count;t++){
+		v = t % stts_perpage;
+		if(0 == v){
+			fseek(fp, j, SEEK_SET);
+			//if(ret < 0)
+
+			ret = fread(buf, 1, 0x1000, fp);
+			if(ret <= 0)break;
+		}
+
+		k = j+8;
+		printf("%.*s[%x,%x):count=%x,duration=%x\n",depth+1,tabs, j,k,
+			swap32(buf[v*2+0]), swap32(buf[v*2+1]) );
+
+		j = k;
 		if(j >= end)break;
 	}
 
@@ -291,6 +329,11 @@ int parse_stts_get_sample(struct stts* stts, int t)
 	}
 	return -2;
 }
+
+
+
+
+#define stss_perpage (0x1000/4)
 struct stss{	//sync sample
 	u32 size;
 	u32 stss;
@@ -308,19 +351,33 @@ int parse_stss(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 	printf("%.*sdesc_count=%x\n",depth,tabs,
 		count);
 
-	int j=off+16;
-	u32 k=0;
-	u8* buf = m->tmp;
-	for(;count>0;count--){
-		printf("%.*s[%x,%x):kframe=%x\n",depth+1,tabs, j,j+4,
-			swap32(*(u32*)buf) );
+	u32* buf = (void*)p[depth];
+	int ret;
 
-		j += 4;
-		buf += 4;
+	int j=off+16, k;
+	int t, v;
+	for(t=0;t<count;t++){
+		v = t % stss_perpage;
+		if(0 == v){
+			fseek(fp, j, SEEK_SET);
+			//if(ret < 0)
+
+			ret = fread(buf, 1, 0x1000, fp);
+			if(ret <= 0)break;
+		}
+
+		k = j+4;
+		printf("%.*s[%x,%x):kframe=%x\n",depth+1,tabs, j,k,
+			swap32(buf[v]) );
+
+		j = k;
 		if(j >= end)break;
 	}
 	return 0;
 }
+
+
+
 
 #define stsc_perpage (0x1000/12)
 struct stsc_inner{
@@ -406,6 +463,9 @@ int parse_stsc_get_chunk(struct stsc* stsc, int sample, int* chunk, int* this_ch
 	return -2;
 }
 
+
+
+
 #define stsz_perpage (0x1000/4)
 struct stsz{	//sample size
 	u32 size;
@@ -469,6 +529,9 @@ int parse_stsz_get_sampleinchunkoff(struct stsz* stsz, int sample, int this_chun
 	return offs;
 }
 
+
+
+
 #define stco_perpage (0x1000/4)
 struct stco{	//chunk offset
 	u32 size;
@@ -520,6 +583,9 @@ int parse_stco_get_chunkinfileoff(struct stco* stco, int chunk)
 	if(chunk > max)return -1;
 	return swap32(stco->offs[chunk-1]);
 }
+
+
+
 
 #define co64_perpage (0x1000/8)
 struct co64{	//chunk offset
@@ -696,6 +762,10 @@ int parse_vmhd(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 		swap16(m->opcolor[0]), swap16(m->opcolor[1]), swap16(m->opcolor[2]));
 	return 0;
 }
+
+
+
+
 struct smhd{
 	u32 size;
 	u32 smhd;
@@ -791,6 +861,10 @@ int parse_mdhd(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 	trackdef[trackcnt].mdhd_size = end-off;
 	return 0;
 }
+
+
+
+
 struct hdlr{
 	u32 size;
 	u32 hdlr;
@@ -904,6 +978,10 @@ int parse_tkhd(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 		swap16(m->height[0]), swap16(m->height[1]) );
 	return 0;
 }
+
+
+
+
 struct tfhd{
 	u32 size;
 	u32 tfhd;
@@ -920,6 +998,10 @@ int parse_tfhd(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 		swap32(m->trackid));
 	return 0;
 }
+
+
+
+
 struct tfdt{
 	u32 size;
 	u32 tfhd;
@@ -939,6 +1021,10 @@ int parse_tfdt(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 		(1==ver)?swap64(m->decodetime64):swap32(m->decodetime32) );
 	return 0;
 }
+
+
+
+
 struct trun{
 	u32 size;
 	u32 tfhd;
@@ -1000,6 +1086,10 @@ int parse_trun(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 	}
 	return 0;
 }
+
+
+
+
 struct trex{
 	u32 size;
 	u32 trex;
