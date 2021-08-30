@@ -149,24 +149,26 @@ int parse_mfhd(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 	printf("%.*sver=%x\n",depth,tabs, m->ver);
 	printf("%.*sseq=%x\n",depth,tabs,
 		swap32(m->seq));
+
+	return 0;
 }
 
 
 
 
 struct SampleEntry{
-    u8 reserved[6];
-    u16 data_reference_index;  ///一个2个字节来描述的 数据索引
-}
+	u8 rsvd[6];
+	u16 data_reference_index;  ///一个2个字节来描述的 数据索引
+};
 struct VisualSampleEntry{
-	struct SampleEntry;
-    u16 pre_defined2;     //2个字节的保留位
-    u16 reserved;    //2个字节的保留位
-    u32 pre_defined3;    //3*4个字节的保留位
-    u16 width;             //2个字节的宽度
-    u16 height;                //2个字节的高度
-    u32 horizresolution; // 72 dpi    //纵向dpi,4字节
-    u32 vertresolution; // 72 dpi    //横向dpi 4字节
+	struct SampleEntry sample;
+	u16 pre_defined2;	//2个字节的保留位
+	u16 rsvd2b;		//2个字节的保留位
+	u32 pre_defined3;	//3*4个字节的保留位
+	u16 width;		//2个字节的宽度
+	u16 height;		//2个字节的高度
+	u32 horizresolution;	//72 dpi    //纵向dpi,4字节
+	u32 vertresolution;	//72 dpi    //横向dpi 4字节
 };
 struct stsd{	//sample description
 	u32 size;
@@ -252,6 +254,7 @@ int parse_ctts(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 
 	trackdef[trackcnt].ctts_offs = off;
 	trackdef[trackcnt].ctts_size = end-off;
+	return 0;
 };
 
 
@@ -1380,8 +1383,97 @@ int parse(FILE* fp, unsigned char (*p)[0x1000], int depth)
 #define STSC 4
 #define STSZ 5
 #define STCO 6
-#define CO64 7
-int getsample(FILE* fp, u8 (*tmp)[0x1000], float pts, int* sample_sz)
+#define CO64 STCO
+int getsamplebypkt(FILE* fp, int sample, u8 (*tmp)[0x1000], int* sample_sz)
+{
+	int ret;
+
+	struct stsc* stsc = (void*)(tmp[STSC]);
+	int stsc_offs = trackdef[0].stsc_offs;
+	int stsc_size = trackdef[0].stsc_size;
+	printf("[%x,%x]stsc\n", stsc_offs, stsc_size);
+	ret = fseek(fp, stsc_offs, SEEK_SET);
+	ret = fread(stsc, 1, 0x1000, fp);
+	//print8(stsc, 8);
+
+	//3.(stsc)sample number -> chunk number
+	int this_chunk_first_sample = -1;
+	int chunknum = -1;
+	parse_stsc_get_chunk(stsc, sample, &chunknum, &this_chunk_first_sample);
+	if(chunknum < 0){
+		printf("err3: sample to chunknum wrong\n");
+		return 0;
+	}
+	printf("chunknum=%d, this_chunk_first_sample=%d(decimal count from 1)\n",
+		chunknum, this_chunk_first_sample);
+
+
+	struct stsz* stsz = (void*)(tmp[STSZ]);
+	int stsz_offs = trackdef[0].stsz_offs;
+	int stsz_size = trackdef[0].stsz_size;
+	printf("[%x,%x]stsz\n", stsz_offs, stsz_size);
+	ret = fseek(fp, stsz_offs, SEEK_SET);
+	ret = fread(stsz, 1, 0x1000, fp);
+	//print8(stsz, 8);
+
+	//4.(stsz)sample_number -> sample_in_chunk
+	int sample_size = 0;
+	int sample_in_chunk = parse_stsz_get_sampleinchunkoff(
+		stsz, sample, this_chunk_first_sample, &sample_size);
+	if(sample_in_chunk < 0){
+		printf("err4: sample to sample_in_chunk wrong\n");
+		return 0;
+	}
+	printf("sample_in_chunk=%x, sample_size=%x(hexadecimal count from 0)\n",
+		sample_in_chunk, sample_size);
+
+
+	int chunk_in_file = 0;
+	struct stco* stco = (void*)(tmp[STCO]);
+	struct co64* co64 = (void*)(tmp[CO64]);
+	int stco_offs = trackdef[0].stco_offs;
+	int stco_size = trackdef[0].stco_size;
+	if(stco_offs){
+		printf("[%x,%x]stco\n", stco_offs, stco_size);
+		ret = fseek(fp, stco_offs, SEEK_SET);
+		ret = fread(stco, 1, 0x1000, fp);
+		//print8(stco, 8);
+
+		//5.(stco)chunk number -> chunk_in_file
+		chunk_in_file = parse_stco_get_chunkinfileoff(stco, chunknum);
+		if(chunk_in_file < 0){
+			printf("err5: chunk to chunk_in_file wrong\n");
+			return 0;
+		}
+	}
+	else{
+		stco_offs = trackdef[0].co64_offs;
+		stco_size = trackdef[0].co64_size;
+		printf("[%x,%x]co64\n", stco_offs, stco_size);
+
+		ret = fseek(fp, stco_offs, SEEK_SET);
+		ret = fread(co64, 1, 0x1000, fp);
+		//print8(co64, 8);
+
+		//5.(co64)chunk number -> chunk_in_file
+		chunk_in_file = parse_co64_get_chunkinfileoff(co64, chunknum);
+		if(chunk_in_file < 0){
+			printf("err5: chunk to chunk_in_file wrong\n");
+			return 0;
+		}
+	}
+	printf("chunk_in_file=%x(hexadecimal count from 0)\n", chunk_in_file);
+
+
+	//6.sample_in_chunk + chunk_in_file = sample offset
+	int sample_in_file = sample_in_chunk + chunk_in_file;
+	printf("sample_in_file=%x(hexadecimal count from 0)\n", sample_in_file);
+
+	printf("-------------------\n");
+	*sample_sz = sample_size;
+	return sample_in_file;
+}
+int getsamplebypts(FILE* fp, float pts, u8 (*tmp)[0x1000], int* sample_sz)
 {
 	int ret;
 
@@ -1549,7 +1641,8 @@ void codec_mp4a(u8* buf)
 }
 void codec_avc1(u8* buf)
 {
-	printf("@codec_avc1\n");
+	//printf("@codec_avc1\n");
+	printf("	f=%d,nri=%d,type=%d\n", buf[4]>>7, (buf[4]>>5)&3, buf[4]&0x1f);
 }
 void codec_vp9(u8* buf)
 {
@@ -1563,21 +1656,21 @@ void codec_av1(u8* buf)
 {
 	printf("@codec_av1\n");
 }
-int codec(FILE* fp, int off, u8* buf, int len)
+int readpacket(FILE* fp, int off, u8* buf, int len)
 {
 	int ret;
 	u32 fmt;
 	struct stsd* stsd = (void*)buf;
 	int stsd_offs = trackdef[0].stsd_offs;
 	int stsd_size = trackdef[0].stsd_size;
-	printf("[%x,%x]stsd\n", stsd_offs, stsd_size);
+	printf("stsd: offs=%x, size=%x\n", stsd_offs, stsd_size);
+
 	ret = fseek(fp, stsd_offs, SEEK_SET);
 	ret = fread(stsd, 1, 0x1000, fp);
 	print8(stsd, 8);
 
-	printf("%.4s\n", stsd->tmp+4);
 	fmt = *(u32*)(stsd->tmp+4);
-
+	printf("	codec=%.4s\n", (char*)&fmt);
 
 	ret = fseek(fp, off, SEEK_SET);
 	ret = fread(buf, 1, len<0x10000?len:0x10000, fp);
@@ -1621,12 +1714,6 @@ int main(int argc, char** argv)
 		return 0;
 	}
 
-	float pts = 0.0;
-	if(3 == argc){
-		pts = atof(argv[2]);
-		printf("pts=%f\n", pts);
-	}
-
 	FILE* fp = fopen(argv[1],"rb");
 	if(!fp)return 0;
 
@@ -1643,16 +1730,31 @@ int main(int argc, char** argv)
 		printf(".stco@%x_%x\n", trackdef[j].stco_offs, trackdef[j].stco_size);
 		printf(".co64@%x_%x\n", trackdef[j].co64_offs, trackdef[j].co64_size);
 	}
-/*
-	int sample_size;
-	int sample_in_file;
-	for(;;){
- 	      	sample_in_file = getsample(fp, tmp, pts, &sample_size);
-		if(sample_in_file>0)codec(fp, sample_in_file, (void*)tmp, sample_size);
 
-		if(scanf("%f", &pts) <= 0)break;
-	}
+	if(argc < 3)goto byebye;
+
+
+	int pkt = atoi(argv[2]);
+	printf("pkt=%d\n", pkt);
+
+/*	float pts = atof(argv[2]);
+	printf("pts=%f\n", pts);
 */
+	int sample_size;
+	int sample_offs;
+	for(;;){
+		//sample_offs = getsamplebypts(fp, pts, tmp, &sample_size);
+
+		sample_offs = getsamplebypkt(fp, pkt+1, tmp, &sample_size);
+		printf("sample=%x: offs=%x,size=%x\n", pkt, sample_offs, sample_size);
+
+		if(sample_offs > 0)readpacket(fp, sample_offs, (void*)tmp, sample_size);
+
+		//if(scanf("%f", &pts) < 0)break;
+		if(scanf("%d", &pkt) < 0)break;
+	}
+
+byebye:
 	fclose(fp);
 	return 0;
 }
