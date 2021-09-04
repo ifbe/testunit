@@ -1,14 +1,25 @@
-static char val = LOW;
+//board: generic stm32f4 serials
+//board part number: blackpill f103c8
+//USB support: CDC(generic serial)
+#define LEDPIN PC13
+#define KEYPIN PA0
+
+static char want = LOW;
+static char curr = HIGH;
 void blink(){
-  val = !val;
+  if(HIGH == digitalRead(KEYPIN))return;
+  want = !want;
 }
 
 void setup() {
-  pinMode(PC13, OUTPUT);
-  pinMode(PA0, INPUT_PULLUP);
+  pinMode(LEDPIN, OUTPUT);
+  pinMode(KEYPIN, INPUT_PULLUP);
   attachInterrupt(0, blink, FALLING);
 }
 
 void loop() {
-  digitalWrite(PC13, val);
+  if(want != curr){
+    digitalWrite(LEDPIN, want);
+    curr = want;
+  }
 }
