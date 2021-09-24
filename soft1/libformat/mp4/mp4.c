@@ -1,5 +1,8 @@
 #include "stdio.h"
 #include "stdlib.h"
+#include <unistd.h>
+#include <fcntl.h>
+#include <errno.h>
 typedef unsigned char u8;
 typedef unsigned short u16;
 typedef unsigned int u32;
@@ -59,7 +62,11 @@ u64 swap64(u64 in)
 void print8(void* buf, int len)
 {
 	u8* p = buf;
-	printf("%x,%x,%x,%x,%x,%x,%x,%x\n",p[0],p[1],p[2],p[3],p[4],p[5],p[6],p[7]);
+	printf(	"%x,%x,%x,%x,%x,%x,%x,%x,"
+		"%x,%x,%x,%x,%x,%x,%x,%x\n",
+		p[0],p[1],p[2],p[3],p[4],p[5],p[6],p[7],
+		p[8],p[9],p[10],p[11],p[12],p[13],p[14],p[15]
+	);
 }
 
 
@@ -1673,8 +1680,8 @@ int readpacket(FILE* fp, int off, u8* buf, int len)
 	printf("	codec=%.4s\n", (char*)&fmt);
 
 	ret = fseek(fp, off, SEEK_SET);
-	ret = fread(buf, 1, len<0x10000?len:0x10000, fp);
-	print8(buf, 8);
+	ret = fread(buf, 1, len<0x100000?len:0x100000, fp);
+	print8(buf, 16);
 
 	switch(fmt){
 	case hex32('m','p','4','v'):
@@ -1704,11 +1711,33 @@ int readpacket(FILE* fp, int off, u8* buf, int len)
 }
 
 
+int writefile(void* buf, int len)
+{
+/*	FILE* fp = fopen("out.bin", "ab+");
+
+	int ret = 0;
+	do{
+		ret = fwrite(buf, 1, len, fp);
+		printf("writefile:len=%x,ret=%x\n",len,ret);
+
+		if(ret < 0)break;
+		buf += ret;
+		len -= ret;
+	}while(len != 0);
+
+	fclose(fp);
+*/
+	int fd = open("out.bin", O_RDWR|O_CREAT, S_IRWXU | S_IRWXG | S_IRWXO);
+	int ret = write(fd, buf, len);
+	printf("write:fd=%x,len=%x,ret=%x,errno=%d\n",fd,len,ret,errno);
+	close(fd);
+	return 0;
+}
 
 
 int main(int argc, char** argv)
 {
-	unsigned char tmp[16][0x1000];
+	unsigned char tmp[256][0x1000];
 	if(argc < 2){
 		printf("./a.out /path/file.mp4 3.14\n");
 		return 0;
@@ -1748,7 +1777,10 @@ int main(int argc, char** argv)
 		sample_offs = getsamplebypkt(fp, pkt+1, tmp, &sample_size);
 		printf("sample=%x: offs=%x,size=%x\n", pkt, sample_offs, sample_size);
 
-		if(sample_offs > 0)readpacket(fp, sample_offs, (void*)tmp, sample_size);
+		if(sample_offs > 0){
+			readpacket(fp, sample_offs, (void*)tmp, sample_size);
+			if(argc >= 4)writefile(tmp, sample_size);
+		}
 
 		//if(scanf("%f", &pts) < 0)break;
 		if(scanf("%d", &pkt) < 0)break;

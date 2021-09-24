@@ -7,6 +7,9 @@ void* vulkan_init();
 void vulkan_exit();
 void vulkan_surface_create(void*);
 void vulkan_surface_delete();
+void vulkan_myctx_create();
+void vulkan_myctx_delete();
+void drawframe();
 
 
 
@@ -75,9 +78,17 @@ int main()
 	//vulkan: swapchain
 	vulkan_surface_create(surface);
 
+	//myctx
+	vulkan_myctx_create();
+
+	//forever
 	while (!glfwWindowShouldClose(window)) {
 		glfwPollEvents();
+		drawframe();
 	}
+
+	//myctx
+	vulkan_myctx_delete();
 
 	//vulkan: swapchain
 	vulkan_surface_delete();
