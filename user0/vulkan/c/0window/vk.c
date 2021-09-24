@@ -85,3 +85,20 @@ int vulkan_surface_create(VkSurfaceKHR p)
 	surface = p;
 	return 0;
 }
+
+
+
+
+void vulkan_myctx_create()
+{
+}
+void vulkan_myctx_delete()
+{
+}
+
+
+
+
+void drawframe()
+{
+}

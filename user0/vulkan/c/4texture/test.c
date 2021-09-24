@@ -105,27 +105,12 @@ struct UniformBufferObject {
 
 
 
-int freeglfw()
-{
-	glfwTerminate();
-	return 0;
-}
-int initglfw()
-{
-	glfwInit();
-	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-	return 0;
-}
-
-
-
-
-int freeinstance()
+int vulkan_exit()
 {
 	vkDestroyInstance(instance, 0);
 	return 0;
 }
-int initinstance()
+void* vulkan_init()
 {
 	uint32_t layerCount;
 	vkEnumerateInstanceLayerProperties(&layerCount, 0);
@@ -168,42 +153,22 @@ int initinstance()
 
 	if (vkCreateInstance(&createInfo, 0, &instance) != VK_SUCCESS) {
 		printf("failed to create instance!");
-	}	
-	return 0;
-}
-
-
-
-
-int freeglfwwindow()
-{
-	glfwDestroyWindow(window);
-	return 0;
-}
-int initglfwwindow()
-{
-	window = glfwCreateWindow(1024, 768, "Vulkan window", 0, 0);
-	if(0 == window){
-		printf("error@glfwCreateWindow\n");
-		return -1;
 	}
-	return 0;
+
+	return instance;
 }
 
 
 
 
-int freesurface()
+int vulkan_surface_delete()
 {
 	vkDestroySurfaceKHR(instance, surface, 0);
 	return 0;
 }
-int initsurface()
+int vulkan_surface_create(VkSurfaceKHR p)
 {
-	if (glfwCreateWindowSurface(instance, window, 0, &surface) != VK_SUCCESS) {
-		printf("error@glfwCreateWindowSurface\n");
-		return -1;
-	}
+	surface = p;
 	return 0;
 }
 
@@ -1495,6 +1460,65 @@ int initsyncobject(){
 
 
 
+void vulkan_myctx_delete()
+{
+	vkDeviceWaitIdle(logicaldevice);
+
+	freesyncobject();
+	freecommandbuffer();
+	freedescriptor();
+
+	freesampler();
+	freetexture();
+	freeuniformbuffers();
+	freeindicebuffer();
+	freevertexbuffer();
+
+	freeframebuffer();
+	freepipeline();
+	freedescsetlayout();
+	freerenderpass();
+
+	freedepthstencil();
+	freeswapchain();
+
+	freelogicaldevice();
+	freephysicaldevice();
+}
+void vulkan_myctx_create()
+{
+	//logicaldevice <- physicaldevice
+	//swapchain <- physicaldevice, logicaldevice, surface
+	initphysicaldevice();
+	initlogicaldevice();
+
+	//color,depth <- surface
+	initswapchain();
+	initdepthstencil();
+
+	//pipeline <- renderpass, descsetlayout
+	//framebuffer <- imageview, renderpass
+	//commandbuffer <- renderpass, pipeline, framebuffer, vertex, indice
+	initrenderpass();
+	initdescsetlayout();
+	initpipeline();
+	initframebuffer();
+
+	initvertexbuffer();
+	initindicebuffer();
+	inituniformbuffers();
+	inittexture();
+	initsampler();
+
+	//...
+	initdescriptor();
+	initcommandbuffer();
+	initsyncobject();
+}
+
+
+
+
 void updateUniformBuffer(uint32_t currentImage) {
 /*	static auto startTime = std::chrono::high_resolution_clock::now();
 	auto currentTime = std::chrono::high_resolution_clock::now();
@@ -1515,7 +1539,7 @@ void updateUniformBuffer(uint32_t currentImage) {
 	memcpy(data, &ubo, sizeof(ubo));
 	vkUnmapMemory(logicaldevice, uniformBuffersMemory[currentImage]);
 }
-void drawFrame() {
+void drawframe() {
 	vkWaitForFences(logicaldevice, 1, &inFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
 
 	uint32_t imageIndex;
@@ -1560,73 +1584,4 @@ void drawFrame() {
 	vkQueuePresentKHR(presentQueue, &presentInfo);
 
 	currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
-}
-int main()
-{
-	//glfw, vulkan
-	initglfw();
-	initinstance();
-
-	//window, surface
-	initglfwwindow();
-	initsurface();
-
-	//logicaldevice <- physicaldevice
-	//swapchain <- physicaldevice, logicaldevice, surface
-	initphysicaldevice();
-	initlogicaldevice();
-	initswapchain();
-	initdepthstencil();
-
-	//pipeline <- renderpass, descsetlayout
-	//framebuffer <- imageview, renderpass
-	//commandbuffer <- renderpass, pipeline, framebuffer, vertex, indice
-	initrenderpass();
-	initdescsetlayout();
-	initpipeline();
-	initframebuffer();
-
-	initvertexbuffer();
-	initindicebuffer();
-	inituniformbuffers();
-	inittexture();
-	initsampler();
-
-	//...
-	initdescriptor();
-	initcommandbuffer();
-	initsyncobject();
-
-	while (!glfwWindowShouldClose(window)) {
-		glfwPollEvents();
-		drawFrame();
-	}
-	vkDeviceWaitIdle(logicaldevice);
-
-	freesyncobject();
-	freecommandbuffer();
-	freedescriptor();
-
-	freesampler();
-	freetexture();
-	freeuniformbuffers();
-	freeindicebuffer();
-	freevertexbuffer();
-
-	freeframebuffer();
-	freepipeline();
-	freedescsetlayout();
-	freerenderpass();
-
-	freedepthstencil();
-	freeswapchain();
-	freelogicaldevice();
-	freephysicaldevice();
-
-	freesurface();
-	freeglfwwindow();
-
-	freeinstance();
-	freeglfw();
-	return 0;
 }
