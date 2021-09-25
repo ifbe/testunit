@@ -3,10 +3,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-void* vulkan_init();
+void* vulkan_init(int cnt, const char** ext);
 void vulkan_exit();
-void vulkan_surface_create(void*);
-void vulkan_surface_delete();
+void vulkan_device_create(void*);
+void vulkan_device_delete();
 void vulkan_myctx_create();
 void vulkan_myctx_delete();
 void drawframe();
@@ -69,16 +69,26 @@ int main()
 {
 	//init
 	glfw_init();
-	void* instance = vulkan_init();
 
-	//glfw: window, surface
+	//vulkan
+	uint32_t j,count = 0;
+	const char** extension = glfwGetRequiredInstanceExtensions(&count);
+	printf("glfwGetRequiredInstanceExtensions:\n");
+	for(j=0;j<count;j++){
+		printf("%4d:%s\n", j, extension[j]);
+	}
+	void* instance = vulkan_init(count, extension);
+
+	//glfw: window
 	GLFWwindow* window = glfw_window_create();
+
+	//glfw: surface
 	void* surface = glfw_surface_create(window, instance);
 
-	//vulkan: swapchain
-	vulkan_surface_create(surface);
+	//vulkan: device and swapchain
+	vulkan_device_create(surface);
 
-	//myctx
+	//vulkan: things
 	vulkan_myctx_create();
 
 	//forever
@@ -87,13 +97,11 @@ int main()
 		drawframe();
 	}
 
-	//myctx
+	//vulkan
 	vulkan_myctx_delete();
+	vulkan_device_delete();
 
-	//vulkan: swapchain
-	vulkan_surface_delete();
-
-	//glfw: window, surface
+	//glfw
 	glfw_surface_delete();
 	glfw_window_delete(window);
 

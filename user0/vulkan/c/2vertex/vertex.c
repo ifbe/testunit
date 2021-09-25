@@ -1,5 +1,4 @@
-#define GLFW_INCLUDE_VULKAN
-#include <GLFW/glfw3.h>
+#include <vulkan/vulkan.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -15,8 +14,6 @@ const char* deviceExtensions[] = {
 
 //0
 static VkInstance instance;
-//1
-VkSurfaceKHR surface;
 //2
 VkPhysicalDevice physicaldevice = VK_NULL_HANDLE;
 VkDevice logicaldevice;
@@ -25,15 +22,19 @@ VkQueue graphicQueue;
 VkQueue presentQueue;
 VkCommandPool commandPool;
 //4
+VkSurfaceKHR surface;
 VkSwapchainKHR swapChain;
 VkFormat swapChainImageFormat;
 VkExtent2D swapChainExtent;
 uint32_t swapChainImageCount;
-VkImageView swapChainImageViews[256];
+VkImageView swapChainImageViews[8];
 //
-VkImage depthImage;
-VkDeviceMemory depthImageMemory;
-VkImageView depthImageView;
+struct attachment{
+	VkImage image;
+	VkDeviceMemory memory;
+	VkImageView view;
+};
+struct attachment attachdepth;
 //5
 VkBuffer vertexBuffer;
 VkDeviceMemory vertexBufferMemory;
@@ -41,14 +42,14 @@ VkDeviceMemory vertexBufferMemory;
 VkRenderPass renderPass;
 VkPipelineLayout pipelineLayout;
 VkPipeline graphicsPipeline;
-VkFramebuffer swapChainFramebuffers[256];
-VkCommandBuffer commandBuffers[256];
+VkFramebuffer swapChainFramebuffers[8];
+VkCommandBuffer commandBuffers[8];
 //7
 #define MAX_FRAMES_IN_FLIGHT 2
 VkSemaphore imageAvailableSemaphores[2];
 VkSemaphore renderFinishedSemaphores[2];
 VkFence inFlightFences[2];
-VkFence imagesInFlight[256];
+VkFence imagesInFlight[8];
 size_t currentFrame = 0;
 
 
@@ -75,27 +76,12 @@ struct Vertex vertices[] = {
 
 
 
-int freeglfw()
-{
-	glfwTerminate();
-	return 0;
-}
-int initglfw()
-{
-	glfwInit();
-	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-	return 0;
-}
-
-
-
-
 int vulkan_exit()
 {
 	vkDestroyInstance(instance, 0);
 	return 0;
 }
-void* vulkan_init()
+void* vulkan_init(int cnt, const char** ext)
 {
 	uint32_t layerCount;
 	vkEnumerateInstanceLayerProperties(&layerCount, 0);
@@ -110,8 +96,6 @@ void* vulkan_init()
 	}
 
 
-
-
 	VkApplicationInfo appInfo = {};
 	appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
 	appInfo.pApplicationName = "Hello Triangle";
@@ -120,19 +104,11 @@ void* vulkan_init()
 	appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
 	appInfo.apiVersion = VK_API_VERSION_1_0;
 
-	uint32_t count = 0;
-	const char** extension = glfwGetRequiredInstanceExtensions(&count);
-	printf("glfwGetRequiredInstanceExtensions:\n");
-
-	for(j=0;j<count;j++){
-		printf("%4d:%s\n", j, extension[j]);
-	}
-
 	VkInstanceCreateInfo createInfo = {};
 	createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
 	createInfo.pApplicationInfo = &appInfo;
-	createInfo.enabledExtensionCount = count;
-	createInfo.ppEnabledExtensionNames = extension;
+	createInfo.enabledExtensionCount = cnt;
+	createInfo.ppEnabledExtensionNames = ext;
 	createInfo.enabledLayerCount = 0;
 	createInfo.pNext = 0;
 
@@ -141,20 +117,6 @@ void* vulkan_init()
 	}
 
 	return instance;
-}
-
-
-
-
-int vulkan_surface_delete()
-{
-	vkDestroySurfaceKHR(instance, surface, 0);
-	return 0;
-}
-int vulkan_surface_create(VkSurfaceKHR p)
-{
-	surface = p;
-	return 0;
 }
 
 
@@ -480,6 +442,33 @@ int initswapchain() {
 
 
 
+int vulkan_device_delete()
+{
+	freeswapchain();
+
+	freelogicaldevice();
+	freephysicaldevice();
+
+	vkDestroySurfaceKHR(instance, surface, 0);
+	return 0;
+}
+int vulkan_device_create(VkSurfaceKHR p)
+{
+	surface = p;
+
+	//logicaldevice <- physicaldevice
+	//swapchain <- physicaldevice, logicaldevice, surface
+	initphysicaldevice();
+	initlogicaldevice();
+
+	//color,depth <- surface
+	initswapchain();
+
+	return 0;
+}
+
+
+
 
 VkFormat findDepthFormat() {
 	VkImageTiling tiling = VK_IMAGE_TILING_OPTIMAL;
@@ -532,28 +521,28 @@ int initdepthstencil() {
 	imageInfo.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
 	imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
 	imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-	if (vkCreateImage(logicaldevice, &imageInfo, 0, &depthImage) != VK_SUCCESS) {
-		printf("error@vkCreateImage:depthImage\n");
+	if (vkCreateImage(logicaldevice, &imageInfo, 0, &attachdepth.image) != VK_SUCCESS) {
+		printf("error@vkCreateImage:attachdepth.image\n");
 	}
 
 	VkMemoryRequirements memreq;
-	vkGetImageMemoryRequirements(logicaldevice, depthImage, &memreq);
+	vkGetImageMemoryRequirements(logicaldevice, attachdepth.image, &memreq);
 
 	VkMemoryAllocateInfo allocInfo = {};
 	allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
 	allocInfo.allocationSize = memreq.size;
 	allocInfo.memoryTypeIndex = findMemoryType(memreq.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
-	if (vkAllocateMemory(logicaldevice, &allocInfo, 0, &depthImageMemory) != VK_SUCCESS) {
-		printf("error@vkAllocateMemory:depthImageMemory\n");
+	if (vkAllocateMemory(logicaldevice, &allocInfo, 0, &attachdepth.memory) != VK_SUCCESS) {
+		printf("error@vkAllocateMemory:attachdepth.memory\n");
 	}
 
-	vkBindImageMemory(logicaldevice, depthImage, depthImageMemory, 0);
+	vkBindImageMemory(logicaldevice, attachdepth.image, attachdepth.memory, 0);
 
 
 	//imageview
 	VkImageViewCreateInfo viewInfo = {};
 	viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-	viewInfo.image = depthImage;
+	viewInfo.image = attachdepth.image;
 	viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
 	viewInfo.format = depthFormat;
 	viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
@@ -561,7 +550,7 @@ int initdepthstencil() {
 	viewInfo.subresourceRange.levelCount = 1;
 	viewInfo.subresourceRange.baseArrayLayer = 0;
 	viewInfo.subresourceRange.layerCount = 1;
-	if (vkCreateImageView(logicaldevice, &viewInfo, 0, &depthImageView) != VK_SUCCESS) {
+	if (vkCreateImageView(logicaldevice, &viewInfo, 0, &attachdepth.view) != VK_SUCCESS) {
 		printf("error@vkCreateImageView:depth\n");
 	}
 	return 0;
@@ -842,7 +831,7 @@ int initframebuffer(){
 	for (size_t i = 0; i <swapChainImageCount; i++) {
 		VkImageView attachments[] = {
 			swapChainImageViews[i],
-			depthImageView
+			attachdepth.view
 		};
 
 		VkFramebufferCreateInfo framebufferInfo = {};
@@ -1007,20 +996,9 @@ void vulkan_myctx_delete()
 	freerenderpass();
 
 	freedepthstencil();
-	freeswapchain();
-
-	freelogicaldevice();
-	freephysicaldevice();
 }
 void vulkan_myctx_create()
 {
-	//logicaldevice <- physicaldevice
-	//swapchain <- physicaldevice, logicaldevice, surface
-	initphysicaldevice();
-	initlogicaldevice();
-
-	//color,depth <- surface
-	initswapchain();
 	initdepthstencil();
 
 	//pipeline <- renderpass
@@ -1034,7 +1012,6 @@ void vulkan_myctx_create()
 
 	//fence
 	initsyncobject();
-
 }
 
 
