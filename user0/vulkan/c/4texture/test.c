@@ -63,7 +63,6 @@ VkSampler textureSampler;
 VkSemaphore imageAvailableSemaphores[2];
 VkSemaphore renderFinishedSemaphores[2];
 VkFence inFlightFences[2];
-VkFence imagesInFlight[16];
 size_t currentFrame = 0;
 float time = 0.0;
 
@@ -1440,9 +1439,6 @@ int freesyncobject(){
 int initsyncobject(){
 	printf("count=%d\n", swapChainImageCount);
 
-	int j;
-	for(j=0;j<swapChainImageCount;j++)imagesInFlight[j] = VK_NULL_HANDLE;
-
 	VkSemaphoreCreateInfo semaphoreInfo = {};
 	semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
 
@@ -1538,11 +1534,6 @@ void drawframe() {
 	vkAcquireNextImageKHR(logicaldevice, swapChain, UINT64_MAX, imageAvailableSemaphores[currentFrame], VK_NULL_HANDLE, &imageIndex);
 
 	updateUniformBuffer(imageIndex);
-
-	if (imagesInFlight[imageIndex] != VK_NULL_HANDLE) {
-		vkWaitForFences(logicaldevice, 1, &imagesInFlight[imageIndex], VK_TRUE, UINT64_MAX);
-	}
-	imagesInFlight[imageIndex] = inFlightFences[currentFrame];
 
 	VkSubmitInfo submitInfo = {};
 	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;

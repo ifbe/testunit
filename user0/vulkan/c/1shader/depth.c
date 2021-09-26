@@ -25,8 +25,8 @@ VkCommandBuffer commandBuffers[8];
 //6
 VkSurfaceKHR surface;
 VkSwapchainKHR swapChain;
+VkExtent2D widthheight;
 VkFormat swapChainImageFormat;
-VkExtent2D swapChainExtent;
 uint32_t swapChainImageCount;
 VkImageView swapChainImageViews[8];
 //
@@ -46,7 +46,6 @@ VkFramebuffer framebuffer[8];
 VkSemaphore imageAvailableSemaphores[2];
 VkSemaphore renderFinishedSemaphores[2];
 VkFence inFlightFences[2];
-VkFence imagesInFlight[8];
 size_t currentFrame = 0;
 
 
@@ -125,14 +124,16 @@ int checkPhysicalDeviceQueueFamilyProperties(VkPhysicalDevice device, int* gg, i
 
 	VkQueueFamilyProperties fam[cnt];
 	vkGetPhysicalDeviceQueueFamilyProperties(device, &cnt, fam);
-	printf("vkGetPhysicalDeviceQueueFamilyProperties:\n");
 
 	int j;
 	int graphicwhich = -1;
 	int presentwhich = -1;
 	VkBool32 graphicSupport = 0;
 	VkBool32 presentSupport = 0;
+	printf("vkGetPhysicalDeviceQueueFamilyProperties:\n");
 	for(j=0;j<cnt;j++) {
+		printf("%4d:%x\n", j, fam[j].queueFlags);
+
 		if(fam[j].queueFlags & VK_QUEUE_GRAPHICS_BIT){
 			graphicSupport = 1;
 			graphicwhich = j;
@@ -165,9 +166,9 @@ int checkSwapChain(VkPhysicalDevice device) {
 
 	VkSurfaceFormatKHR formats[formatCount];
 	vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &formatCount, formats);
-	printf("vkGetPhysicalDeviceSurfaceFormatsKHR:\n");
 
 	int j;
+	printf("vkGetPhysicalDeviceSurfaceFormatsKHR:\n");
 	for(j=0;j<formatCount;j++){
 		printf("%4d:format=%08x,colorspace=%08x\n", j, formats[j].format, formats[j].colorSpace);
 	}
@@ -179,8 +180,8 @@ int checkSwapChain(VkPhysicalDevice device) {
 
 	VkPresentModeKHR presentModes[presentModeCount];
 	vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &presentModeCount, presentModes);
-	printf("vkGetPhysicalDeviceSurfacePresentModesKHR:\n");
 
+	printf("vkGetPhysicalDeviceSurfacePresentModesKHR:\n");
 	for(j=0;j<formatCount;j++){
 		printf("%4d:%08x\n", j, presentModes[j]);
 	}
@@ -206,7 +207,7 @@ int initphysicaldevice() {
 	int aa,bb,cc;
 	physicaldevice = VK_NULL_HANDLE;
 	for(j=0;j<count;j++) {
-		printf("physicaldevice %d:\n", j);
+		printf("physicaldevice %d{\n", j);
 		aa = checkDeviceExtensionProperties(devs[j]);
 		bb = checkPhysicalDeviceQueueFamilyProperties(devs[j], 0, 0);
 		cc = checkSwapChain(devs[j]);
@@ -215,6 +216,7 @@ int initphysicaldevice() {
 		if((aa >= 0)&&(bb > 0)&&(cc > 0)){
 			if(phy < 0)phy = j;
 		}
+		printf("}\n");
 	}
 	if(phy < 0){
 		printf("no physicaldevice\n");
@@ -288,14 +290,6 @@ int initlogicaldevice() {
 
 
 
-int getmin(int a, int b)
-{
-	return a < b ? a : b;
-}
-int getmax(int a, int b)
-{
-	return a > b ? a : b;
-}
 int freeswapchain() {
 	return 0;
 }
@@ -304,6 +298,26 @@ int initswapchain() {
 	VkSurfaceCapabilitiesKHR capabilities;
 	vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicaldevice, surface, &capabilities);
 
+	if(capabilities.currentExtent.width != UINT32_MAX) {
+		widthheight.width = capabilities.currentExtent.width;
+		widthheight.height= capabilities.currentExtent.height;
+	}
+	else{
+		int w = 1024, h = 768;
+		if(w > capabilities.maxImageExtent.width)w = capabilities.maxImageExtent.width;
+		if(w < capabilities.minImageExtent.width)w = capabilities.minImageExtent.width;
+		if(h > capabilities.maxImageExtent.height)h = capabilities.maxImageExtent.height;
+		if(h < capabilities.minImageExtent.height)h = capabilities.minImageExtent.height;
+
+		widthheight.width = capabilities.currentExtent.width;
+		widthheight.height= capabilities.currentExtent.height;
+	}
+
+	uint32_t imageCount = capabilities.minImageCount + 1;
+	if((capabilities.maxImageCount > 0) && (imageCount > capabilities.maxImageCount)) {
+		imageCount = capabilities.maxImageCount;
+	}
+
 	//format
 	uint32_t formatCount;
 	vkGetPhysicalDeviceSurfaceFormatsKHR(physicaldevice, surface, &formatCount, 0);
@@ -311,14 +325,6 @@ int initswapchain() {
 
 	VkSurfaceFormatKHR formats[formatCount];
 	vkGetPhysicalDeviceSurfaceFormatsKHR(physicaldevice, surface, &formatCount, formats);
-
-	//presentmode
-	uint32_t presentModeCount;
-	vkGetPhysicalDeviceSurfacePresentModesKHR(physicaldevice, surface, &presentModeCount, 0);
-	if(0 == presentModeCount)return -2;
-
-	VkPresentModeKHR presentModes[presentModeCount];
-	vkGetPhysicalDeviceSurfacePresentModesKHR(physicaldevice, surface, &presentModeCount, presentModes);
 
 	int j;
 	VkSurfaceFormatKHR surfaceFormat = formats[0];
@@ -329,28 +335,19 @@ int initswapchain() {
 		}
 	}
 
+	//presentmode
+	uint32_t presentModeCount;
+	vkGetPhysicalDeviceSurfacePresentModesKHR(physicaldevice, surface, &presentModeCount, 0);
+	if(0 == presentModeCount)return -2;
+
+	VkPresentModeKHR presentModes[presentModeCount];
+	vkGetPhysicalDeviceSurfacePresentModesKHR(physicaldevice, surface, &presentModeCount, presentModes);
+
 	VkPresentModeKHR presentMode = VK_PRESENT_MODE_FIFO_KHR;
-	for(j=0;j<formatCount;j++){
+	for(j=0;j<presentModeCount;j++){
 		if(presentModes[j] == VK_PRESENT_MODE_MAILBOX_KHR) {
 			presentMode = presentModes[j];
 		}
-	}
-
-	VkExtent2D extent;
-	if(capabilities.currentExtent.width != UINT32_MAX) {
-		extent = capabilities.currentExtent;
-	}
-	else{
-		VkExtent2D actualExtent = {1024, 768};
-		actualExtent.width = getmax(capabilities.minImageExtent.width, getmin(capabilities.maxImageExtent.width, actualExtent.width));
-		actualExtent.height = getmax(capabilities.minImageExtent.height, getmin(capabilities.maxImageExtent.height, actualExtent.height));
-
-		extent = actualExtent;
-	}
-
-	uint32_t imageCount = capabilities.minImageCount + 1;
-	if((capabilities.maxImageCount > 0) && (imageCount > capabilities.maxImageCount)) {
-		imageCount = capabilities.maxImageCount;
 	}
 
 	VkSwapchainCreateInfoKHR createInfo = {0};
@@ -360,7 +357,7 @@ int initswapchain() {
 	createInfo.minImageCount = imageCount;
 	createInfo.imageFormat = surfaceFormat.format;
 	createInfo.imageColorSpace = surfaceFormat.colorSpace;
-	createInfo.imageExtent = extent;
+	createInfo.imageExtent = widthheight;
 	createInfo.imageArrayLayers = 1;
 	createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
@@ -393,7 +390,6 @@ int initswapchain() {
 	vkGetSwapchainImagesKHR(logicaldevice, swapChain, &swapChainImageCount, swapChainImages);
 
 	swapChainImageFormat = surfaceFormat.format;
-	swapChainExtent = extent;
 	for(j=0;j<swapChainImageCount; j++) {
 		VkImageViewCreateInfo createInfo = {};
 		createInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
@@ -420,9 +416,20 @@ int initswapchain() {
 
 
 
+int freeoffscreen() {
+	return 0;
+}
+int initoffscreen() {
+	return 0;
+}
+
+
+
+
 int vulkan_device_delete()
 {
-	freeswapchain();
+	if(surface)freeswapchain();
+	else freeoffscreen();
 
 	freelogicaldevice();
 	freephysicaldevice();
@@ -435,12 +442,12 @@ int vulkan_device_create(VkSurfaceKHR p)
 	surface = p;
 
 	//logicaldevice <- physicaldevice
-	//swapchain <- physicaldevice, logicaldevice, surface
 	initphysicaldevice();
 	initlogicaldevice();
 
-	//color,depth <- surface
-	initswapchain();
+	//swapchain <- physicaldevice, logicaldevice, surface
+	if(surface)initswapchain();
+	else initoffscreen();
 
 	return 0;
 }
@@ -489,8 +496,8 @@ int initdepthstencil() {
 	VkImageCreateInfo imageInfo = {};
 	imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
 	imageInfo.imageType = VK_IMAGE_TYPE_2D;
-	imageInfo.extent.width = swapChainExtent.width;
-	imageInfo.extent.height = swapChainExtent.width;
+	imageInfo.extent.width = widthheight.width;
+	imageInfo.extent.height = widthheight.width;
 	imageInfo.extent.depth = 1;
 	imageInfo.mipLevels = 1;
 	imageInfo.arrayLayers = 1;
@@ -685,15 +692,15 @@ int initpipeline() {
 	VkViewport viewport = {};
 	viewport.x = 0.0f;
 	viewport.y = 0.0f;
-	viewport.width = (float) swapChainExtent.width;
-	viewport.height = (float) swapChainExtent.height;
+	viewport.width = (float)widthheight.width;
+	viewport.height = (float)widthheight.height;
 	viewport.minDepth = 0.0f;
 	viewport.maxDepth = 1.0f;
 
 	VkRect2D scissor = {};
 	scissor.offset.x = 0;
 	scissor.offset.y = 0;
-	scissor.extent = swapChainExtent;
+	scissor.extent = widthheight;
 
 	VkPipelineViewportStateCreateInfo viewportState = {};
 	viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
@@ -801,8 +808,8 @@ int initframebuffer(){
 		framebufferInfo.renderPass = renderPass;
 		framebufferInfo.attachmentCount = 2;
 		framebufferInfo.pAttachments = attachments;
-		framebufferInfo.width = swapChainExtent.width;
-		framebufferInfo.height = swapChainExtent.height;
+		framebufferInfo.width = widthheight.width;
+		framebufferInfo.height = widthheight.height;
 		framebufferInfo.layers = 1;
 
 		if (vkCreateFramebuffer(logicaldevice, &framebufferInfo, 0, &framebuffer[i]) != VK_SUCCESS) {
@@ -843,7 +850,7 @@ int initcommandbuffer() {
 		renderPassInfo.framebuffer = framebuffer[i];
 		renderPassInfo.renderArea.offset.x = 0;
 		renderPassInfo.renderArea.offset.y = 0;
-		renderPassInfo.renderArea.extent = swapChainExtent;
+		renderPassInfo.renderArea.extent = widthheight;
 
 		VkClearValue clearValues[2] = {};
 		clearValues[0].color.float32[0] = 0.0;
@@ -877,10 +884,7 @@ int freesyncobject(){
 	return 0;
 }
 int initsyncobject(){
-	printf("count=%d\n", swapChainImageCount);
-
-	int j;
-	for(j=0;j<swapChainImageCount;j++)imagesInFlight[j] = VK_NULL_HANDLE;
+	printf("color count=%d\n", swapChainImageCount);
 
 	VkSemaphoreCreateInfo semaphoreInfo = {};
 	semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
@@ -939,11 +943,6 @@ void drawframe() {
 
 	uint32_t imageIndex;
 	vkAcquireNextImageKHR(logicaldevice, swapChain, UINT64_MAX, imageAvailableSemaphores[currentFrame], VK_NULL_HANDLE, &imageIndex);
-
-	if (imagesInFlight[imageIndex] != VK_NULL_HANDLE) {
-		vkWaitForFences(logicaldevice, 1, &imagesInFlight[imageIndex], VK_TRUE, UINT64_MAX);
-	}
-	imagesInFlight[imageIndex] = inFlightFences[currentFrame];
 
 	VkSubmitInfo submitInfo = {};
 	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
