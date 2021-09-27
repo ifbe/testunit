@@ -92,6 +92,41 @@ void* vulkan_init(int cnt, const char** ext)
 
 
 
+int checkDeviceProperties(VkPhysicalDevice device) {
+	VkPhysicalDeviceProperties prop;
+	vkGetPhysicalDeviceProperties(device, &prop);
+
+	printf("vkGetPhysicalDeviceProperties:\n");
+	printf("	apiver=%x\n", prop.apiVersion);
+	printf("	drvver=%x\n", prop.driverVersion);
+	printf("	vendor=%x\n", prop.vendorID);
+	printf("	device=%x\n", prop.deviceID);
+	printf("	name=%s\n", prop.deviceName);
+	printf("	type=");
+	switch(prop.deviceType){
+	case VK_PHYSICAL_DEVICE_TYPE_OTHER:
+		printf("other\n");
+		break;
+	case VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU:
+		printf("igpu\n");
+		break;
+	case VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU:
+		printf("dgpu\n");
+		break;
+	case VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU:
+		printf("vgpu\n");
+		break;
+	case VK_PHYSICAL_DEVICE_TYPE_CPU:
+		printf("cpu\n");
+		break;
+	default:
+		printf("unknown\n");
+		break;
+	}
+
+	printf("\n");
+	return 1;
+}
 int checkDeviceExtensionProperties(VkPhysicalDevice device) {
 	uint32_t cnt;
 	vkEnumerateDeviceExtensionProperties(device, 0, &cnt, 0);
@@ -103,7 +138,7 @@ int checkDeviceExtensionProperties(VkPhysicalDevice device) {
 	int j;
 	int ret = -1;
 	for(j=0;j<cnt;j++) {
-		printf("%4d:ver=%04d,str=%s\n", j, ext[j].specVersion, ext[j].extensionName);
+		printf("%d:	ver=%04d,str=%s\n", j, ext[j].specVersion, ext[j].extensionName);
 		if(0 == strcmp(ext[j].extensionName, VK_KHR_SWAPCHAIN_EXTENSION_NAME)){
 			if(ret < 0)ret = j;
 		}
@@ -111,6 +146,13 @@ int checkDeviceExtensionProperties(VkPhysicalDevice device) {
 	printf("=>VK_KHR_swapchain@%d\n\n",ret);
 	return ret;
 }
+//#define VK_QUEUE_GRAPHICS_BIT         0x00000001
+//#define VK_QUEUE_COMPUTE_BIT          0x00000002
+//#define VK_QUEUE_TRANSFER_BIT         0x00000004
+#define VK_QUEUE_SPARSE_BINDING_BIT   0x00000008
+#define VK_QUEUE_PROTECTED_BIT        0x00000010
+#define VK_QUEUE_VIDEO_DECODE_BIT_KHR 0x00000020
+#define VK_QUEUE_VIDEO_ENCODE_BIT_KHR 0x00000040
 int checkPhysicalDeviceQueueFamilyProperties(VkPhysicalDevice device, int* gg, int* pp){
 	//printf("dev=%p\n",device);
 
@@ -128,16 +170,28 @@ int checkPhysicalDeviceQueueFamilyProperties(VkPhysicalDevice device, int* gg, i
 	VkBool32 support = 0;
 	printf("vkGetPhysicalDeviceQueueFamilyProperties:\n");
 	for(j=0;j<cnt;j++) {
-		printf("%4d:%d=", j, fam[j].queueFlags);
-		if(fam[j].queueFlags & VK_QUEUE_TRANSFER_BIT){
-			printf("transfer, ");
+		printf("%d:	%d=", j, fam[j].queueFlags);
+		if(fam[j].queueFlags & VK_QUEUE_VIDEO_ENCODE_BIT_KHR){	//64
+			printf("encode,");
+		}
+		if(fam[j].queueFlags & VK_QUEUE_VIDEO_DECODE_BIT_KHR){	//32
+			printf("decode,");
+		}
+		if(fam[j].queueFlags & VK_QUEUE_PROTECTED_BIT){	//16
+			printf("protected,");
+		}
+		if(fam[j].queueFlags & VK_QUEUE_SPARSE_BINDING_BIT){	//8
+			printf("binding,");
+		}
+		if(fam[j].queueFlags & VK_QUEUE_TRANSFER_BIT){	//4
+			printf("transfer,");
 			if(firsttransfer < 0)firsttransfer = j;
 		}
-		if(fam[j].queueFlags & VK_QUEUE_COMPUTE_BIT){
-			printf("compute, ");
+		if(fam[j].queueFlags & VK_QUEUE_COMPUTE_BIT){	//2
+			printf("compute,");
 			if(firstcompute < 0)firstcompute = j;
 		}
-		if(fam[j].queueFlags & VK_QUEUE_GRAPHICS_BIT){
+		if(fam[j].queueFlags & VK_QUEUE_GRAPHICS_BIT){	//1
 			printf("graphic");
 			if(firstgraphic < 0)firstgraphic = j;
 
@@ -150,7 +204,7 @@ int checkPhysicalDeviceQueueFamilyProperties(VkPhysicalDevice device, int* gg, i
 		}
 		printf("\n");
 	}
-	printf("=>graphic@%d,present@%d\n\n", firstgraphic, firstpresent);
+	printf("=>transfer@%d,compute@%d,graphic@%d,present@%d\n\n", firsttransfer, firstcompute, firstgraphic, firstpresent);
 
 	if((firstgraphic >= 0) && (firstpresent >= 0)){
 		if(gg)gg[0] = firstgraphic;
@@ -175,7 +229,7 @@ int checkSwapChain(VkPhysicalDevice device) {
 	int j;
 	printf("vkGetPhysicalDeviceSurfaceFormatsKHR:\n");
 	for(j=0;j<formatCount;j++){
-		printf("%4d:format=%08x,colorspace=%08x\n", j, formats[j].format, formats[j].colorSpace);
+		printf("%d:	format=%08x,colorspace=%08x\n", j, formats[j].format, formats[j].colorSpace);
 	}
 	printf("\n");
 
@@ -189,7 +243,7 @@ int checkSwapChain(VkPhysicalDevice device) {
 
 	printf("vkGetPhysicalDeviceSurfacePresentModesKHR:\n");
 	for(j=0;j<formatCount;j++){
-		printf("%4d:%08x=", j, presentModes[j]);
+		printf("%d:	%08x=", j, presentModes[j]);
 		switch(presentModes[j]){
 		case VK_PRESENT_MODE_IMMEDIATE_KHR:
 			printf("IMMEDIATE");
@@ -215,6 +269,7 @@ int checkSwapChain(VkPhysicalDevice device) {
 		}
 		printf("\n");
 	}
+	printf("\n");
 
 	return 1;
 }
@@ -238,15 +293,16 @@ int initphysicaldevice() {
 	physicaldevice = VK_NULL_HANDLE;
 	for(j=0;j<count;j++) {
 		printf("%d:physicaldevice{\n", j);
+		checkDeviceProperties(devs[j]);
 		aa = checkDeviceExtensionProperties(devs[j]);
 		bb = checkPhysicalDeviceQueueFamilyProperties(devs[j], 0, 0);
 		cc = checkSwapChain(devs[j]);
 
-		printf("%d,%d,%d\n",aa,bb,cc);
 		if((aa >= 0)&&(bb > 0)&&(cc > 0)){
 			if(phy < 0)phy = j;
 		}
-		printf("}\n");
+		printf("score=%d,%d,%d\n",aa,bb,cc);
+		printf("}\n\n");
 	}
 	if(phy < 0){
 		printf("no physicaldevice\n");
@@ -254,7 +310,7 @@ int initphysicaldevice() {
 	}
 
 	physicaldevice = devs[phy];
-	printf("physicaldevice=%d(%p)\n", phy, physicaldevice);
+	printf("=>choose device=%d(%p)\n", phy, physicaldevice);
 	return 0;
 }
 
