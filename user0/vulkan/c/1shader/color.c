@@ -18,8 +18,8 @@ static VkInstance instance;
 VkPhysicalDevice physicaldevice = VK_NULL_HANDLE;
 VkDevice logicaldevice;
 //3
-int graphicat;
-int presentat;
+int graphicindex;
+int presentindex;
 VkQueue graphicQueue;
 VkQueue presentQueue;
 VkCommandPool commandPool;
@@ -108,7 +108,7 @@ int checkDeviceExtensionProperties(VkPhysicalDevice device) {
 			if(ret < 0)ret = j;
 		}
 	}
-	printf("=>VK_KHR_swapchain@%d\n",ret);
+	printf("=>VK_KHR_swapchain@%d\n\n",ret);
 	return ret;
 }
 int checkPhysicalDeviceQueueFamilyProperties(VkPhysicalDevice device, int* gg, int* pp){
@@ -121,29 +121,40 @@ int checkPhysicalDeviceQueueFamilyProperties(VkPhysicalDevice device, int* gg, i
 	vkGetPhysicalDeviceQueueFamilyProperties(device, &cnt, fam);
 
 	int j;
-	int graphicwhich = -1;
-	int presentwhich = -1;
-	VkBool32 graphicSupport = 0;
-	VkBool32 presentSupport = 0;
+	int firsttransfer = -1;
+	int firstcompute = -1;
+	int firstgraphic = -1;
+	int firstpresent = -1;
+	VkBool32 support = 0;
 	printf("vkGetPhysicalDeviceQueueFamilyProperties:\n");
 	for(j=0;j<cnt;j++) {
-		printf("%4d:%x\n", j, fam[j].queueFlags);
+		printf("%4d:%d=", j, fam[j].queueFlags);
+		if(fam[j].queueFlags & VK_QUEUE_TRANSFER_BIT){
+			printf("transfer, ");
+			if(firsttransfer < 0)firsttransfer = j;
+		}
+		if(fam[j].queueFlags & VK_QUEUE_COMPUTE_BIT){
+			printf("compute, ");
+			if(firstcompute < 0)firstcompute = j;
+		}
 		if(fam[j].queueFlags & VK_QUEUE_GRAPHICS_BIT){
-			graphicSupport = 1;
-			if(graphicwhich < 0)graphicwhich = j;
-		}
+			printf("graphic");
+			if(firstgraphic < 0)firstgraphic = j;
 
-		presentSupport = 0;
-		vkGetPhysicalDeviceSurfaceSupportKHR(device, j, surface, &presentSupport);
-		if(presentSupport){
-			if(presentwhich < 0)presentwhich = j;
+			support = 0;
+			vkGetPhysicalDeviceSurfaceSupportKHR(device, j, surface, &support);
+			if(support){
+				printf("&present");
+				if(firstpresent < 0)firstpresent = j;
+			}
 		}
+		printf("\n");
 	}
-	printf("=>graphic@%d,present@%d\n", graphicwhich, presentwhich);
+	printf("=>graphic@%d,present@%d\n\n", firstgraphic, firstpresent);
 
-	if((graphicSupport > 0) && (presentSupport > 0)){
-		if(gg)gg[0] = graphicwhich;
-		if(pp)pp[0] = presentwhich;
+	if((firstgraphic >= 0) && (firstpresent >= 0)){
+		if(gg)gg[0] = firstgraphic;
+		if(pp)pp[0] = firstpresent;
 		return 1;
 	}
 	return 0;
@@ -166,6 +177,7 @@ int checkSwapChain(VkPhysicalDevice device) {
 	for(j=0;j<formatCount;j++){
 		printf("%4d:format=%08x,colorspace=%08x\n", j, formats[j].format, formats[j].colorSpace);
 	}
+	printf("\n");
 
 	//presentmode
 	uint32_t presentModeCount;
@@ -177,7 +189,31 @@ int checkSwapChain(VkPhysicalDevice device) {
 
 	printf("vkGetPhysicalDeviceSurfacePresentModesKHR:\n");
 	for(j=0;j<formatCount;j++){
-		printf("%4d:%08x\n", j, presentModes[j]);
+		printf("%4d:%08x=", j, presentModes[j]);
+		switch(presentModes[j]){
+		case VK_PRESENT_MODE_IMMEDIATE_KHR:
+			printf("IMMEDIATE");
+			break;
+		case VK_PRESENT_MODE_MAILBOX_KHR:
+			printf("MAILBOX");
+			break;
+		case VK_PRESENT_MODE_FIFO_KHR:
+			printf("FIFO");
+			break;
+		case VK_PRESENT_MODE_FIFO_RELAXED_KHR:
+			printf("FIFO_RELAXED");
+			break;
+		case VK_PRESENT_MODE_SHARED_DEMAND_REFRESH_KHR:
+			printf("SHARED_DEMAND_REFRESH");
+			break;
+		case VK_PRESENT_MODE_SHARED_CONTINUOUS_REFRESH_KHR:
+			printf("SHARED_CONTINUOUS_REFRESH");
+			break;
+		default:
+			printf("unknown");
+			break;
+		}
+		printf("\n");
 	}
 
 	return 1;
@@ -229,8 +265,8 @@ int freelogicaldevice() {
 	return 0;
 }
 int initlogicaldevice() {
-	checkPhysicalDeviceQueueFamilyProperties(physicaldevice, &graphicat, &presentat);
-	printf("graphic=%d,present=%d\n",graphicat,presentat);
+	checkPhysicalDeviceQueueFamilyProperties(physicaldevice, &graphicindex, &presentindex);
+	printf("graphic=%d,present=%d\n",graphicindex,presentindex);
 
 
 	//queue create info
@@ -238,12 +274,12 @@ int initlogicaldevice() {
 	float queuePriority = 1.0f;
 
 	queueCreateInfos[0].sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-	queueCreateInfos[0].queueFamilyIndex = graphicat;
+	queueCreateInfos[0].queueFamilyIndex = graphicindex;
 	queueCreateInfos[0].queueCount = 1;
 	queueCreateInfos[0].pQueuePriorities = &queuePriority;
 
 	queueCreateInfos[1].sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-	queueCreateInfos[1].queueFamilyIndex = presentat;
+	queueCreateInfos[1].queueFamilyIndex = presentindex;
 	queueCreateInfos[1].queueCount = 1;
 	queueCreateInfos[1].pQueuePriorities = &queuePriority;
 
@@ -267,13 +303,13 @@ int initlogicaldevice() {
 	}
 
 	//queue
-	vkGetDeviceQueue(logicaldevice, graphicat, 0, &graphicQueue);
-	vkGetDeviceQueue(logicaldevice, presentat, 0, &presentQueue);
+	vkGetDeviceQueue(logicaldevice, graphicindex, 0, &graphicQueue);
+	vkGetDeviceQueue(logicaldevice, presentindex, 0, &presentQueue);
 
 	//pool
 	VkCommandPoolCreateInfo poolInfo = {};
 	poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-	poolInfo.queueFamilyIndex = graphicat;
+	poolInfo.queueFamilyIndex = graphicindex;
 	if (vkCreateCommandPool(logicaldevice, &poolInfo, 0, &commandPool) != VK_SUCCESS) {
 		printf("error@vkCreateCommandPool\n");
 	}
@@ -354,8 +390,8 @@ int initswapchain() {
 	createInfo.imageArrayLayers = 1;
 	createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
-	uint32_t queueFamilyIndices[] = {graphicat, presentat};
-	if (graphicat != presentat) {
+	uint32_t queueFamilyIndices[] = {graphicindex, presentindex};
+	if (graphicindex != presentindex) {
 		createInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
 		createInfo.queueFamilyIndexCount = 2;
 		createInfo.pQueueFamilyIndices = queueFamilyIndices;
@@ -798,17 +834,18 @@ void drawframe() {
 	uint32_t imageIndex;
 	vkAcquireNextImageKHR(logicaldevice, swapChain, UINT64_MAX, imageAvailableSemaphores[currentFrame], VK_NULL_HANDLE, &imageIndex);
 
+
+	//vkQueueSubmit
 	VkSubmitInfo submitInfo = {};
 	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+	submitInfo.commandBufferCount = 1;
+	submitInfo.pCommandBuffers = &commandBuffers[imageIndex];
 
 	VkSemaphore waitSemaphores[] = {imageAvailableSemaphores[currentFrame]};
 	VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
 	submitInfo.waitSemaphoreCount = 1;
 	submitInfo.pWaitSemaphores = waitSemaphores;
 	submitInfo.pWaitDstStageMask = waitStages;
-
-	submitInfo.commandBufferCount = 1;
-	submitInfo.pCommandBuffers = &commandBuffers[imageIndex];
 
 	VkSemaphore signalSemaphores[] = {renderFinishedSemaphores[currentFrame]};
 	submitInfo.signalSemaphoreCount = 1;
@@ -819,15 +856,19 @@ void drawframe() {
 		printf("failed to submit draw command buffer\n");
 	}
 
-	VkSwapchainKHR swapChains[] = {swapChain};
-	VkPresentInfoKHR presentInfo = {};
-	presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
-	presentInfo.waitSemaphoreCount = 1;
-	presentInfo.pWaitSemaphores = signalSemaphores;
-	presentInfo.swapchainCount = 1;
-	presentInfo.pSwapchains = swapChains;
-	presentInfo.pImageIndices = &imageIndex;
-	vkQueuePresentKHR(presentQueue, &presentInfo);
+
+	//vkQueuePresentKHR
+	if(surface){
+		VkSwapchainKHR swapChains[] = {swapChain};
+		VkPresentInfoKHR presentInfo = {};
+		presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+		presentInfo.waitSemaphoreCount = 1;
+		presentInfo.pWaitSemaphores = signalSemaphores;
+		presentInfo.swapchainCount = 1;
+		presentInfo.pSwapchains = swapChains;
+		presentInfo.pImageIndices = &imageIndex;
+		vkQueuePresentKHR(presentQueue, &presentInfo);
+	}
 
 	currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
 }
