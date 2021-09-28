@@ -23,10 +23,8 @@ int main()
 	//vulkan: things
 	vulkan_myctx_create();
 
-	//forever
-	while (1) {
-		drawframe();
-	}
+	//once
+	drawframe();
 
 	//vulkan
 	vulkan_myctx_delete();

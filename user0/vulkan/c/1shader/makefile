@@ -1,7 +1,7 @@
 color:shader
-	clang ../main.c color.c -lvulkan -lglfw
+	clang ../glfw.c ../vulkan.c color.c -lvulkan -lglfw
 depth:shader
-	clang ../main.c depth.c -lvulkan -lglfw
+	clang ../glfw.c ../vulkan.c depth.c -lvulkan -lglfw
 wincolor:shader
 	gcc ../main.c color.c -lvulkan-1 -lglfw3 -lgdi32
 windepth:shader
