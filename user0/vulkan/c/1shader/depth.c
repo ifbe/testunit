@@ -8,25 +8,27 @@ struct attachment{
 	VkImage image;
 	VkImageView view;
 };
-void vulkan_physicaldevice_logicdevice_swapchain(VkPhysicalDevice* pdev, VkDevice* ldev, VkSwapchainKHR* chain);
-void vulkan_graphicqueue_presentqueue_cmdpool(VkQueue* graphic, VkQueue* present, VkCommandPool* pool);
-void vulkan_attachcolor_widthheight_imagecount(struct attachment* attach, uint32_t* cnt, VkExtent2D* wh);
+void vulkan_physicaldevice_logicdevice(VkPhysicalDevice* pdev, VkDevice* ldev);
+void vulkan_graphicqueue_graphicpool(VkQueue* queue, VkCommandPool* pool);
+void vulkan_presentqueue_presentpool(VkQueue* queue, VkCommandPool* pool);
+void vulkan_swapchain_widthheight_imagecount_attachcolor(VkSwapchainKHR* chain, VkExtent2D* wh, uint32_t* cnt, struct attachment* attach);
 
 
 
 
 VkPhysicalDevice physicaldevice;
 VkDevice logicaldevice;
+//
 VkQueue graphicQueue;
-VkCommandPool commandPool;
+VkCommandPool graphicPool;
+VkQueue presentQueue;
+VkCommandPool presentPool;		//not exist
 //
 VkSwapchainKHR swapChain = 0;
-VkQueue presentQueue;
-//
+VkExtent2D widthheight;
+uint32_t imagecount;
 struct attachment attachcolor[8];
 struct attachment attachdepth;
-uint32_t imagecount;
-VkExtent2D widthheight;
 //command
 VkRenderPass renderPass;
 VkPipelineLayout pipelineLayout;
@@ -418,7 +420,7 @@ int freecommandbuffer(){
 int initcommandbuffer() {
 	VkCommandBufferAllocateInfo allocInfo = {};
 	allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-	allocInfo.commandPool = commandPool;
+	allocInfo.commandPool = graphicPool;
 	allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
 	allocInfo.commandBufferCount = imagecount;
 
@@ -509,9 +511,10 @@ void vulkan_myctx_delete()
 }
 void vulkan_myctx_create()
 {
-	vulkan_physicaldevice_logicdevice_swapchain(&physicaldevice, &logicaldevice, &swapChain);
-	vulkan_graphicqueue_presentqueue_cmdpool(&graphicQueue, &presentQueue, &commandPool);
-	vulkan_attachcolor_widthheight_imagecount(attachcolor, &imagecount, &widthheight);
+	vulkan_physicaldevice_logicdevice(&physicaldevice, &logicaldevice);
+	vulkan_graphicqueue_graphicpool(&graphicQueue, &graphicPool);
+	vulkan_presentqueue_presentpool(&presentQueue, 0);
+	vulkan_swapchain_widthheight_imagecount_attachcolor(&swapChain, &widthheight, &imagecount, attachcolor);
 
 	initdepthstencil();
 

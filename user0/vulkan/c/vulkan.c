@@ -27,6 +27,8 @@ VkCommandBuffer commandBuffers[8];
 //surface,swapchain
 VkSurfaceKHR surface = 0;
 VkSwapchainKHR swapChain;
+VkExtent2D widthheight;
+uint32_t imagecount;
 //attachment
 struct attachment{
 	VkFormat format;
@@ -35,9 +37,6 @@ struct attachment{
 	VkImageView view;
 };
 struct attachment attachcolor[8];
-//command
-uint32_t imagecount;
-VkExtent2D widthheight;
 
 
 
@@ -235,10 +234,6 @@ int checkPhysicalDeviceQueueFamilyProperties(VkPhysicalDevice device, int* gg, i
 	return 0;
 }
 int checkSwapChain(VkPhysicalDevice device) {
-	//capability
-	VkSurfaceCapabilitiesKHR capabilities;
-	vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, surface, &capabilities);
-
 	//format
 	uint32_t formatCount;
 	vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &formatCount, 0);
@@ -525,11 +520,14 @@ int freeoffscreen() {
 	return 0;
 }
 int initoffscreen() {
-	attachcolor[0].format = VK_FORMAT_B8G8R8A8_SRGB;
+	swapChain = 0;
 
-	imagecount = 1;
-	widthheight.width = 1024;
-	widthheight.height= 768;
+	widthheight.width = 0;
+	widthheight.height= 0;
+
+	imagecount = 0;
+
+	attachcolor[0].format = 0;
 	return 0;
 }
 
@@ -566,20 +564,27 @@ int vulkan_device_create(VkSurfaceKHR p)
 
 
 
-void vulkan_physicaldevice_logicdevice_swapchain(VkPhysicalDevice* pdev, VkDevice* ldev, VkSwapchainKHR* chain)
+void vulkan_physicaldevice_logicdevice(VkPhysicalDevice* pdev, VkDevice* ldev)
 {
 	*pdev = physicaldevice;
 	*ldev = logicaldevice;
-	*chain = swapChain;
 }
-void vulkan_graphicqueue_presentqueue_cmdpool(VkQueue* graphic, VkQueue* present, VkCommandPool* pool)
+void vulkan_computequeue_computepool(VkQueue* queue, VkCommandPool* pool)
 {
-	*graphic = graphicQueue;
-	*present = presentQueue;
+}
+void vulkan_graphicqueue_graphicpool(VkQueue* queue, VkCommandPool* pool)
+{
+	*queue = graphicQueue;
 	*pool = commandPool;
 }
-void vulkan_attachcolor_widthheight_imagecount(struct attachment* attach, uint32_t* cnt, VkExtent2D* wh)
+void vulkan_presentqueue_presentpool(VkQueue* queue, VkCommandPool* pool)
 {
+	*queue = presentQueue;
+}
+void vulkan_swapchain_widthheight_imagecount_attachcolor(VkSwapchainKHR* chain, VkExtent2D* wh, uint32_t* cnt, struct attachment* attach)
+{
+	*chain = swapChain;
+
 	wh->width = widthheight.width;
 	wh->height = widthheight.height;
 
