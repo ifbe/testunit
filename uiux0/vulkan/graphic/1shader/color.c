@@ -44,6 +44,78 @@ size_t currentFrame = 0;
 
 
 
+int findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) {
+	VkPhysicalDeviceMemoryProperties memProperties;
+	vkGetPhysicalDeviceMemoryProperties(physicaldevice, &memProperties);
+
+	for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
+		if ((typeFilter & (1 << i)) && (memProperties.memoryTypes[i].propertyFlags & properties) == properties) {
+			return i;
+		}
+	}
+	return -1;
+}
+int freecolortarget() {
+	return 0;
+}
+int initcolortarget() {
+	//0.format
+	attachcolor[0].format = VK_FORMAT_R8G8B8A8_UNORM;	//VK_FORMAT_B8G8R8A8_SRGB;
+
+
+	//1.image
+	VkImageCreateInfo imageInfo = {};
+	imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+	imageInfo.imageType = VK_IMAGE_TYPE_2D;
+	imageInfo.extent.width = widthheight.width;
+	imageInfo.extent.height = widthheight.width;
+	imageInfo.extent.depth = 1;
+	imageInfo.mipLevels = 1;
+	imageInfo.arrayLayers = 1;
+	imageInfo.format = attachcolor[0].format;
+	imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+	imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+	imageInfo.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+	if (vkCreateImage(logicaldevice, &imageInfo, 0, &attachcolor[0].image) != VK_SUCCESS) {
+		printf("error@vkCreateImage:attachcolor[0].image\n");
+	}
+
+
+	//2.memory
+	VkMemoryRequirements memreq;
+	vkGetImageMemoryRequirements(logicaldevice, attachcolor[0].image, &memreq);
+
+	VkMemoryAllocateInfo allocInfo = {};
+	allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+	allocInfo.allocationSize = memreq.size;
+	allocInfo.memoryTypeIndex = findMemoryType(memreq.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+	if (vkAllocateMemory(logicaldevice, &allocInfo, 0, &attachcolor[0].memory) != VK_SUCCESS) {
+		printf("error@vkAllocateMemory:attachcolor[0].memory\n");
+	}
+
+	vkBindImageMemory(logicaldevice, attachcolor[0].image, attachcolor[0].memory, 0);
+
+
+	//3.imageview
+	VkImageViewCreateInfo viewInfo = {};
+	viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+	viewInfo.image = attachcolor[0].image;
+	viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+	viewInfo.format = attachcolor[0].format;
+	viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+	viewInfo.subresourceRange.baseMipLevel = 0;
+	viewInfo.subresourceRange.levelCount = 1;
+	viewInfo.subresourceRange.baseArrayLayer = 0;
+	viewInfo.subresourceRange.layerCount = 1;
+	if (vkCreateImageView(logicaldevice, &viewInfo, 0, &attachcolor[0].view) != VK_SUCCESS) {
+		printf("error@vkCreateImageView:depth\n");
+	}
+	return 0;
+}
+
+
+
+
 int freerenderpass(){
 	return 0;
 }
@@ -56,7 +128,8 @@ int initrenderpass(){
 	colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
 	colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 	colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-	colorAttachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+	if(swapChain)colorAttachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+	else colorAttachment.finalLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
 
 	VkAttachmentReference colorAttachmentRef = {};
 	colorAttachmentRef.attachment = 0;
@@ -377,8 +450,18 @@ void vulkan_myctx_create()
 {
 	vulkan_physicaldevice_logicdevice(&physicaldevice, &logicaldevice);
 	vulkan_graphicqueue_graphicpool(&graphicQueue, &graphicPool);
-	vulkan_presentqueue_presentpool(&presentQueue, 0);
 	vulkan_swapchain_widthheight_imagecount_attachcolor(&swapChain, &widthheight, &imagecount, attachcolor);
+	if(swapChain){
+		vulkan_presentqueue_presentpool(&presentQueue, 0);
+	}
+	else{
+		widthheight.width = 1024;
+		widthheight.height= 1024;
+
+		imagecount = 1;
+
+		initcolortarget();
+	}
 
 	//pipeline <- renderpass
 	//framebuffer <- imageview, renderpass
@@ -402,17 +485,19 @@ void drawframe()
 		vkAcquireNextImageKHR(logicaldevice, swapChain, UINT64_MAX, imageAvailableSemaphores[currentFrame], VK_NULL_HANDLE, &imageIndex);
 	}
 	else{		//offscreen: get next image
-
+		imageIndex = 0;
 	}
 
 
 	//vkQueueSubmit
 	if(VK_SUCCESS != vkWaitForFences(logicaldevice, 1, &inFlightFences[currentFrame], VK_TRUE, UINT64_MAX) ){
 		printf("fail@vkWaitForFences\n");
+		return;
 	}
 
 	if(VK_SUCCESS != vkResetFences(logicaldevice, 1, &inFlightFences[currentFrame]) ){
 		printf("fail@vkResetFences\n");
+		return;
 	}
 
 	VkSubmitInfo submitInfo = {};
@@ -422,7 +507,7 @@ void drawframe()
 
 	VkSemaphore waitSemaphores[] = {imageAvailableSemaphores[currentFrame]};
 	VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
-	submitInfo.waitSemaphoreCount = 1;
+	submitInfo.waitSemaphoreCount = swapChain ? 1 : 0;
 	submitInfo.pWaitSemaphores = waitSemaphores;
 	submitInfo.pWaitDstStageMask = waitStages;
 
@@ -432,6 +517,7 @@ void drawframe()
 
 	if(VK_SUCCESS != vkQueueSubmit(graphicQueue, 1, &submitInfo, inFlightFences[currentFrame]) ){
 		printf("fail@vkQueueSubmit\n");
+		return;
 	}
 
 	currentFrame = (currentFrame + 1) % MAX_FENCE_IN_FLIGHT;
@@ -450,6 +536,7 @@ void drawframe()
 		vkQueuePresentKHR(presentQueue, &presentInfo);
 	}
 	else{		//offscreen: copy to image
+		vkQueueWaitIdle(graphicQueue);
 	}
 
 }

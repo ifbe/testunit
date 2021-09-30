@@ -10,6 +10,10 @@ linuxcolor:shader
 	gcc ../main.c color.c -I/opt/vulkan/x86_64/include -L/opt/vulkan/x86_64/lib -lvulkan -lglfw3 -lX11 -ldl -lm -lpthread
 linuxdepth:shader
 	gcc ../main.c depth.c -I/opt/vulkan/x86_64/include -L/opt/vulkan/x86_64/lib -lvulkan -lglfw3 -lX11 -ldl -lm -lpthread
+offscreencolor:shader
+	clang ../file.c ../vulkan.c color.c -lvulkan -lglfw
+offscreendepth:shader
+	clang ../file.c ../vulkan.c depth.c -lvulkan -lglfw
 shader:
 	glslc shader.vert -o shader.vert.spv
 	glslc shader.frag -o shader.frag.spv

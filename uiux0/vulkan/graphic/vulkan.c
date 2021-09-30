@@ -15,20 +15,24 @@ const char* deviceExtensions[] = {
 //instance
 static VkInstance instance;
 //device
-VkPhysicalDevice physicaldevice = VK_NULL_HANDLE;
-VkDevice logicaldevice;
+static VkPhysicalDevice physicaldevice = VK_NULL_HANDLE;
+static VkDevice logicaldevice;
+//compute
+static int computeindex;
+static VkQueue computeQueue;
+static VkCommandPool computePool;
 //graphic
-int graphicindex;
-VkQueue graphicQueue;
-VkCommandPool graphicPool;
+static int graphicindex;
+static VkQueue graphicQueue;
+static VkCommandPool graphicPool;
 //present
-int presentindex;
-VkQueue presentQueue;
+static int presentindex;
+static VkQueue presentQueue;
 //surface,swapchain
-VkSurfaceKHR surface = 0;
-VkSwapchainKHR swapChain;
-VkExtent2D widthheight;
-uint32_t imagecount;
+static VkSurfaceKHR surface = 0;
+static VkSwapchainKHR swapChain = 0;
+static VkExtent2D widthheight;
+static uint32_t imagecount;
 //attachment
 struct attachment{
 	VkFormat format;
@@ -36,7 +40,7 @@ struct attachment{
 	VkImage image;
 	VkImageView view;
 };
-struct attachment attachcolor[8];
+static struct attachment attachcolor[8];
 
 
 
@@ -91,6 +95,7 @@ int checkDeviceProperties(VkPhysicalDevice device) {
 	VkPhysicalDeviceProperties prop;
 	vkGetPhysicalDeviceProperties(device, &prop);
 
+	int good = -1;
 	printf("vkGetPhysicalDeviceProperties:\n");
 	printf("	apiver=%x\n", prop.apiVersion);
 	printf("	drvver=%x\n", prop.driverVersion);
@@ -104,9 +109,11 @@ int checkDeviceProperties(VkPhysicalDevice device) {
 		break;
 	case VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU:
 		printf("igpu\n");
+		good = 1;
 		break;
 	case VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU:
 		printf("dgpu\n");
+		good = 1;
 		break;
 	case VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU:
 		printf("vgpu\n");
@@ -120,7 +127,7 @@ int checkDeviceProperties(VkPhysicalDevice device) {
 	}
 
 	printf("\n");
-	return 1;
+	return good;
 }
 int checkDeviceExtensionProperties(VkPhysicalDevice device) {
 	uint32_t cnt;
@@ -193,7 +200,9 @@ int checkPhysicalDeviceQueueFamilyProperties(VkPhysicalDevice device, int* gg, i
 		}
 
 		support = 0;
-		vkGetPhysicalDeviceSurfaceSupportKHR(device, j, surface, &support);
+		if(surface){
+			vkGetPhysicalDeviceSurfaceSupportKHR(device, j, surface, &support);
+		}
 		if(support){
 			printf("present");
 			if(firstpresent < 0)firstpresent = j;
@@ -207,7 +216,7 @@ int checkPhysicalDeviceQueueFamilyProperties(VkPhysicalDevice device, int* gg, i
 	}
 	printf("=>transfer@%d,compute@%d,graphic@%d,present@%d\n\n", firsttransfer, firstcompute, firstgraphic, firstpresent);
 
-	if(1){		//onscreen: need graphic and present
+	if(surface){		//onscreen: need graphic and present
 		if(bestpresent >= 0){
 			if(gg)gg[0] = bestpresent;
 			if(pp)pp[0] = bestpresent;
@@ -219,8 +228,8 @@ int checkPhysicalDeviceQueueFamilyProperties(VkPhysicalDevice device, int* gg, i
 			return 1;
 		}
 	}
-	if(0){		//offscreen: need graphic
-		if(firstgraphic > 0){
+	else{		//offscreen: need graphic
+		if(firstgraphic >= 0){
 			if(gg)gg[0] = firstgraphic;
 			return 1;
 		}
@@ -305,19 +314,23 @@ int initphysicaldevice() {
 	printf("vkEnumeratePhysicalDevices:\n");
 
 	int j,phy=-1;
-	int aa,bb,cc;
+	int chkdev,chkext,chkfam,chksur;
 	physicaldevice = VK_NULL_HANDLE;
 	for(j=0;j<count;j++) {
 		printf("%d:physicaldevice{\n", j);
-		checkDeviceProperties(devs[j]);
-		aa = checkDeviceExtensionProperties(devs[j]);
-		bb = checkPhysicalDeviceQueueFamilyProperties(devs[j], 0, 0);
-		cc = checkSwapChain(devs[j]);
-
-		if((aa >= 0)&&(bb > 0)&&(cc > 0)){
-			if(phy < 0)phy = j;
+		chkdev = checkDeviceProperties(devs[j]);
+		chkext = checkDeviceExtensionProperties(devs[j]);
+		chkfam = checkPhysicalDeviceQueueFamilyProperties(devs[j], 0, 0);
+		if( (chkdev > 0) && (chkext > 0) && (chkfam > 0) && (phy < 0) ){
+			if(surface){
+				chksur = checkSwapChain(devs[j]);
+				if(chksur > 0)phy = j;
+			}
+			else{
+				phy = j;
+			}
 		}
-		printf("score=%d,%d,%d\n",aa,bb,cc);
+		printf("score=%d,%d,%d,%d\n",chkdev,chkext,chkfam,chksur);
 		printf("}\n\n");
 	}
 	if(phy < 0){
@@ -341,6 +354,10 @@ int initlogicaldevice() {
 	printf("graphic=%d,present=%d\n",graphicindex,presentindex);
 
 
+	//device feature
+	VkPhysicalDeviceFeatures deviceFeatures = {};
+
+
 	//queue create info
 	VkDeviceQueueCreateInfo queueCreateInfos[2] = {};
 	float queuePriority = 1.0f;
@@ -356,17 +373,13 @@ int initlogicaldevice() {
 	queueCreateInfos[1].pQueuePriorities = &queuePriority;
 
 
-	//device feature
-	VkPhysicalDeviceFeatures deviceFeatures = {};
-
-
 	//devicecreateinfo
 	VkDeviceCreateInfo createInfo = {};
 	createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-	createInfo.queueCreateInfoCount = 2;
+	createInfo.queueCreateInfoCount = surface ? 2 : 1;
 	createInfo.pQueueCreateInfos = queueCreateInfos;
 	createInfo.pEnabledFeatures = &deviceFeatures;
-	createInfo.enabledExtensionCount = 1;
+	createInfo.enabledExtensionCount = surface ? 1 : 0;
 	createInfo.ppEnabledExtensionNames = deviceExtensions;
 	createInfo.enabledLayerCount = 0;
 	if (vkCreateDevice(physicaldevice, &createInfo, 0, &logicaldevice) != VK_SUCCESS) {
@@ -386,7 +399,9 @@ int initlogicaldevice() {
 
 
 	//present: queue
-	vkGetDeviceQueue(logicaldevice, presentindex, 0, &presentQueue);
+	if(surface){
+		vkGetDeviceQueue(logicaldevice, presentindex, 0, &presentQueue);
+	}
 	return 0;
 }
 
@@ -558,7 +573,7 @@ int vulkan_device_create(int forwhat, VkSurfaceKHR face)
 	//swapchain <- physicaldevice, logicaldevice, surface
 	if(surface)initswapchain();
 	else initoffscreen();
-	printf("color count=%d\n", imagecount);
+	printf("swapchain imagecount=%d\n", imagecount);
 
 	return 0;
 }
