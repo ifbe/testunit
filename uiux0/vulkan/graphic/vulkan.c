@@ -17,13 +17,13 @@ static VkInstance instance;
 //device
 VkPhysicalDevice physicaldevice = VK_NULL_HANDLE;
 VkDevice logicaldevice;
-//queue
+//graphic
 int graphicindex;
-int presentindex;
 VkQueue graphicQueue;
+VkCommandPool graphicPool;
+//present
+int presentindex;
 VkQueue presentQueue;
-VkCommandPool commandPool;
-VkCommandBuffer commandBuffers[8];
 //surface,swapchain
 VkSurfaceKHR surface = 0;
 VkSwapchainKHR swapChain;
@@ -374,17 +374,19 @@ int initlogicaldevice() {
 		return -1;
 	}
 
-	//queue
+	//graphic: queue, pool
 	vkGetDeviceQueue(logicaldevice, graphicindex, 0, &graphicQueue);
-	vkGetDeviceQueue(logicaldevice, presentindex, 0, &presentQueue);
 
-	//pool
 	VkCommandPoolCreateInfo poolInfo = {};
 	poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
 	poolInfo.queueFamilyIndex = graphicindex;
-	if (vkCreateCommandPool(logicaldevice, &poolInfo, 0, &commandPool) != VK_SUCCESS) {
+	if (vkCreateCommandPool(logicaldevice, &poolInfo, 0, &graphicPool) != VK_SUCCESS) {
 		printf("error@vkCreateCommandPool\n");
 	}
+
+
+	//present: queue
+	vkGetDeviceQueue(logicaldevice, presentindex, 0, &presentQueue);
 	return 0;
 }
 
@@ -545,9 +547,9 @@ int vulkan_device_delete()
 	vkDestroySurfaceKHR(instance, surface, 0);
 	return 0;
 }
-int vulkan_device_create(VkSurfaceKHR p)
+int vulkan_device_create(int forwhat, VkSurfaceKHR face)
 {
-	surface = p;
+	surface = face;
 
 	//logicaldevice <- physicaldevice
 	initphysicaldevice();
@@ -575,7 +577,7 @@ void vulkan_computequeue_computepool(VkQueue* queue, VkCommandPool* pool)
 void vulkan_graphicqueue_graphicpool(VkQueue* queue, VkCommandPool* pool)
 {
 	*queue = graphicQueue;
-	*pool = commandPool;
+	*pool = graphicPool;
 }
 void vulkan_presentqueue_presentpool(VkQueue* queue, VkCommandPool* pool)
 {

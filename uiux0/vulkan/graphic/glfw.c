@@ -5,7 +5,7 @@
 #include <string.h>
 void* vulkan_init(int cnt, const char** ext);
 void vulkan_exit();
-void vulkan_device_create(void*);
+void vulkan_device_create(int, void*);
 void vulkan_device_delete();
 void vulkan_myctx_create();
 void vulkan_myctx_delete();
@@ -86,7 +86,7 @@ int main()
 	void* surface = glfw_surface_create(window, instance);
 
 	//vulkan: device and swapchain
-	vulkan_device_create(surface);
+	vulkan_device_create(0, surface);
 
 	//vulkan: things
 	vulkan_myctx_create();
