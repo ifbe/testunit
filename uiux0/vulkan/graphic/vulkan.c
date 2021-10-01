@@ -184,7 +184,7 @@ int checkPhysicalDeviceQueueFamilyProperties(VkPhysicalDevice device, int* gg, i
 			printf("protected,");
 		}
 		if(fam[j].queueFlags & VK_QUEUE_SPARSE_BINDING_BIT){	//8
-			printf("binding,");
+			printf("sprase,");
 		}
 		if(fam[j].queueFlags & VK_QUEUE_TRANSFER_BIT){	//4
 			printf("transfer,");

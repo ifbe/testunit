@@ -29,17 +29,22 @@ VkExtent2D widthheight;
 uint32_t imagecount;
 struct attachment attachcolor[8];
 //
+struct attachment outputcolor;
+VkCommandBuffer copycmdBuffers;
+//
 VkRenderPass renderPass;
 VkPipelineLayout pipelineLayout;
 VkPipeline graphicsPipeline;
 VkFramebuffer framebuffer[8];
-VkCommandBuffer commandBuffers[8];
-//fence
+VkCommandBuffer drawcmdBuffers[8];
+//graphic fence
 #define MAX_FENCE_IN_FLIGHT 2
 VkSemaphore imageAvailableSemaphores[MAX_FENCE_IN_FLIGHT];
 VkSemaphore renderFinishedSemaphores[MAX_FENCE_IN_FLIGHT];
 VkFence inFlightFences[MAX_FENCE_IN_FLIGHT];
 size_t currentFrame = 0;
+//copy fence
+VkFence copyfence;
 
 
 
@@ -110,6 +115,41 @@ int initcolortarget() {
 	if (vkCreateImageView(logicaldevice, &viewInfo, 0, &attachcolor[0].view) != VK_SUCCESS) {
 		printf("error@vkCreateImageView:depth\n");
 	}
+	return 0;
+}
+int freecolordest()
+{
+	return 0;
+}
+int initcolordest()
+{
+	//0.format
+	outputcolor.format = VK_FORMAT_R8G8B8A8_UNORM;	//VK_FORMAT_B8G8R8A8_SRGB;
+
+	//image
+	VkImageCreateInfo imgCreateInfo = {};
+	imgCreateInfo.imageType = VK_IMAGE_TYPE_2D;
+	imgCreateInfo.format = outputcolor.format;
+	imgCreateInfo.extent.width = widthheight.width;
+	imgCreateInfo.extent.height = widthheight.height;
+	imgCreateInfo.extent.depth = 1;
+	imgCreateInfo.arrayLayers = 1;
+	imgCreateInfo.mipLevels = 1;
+	imgCreateInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+	imgCreateInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+	imgCreateInfo.tiling = VK_IMAGE_TILING_LINEAR;
+	imgCreateInfo.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+	vkCreateImage(logicaldevice, &imgCreateInfo, 0, &outputcolor.image);
+
+	//memory
+	VkMemoryRequirements memreq = {};
+	VkMemoryAllocateInfo memAllocInfo = {};
+	vkGetImageMemoryRequirements(logicaldevice, outputcolor.image, &memreq);
+	memAllocInfo.allocationSize = memreq.size;
+	memAllocInfo.memoryTypeIndex = findMemoryType(memreq.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+	vkAllocateMemory(logicaldevice, &memAllocInfo, 0, &outputcolor.memory);
+	vkBindImageMemory(logicaldevice, outputcolor.image, outputcolor.memory, 0);
+
 	return 0;
 }
 
@@ -358,30 +398,60 @@ int initframebuffer(){
 
 
 
+void insertImageMemoryBarrier(
+	VkCommandBuffer cmdbuffer,
+	VkImage image,
+	VkAccessFlags srcAccessMask,
+	VkAccessFlags dstAccessMask,
+	VkImageLayout oldImageLayout,
+	VkImageLayout newImageLayout,
+	VkPipelineStageFlags srcStageMask,
+	VkPipelineStageFlags dstStageMask)
+{
+	VkImageMemoryBarrier barrier = {};
+	barrier.srcAccessMask = srcAccessMask;
+	barrier.dstAccessMask = dstAccessMask;
+	barrier.oldLayout = oldImageLayout;
+	barrier.newLayout = newImageLayout;
+	barrier.image = image;
+	barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	barrier.subresourceRange.baseMipLevel = 0;
+	barrier.subresourceRange.levelCount = 1;
+	barrier.subresourceRange.baseArrayLayer = 0;
+	barrier.subresourceRange.layerCount = 1;
 
-int freecommandbuffer(){
+	vkCmdPipelineBarrier(
+		cmdbuffer,
+		srcStageMask,
+		dstStageMask,
+		0,
+		0, 0,
+		0, 0,
+		1, &barrier);
+}
+int freedrawcmdbuffer(){
 	return 0;
 }
-int initcommandbuffer() {
+int initdrawcmdbuffer() {
 	VkCommandBufferAllocateInfo allocInfo = {};
 	allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
 	allocInfo.commandPool = graphicPool;
 	allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
 	allocInfo.commandBufferCount = imagecount;
 
-	if (vkAllocateCommandBuffers(logicaldevice, &allocInfo, commandBuffers) != VK_SUCCESS) {
+	if (vkAllocateCommandBuffers(logicaldevice, &allocInfo, drawcmdBuffers) != VK_SUCCESS) {
 		printf("failed to allocate command buffers!");
 	}
 
+	VkCommandBufferBeginInfo beginInfo = {};
+	VkRenderPassBeginInfo renderPassInfo = {};
 	for (size_t i = 0; i < imagecount; i++) {
-		VkCommandBufferBeginInfo beginInfo = {};
 		beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 
-		if (vkBeginCommandBuffer(commandBuffers[i], &beginInfo) != VK_SUCCESS) {
+		if (vkBeginCommandBuffer(drawcmdBuffers[i], &beginInfo) != VK_SUCCESS) {
 			printf("failed to begin recording command buffer!");
 		}
 
-		VkRenderPassBeginInfo renderPassInfo = {};
 		renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
 		renderPassInfo.renderPass = renderPass;
 		renderPassInfo.framebuffer = framebuffer[i];
@@ -393,18 +463,79 @@ int initcommandbuffer() {
 		renderPassInfo.clearValueCount = 1;
 		renderPassInfo.pClearValues = &clearColor;
 
-		vkCmdBeginRenderPass(commandBuffers[i], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+		vkCmdBeginRenderPass(drawcmdBuffers[i], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
-		vkCmdBindPipeline(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
+		vkCmdBindPipeline(drawcmdBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
 
-		vkCmdDraw(commandBuffers[i], 6, 1, 0, 0);
+		vkCmdDraw(drawcmdBuffers[i], 6, 1, 0, 0);
 
-		vkCmdEndRenderPass(commandBuffers[i]);
+		vkCmdEndRenderPass(drawcmdBuffers[i]);
 
-		if (vkEndCommandBuffer(commandBuffers[i]) != VK_SUCCESS) {
+		if (vkEndCommandBuffer(drawcmdBuffers[i]) != VK_SUCCESS) {
 			printf("error@vkEndCommandBuffern");
 		}
 	}
+	return 0;
+}
+int freecopycmdbuffer(){
+	return 0;
+}
+int initcopycmdbuffer() {
+	VkCommandBufferAllocateInfo allocInfo = {};
+	allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+	allocInfo.commandPool = graphicPool;
+	allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+	allocInfo.commandBufferCount = 1;
+	if (vkAllocateCommandBuffers(logicaldevice, &allocInfo, &copycmdBuffers) != VK_SUCCESS) {
+		printf("failed to allocate command buffers!");
+	}
+
+	VkCommandBufferBeginInfo beginInfo = {};
+	beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+	if (vkBeginCommandBuffer(copycmdBuffers, &beginInfo) != VK_SUCCESS) {
+		printf("failed to begin recording command buffer!");
+	}
+
+	//transition to destination layout
+	insertImageMemoryBarrier(
+		copycmdBuffers,
+		outputcolor.image,
+		0,
+		VK_ACCESS_TRANSFER_WRITE_BIT,
+		VK_IMAGE_LAYOUT_UNDEFINED,
+		VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+		VK_PIPELINE_STAGE_TRANSFER_BIT,
+		VK_PIPELINE_STAGE_TRANSFER_BIT);
+
+	//copy
+	VkImageCopy imageCopyRegion = {};
+	imageCopyRegion.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	imageCopyRegion.srcSubresource.layerCount = 1;
+	imageCopyRegion.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	imageCopyRegion.dstSubresource.layerCount = 1;
+	imageCopyRegion.extent.width = widthheight.width;
+	imageCopyRegion.extent.height = widthheight.height;
+	imageCopyRegion.extent.depth = 1;
+	vkCmdCopyImage(
+		copycmdBuffers,
+		attachcolor[0].image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+		outputcolor.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+		1,
+		&imageCopyRegion);
+
+	//transition to general layout
+	insertImageMemoryBarrier(
+		copycmdBuffers,
+		outputcolor.image,
+		VK_ACCESS_TRANSFER_WRITE_BIT,
+		VK_ACCESS_MEMORY_READ_BIT,
+		VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+		VK_IMAGE_LAYOUT_GENERAL,
+		VK_PIPELINE_STAGE_TRANSFER_BIT,
+		VK_PIPELINE_STAGE_TRANSFER_BIT);
+
+	vkEndCommandBuffer(copycmdBuffers);
+
 	return 0;
 }
 
@@ -429,6 +560,15 @@ int initsyncobject(){
 			printf("failed to create synchronization objects for a frame\n");
 		}
 	}
+
+if(0 == swapChain){
+	fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+	fenceInfo.flags = 0;
+
+	if(vkCreateFence(logicaldevice, &fenceInfo, 0, &copyfence) != VK_SUCCESS) {
+		printf("failed to create synchronization objects for a frame\n");
+	}
+}
 	return 0;
 }
 
@@ -441,7 +581,7 @@ void vulkan_myctx_delete()
 
 	freesyncobject();
 
-	freecommandbuffer();
+	freedrawcmdbuffer();
 	freeframebuffer();
 	freepipeline();
 	freerenderpass();
@@ -461,6 +601,7 @@ void vulkan_myctx_create()
 		imagecount = 1;
 
 		initcolortarget();
+		initcolordest();
 	}
 
 	//pipeline <- renderpass
@@ -469,10 +610,54 @@ void vulkan_myctx_create()
 	initrenderpass();
 	initpipeline();
 	initframebuffer();
-	initcommandbuffer();
+	initdrawcmdbuffer();
+	if(0 == swapChain){
+		initcopycmdbuffer();
+	}
 
 	//fence
 	initsyncobject();
+}
+
+
+
+
+void writefile()
+{
+	// Get layout of the image (including row pitch)
+	VkImageSubresource subResource = {};
+	subResource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+
+	VkSubresourceLayout subResourceLayout = {};
+	vkGetImageSubresourceLayout(logicaldevice, outputcolor.image, &subResource, &subResourceLayout);
+
+	// Map image memory so we can start copying from it
+	unsigned char* outputmapbuf;
+	vkMapMemory(logicaldevice, outputcolor.memory, 0, VK_WHOLE_SIZE, 0, (void**)&outputmapbuf);
+	outputmapbuf += subResourceLayout.offset;
+
+
+
+
+	FILE* fp = fopen("out.ppm", "wb");
+
+	char tmp[0x100];
+	int ret = snprintf(tmp, 0x100, "P6\n%d\n%d\n255\n", widthheight.width, widthheight.height);
+	fwrite(tmp, 1, ret, fp);
+
+	int x,y;
+	for(y = 0; y < widthheight.height; y++) {
+		unsigned char *row = outputmapbuf;
+		for(x = 0; x < widthheight.width; x++) {
+			fwrite(row+2, 1, 1, fp);
+			fwrite(row+1, 1, 1, fp);
+			fwrite(row+0, 1, 1, fp);
+			row += 4;
+		}
+		outputmapbuf += subResourceLayout.rowPitch;
+	}
+
+	fclose(fp);
 }
 
 
@@ -503,7 +688,7 @@ void drawframe()
 	VkSubmitInfo submitInfo = {};
 	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 	submitInfo.commandBufferCount = 1;
-	submitInfo.pCommandBuffers = &commandBuffers[imageIndex];
+	submitInfo.pCommandBuffers = &drawcmdBuffers[imageIndex];
 
 	VkSemaphore waitSemaphores[] = {imageAvailableSemaphores[currentFrame]};
 	VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
@@ -536,7 +721,28 @@ void drawframe()
 		vkQueuePresentKHR(presentQueue, &presentInfo);
 	}
 	else{		//offscreen: copy to image
+		VkSubmitInfo submitInfo = {};
+		submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+		submitInfo.commandBufferCount = 1;
+		submitInfo.pCommandBuffers = &copycmdBuffers;
+
+		VkSemaphore waitSemaphores[] = {};
+		VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
+		submitInfo.waitSemaphoreCount = 0;
+		submitInfo.pWaitSemaphores = 0;
+		submitInfo.pWaitDstStageMask = waitStages;
+
+		VkSemaphore signalSemaphores[] = {};
+		submitInfo.signalSemaphoreCount = 0;
+		submitInfo.pSignalSemaphores = 0;
+
+		if(VK_SUCCESS != vkQueueSubmit(graphicQueue, 1, &submitInfo, copyfence) ){
+			printf("fail@vkQueueSubmit\n");
+			return;
+		}
 		vkQueueWaitIdle(graphicQueue);
+
+		writefile();
 	}
 
 }
