@@ -60,6 +60,45 @@ int findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) {
 	}
 	return -1;
 }
+int freecopydest()
+{
+	return 0;
+}
+int initcopydest()
+{
+	//0.format
+	outputcolor.format = VK_FORMAT_R8G8B8A8_UNORM;	//VK_FORMAT_B8G8R8A8_SRGB;
+
+	//image
+	VkImageCreateInfo imgCreateInfo = {};
+	imgCreateInfo.imageType = VK_IMAGE_TYPE_2D;
+	imgCreateInfo.format = outputcolor.format;
+	imgCreateInfo.extent.width = widthheight.width;
+	imgCreateInfo.extent.height = widthheight.height;
+	imgCreateInfo.extent.depth = 1;
+	imgCreateInfo.arrayLayers = 1;
+	imgCreateInfo.mipLevels = 1;
+	imgCreateInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+	imgCreateInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+	imgCreateInfo.tiling = VK_IMAGE_TILING_LINEAR;
+	imgCreateInfo.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+	vkCreateImage(logicaldevice, &imgCreateInfo, 0, &outputcolor.image);
+
+	//memory
+	VkMemoryRequirements memreq = {};
+	VkMemoryAllocateInfo memAllocInfo = {};
+	vkGetImageMemoryRequirements(logicaldevice, outputcolor.image, &memreq);
+	memAllocInfo.allocationSize = memreq.size;
+	memAllocInfo.memoryTypeIndex = findMemoryType(memreq.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+	vkAllocateMemory(logicaldevice, &memAllocInfo, 0, &outputcolor.memory);
+	vkBindImageMemory(logicaldevice, outputcolor.image, outputcolor.memory, 0);
+
+	return 0;
+}
+
+
+
+
 int freecolortarget() {
 	return 0;
 }
@@ -115,41 +154,6 @@ int initcolortarget() {
 	if (vkCreateImageView(logicaldevice, &viewInfo, 0, &attachcolor[0].view) != VK_SUCCESS) {
 		printf("error@vkCreateImageView:depth\n");
 	}
-	return 0;
-}
-int freecolordest()
-{
-	return 0;
-}
-int initcolordest()
-{
-	//0.format
-	outputcolor.format = VK_FORMAT_R8G8B8A8_UNORM;	//VK_FORMAT_B8G8R8A8_SRGB;
-
-	//image
-	VkImageCreateInfo imgCreateInfo = {};
-	imgCreateInfo.imageType = VK_IMAGE_TYPE_2D;
-	imgCreateInfo.format = outputcolor.format;
-	imgCreateInfo.extent.width = widthheight.width;
-	imgCreateInfo.extent.height = widthheight.height;
-	imgCreateInfo.extent.depth = 1;
-	imgCreateInfo.arrayLayers = 1;
-	imgCreateInfo.mipLevels = 1;
-	imgCreateInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-	imgCreateInfo.samples = VK_SAMPLE_COUNT_1_BIT;
-	imgCreateInfo.tiling = VK_IMAGE_TILING_LINEAR;
-	imgCreateInfo.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT;
-	vkCreateImage(logicaldevice, &imgCreateInfo, 0, &outputcolor.image);
-
-	//memory
-	VkMemoryRequirements memreq = {};
-	VkMemoryAllocateInfo memAllocInfo = {};
-	vkGetImageMemoryRequirements(logicaldevice, outputcolor.image, &memreq);
-	memAllocInfo.allocationSize = memreq.size;
-	memAllocInfo.memoryTypeIndex = findMemoryType(memreq.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-	vkAllocateMemory(logicaldevice, &memAllocInfo, 0, &outputcolor.memory);
-	vkBindImageMemory(logicaldevice, outputcolor.image, outputcolor.memory, 0);
-
 	return 0;
 }
 
@@ -600,8 +604,9 @@ void vulkan_myctx_create()
 
 		imagecount = 1;
 
+		initcopydest();
+
 		initcolortarget();
-		initcolordest();
 	}
 
 	//pipeline <- renderpass
