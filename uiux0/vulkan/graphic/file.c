@@ -3,7 +3,7 @@
 #include <string.h>
 void* vulkan_init(int cnt, const char** ext);
 void vulkan_exit();
-void vulkan_device_create(int, void*);
+void* vulkan_device_create(int, void*);
 void vulkan_device_delete();
 void vulkan_myctx_create();
 void vulkan_myctx_delete();
@@ -15,10 +15,12 @@ void drawframe();
 int main()
 {
 	//init
-	void* instance = vulkan_init(0, 0);
+	void* ins = vulkan_init(0, 0);
+	if(0 == ins)return -1;
 
 	//vulkan: device and swapchain
-	vulkan_device_create(0, 0);
+	void* dev = vulkan_device_create(0, 0);
+	if(0 == dev)return -2;
 
 	//vulkan: things
 	vulkan_myctx_create();

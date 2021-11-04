@@ -82,7 +82,8 @@ void* vulkan_init(int cnt, const char** ext)
 	createInfo.pNext = 0;
 
 	if (vkCreateInstance(&createInfo, 0, &instance) != VK_SUCCESS) {
-		printf("failed to create instance!");
+		printf("failed to create instance!\n");
+		return 0;
 	}
 
 	return instance;
@@ -301,12 +302,12 @@ int checkSwapChain(VkPhysicalDevice device) {
 int freephysicaldevice() {
 	return 0;
 }
-int initphysicaldevice() {
+void* initphysicaldevice() {
 	uint32_t count = 0;
 	vkEnumeratePhysicalDevices(instance, &count, 0);
 	if(0 == count) {
 		printf("error@vkEnumeratePhysicalDevices\n");
-		return -1;
+		return 0;
 	}
 
 	VkPhysicalDevice devs[count];
@@ -335,12 +336,11 @@ int initphysicaldevice() {
 	}
 	if(phy < 0){
 		printf("no physicaldevice\n");
-		return -2;
+		return 0;
 	}
 
-	physicaldevice = devs[phy];
-	printf("=>choose device=%d(%p)\n", phy, physicaldevice);
-	return 0;
+	printf("=>choose device=%d(%p)\n", phy, devs[phy]);
+	return devs[phy];
 }
 
 
@@ -562,12 +562,13 @@ int vulkan_device_delete()
 	vkDestroySurfaceKHR(instance, surface, 0);
 	return 0;
 }
-int vulkan_device_create(int forwhat, VkSurfaceKHR face)
+void* vulkan_device_create(int what, VkSurfaceKHR face)
 {
 	surface = face;
 
 	//logicaldevice <- physicaldevice
-	initphysicaldevice();
+	physicaldevice = initphysicaldevice();
+	if(0 == physicaldevice)return 0;
 	initlogicaldevice();
 
 	//swapchain <- physicaldevice, logicaldevice, surface
@@ -575,7 +576,7 @@ int vulkan_device_create(int forwhat, VkSurfaceKHR face)
 	else initoffscreen();
 	printf("swapchain imagecount=%d\n", imagecount);
 
-	return 0;
+	return physicaldevice;
 }
 
 

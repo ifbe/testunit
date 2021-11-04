@@ -1,2 +1,2 @@
 all:
-	gcc test.c -lavformat
+	gcc test.c -lavformat -lavutil

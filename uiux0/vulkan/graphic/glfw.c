@@ -5,7 +5,7 @@
 #include <string.h>
 void* vulkan_init(int cnt, const char** ext);
 void vulkan_exit();
-void vulkan_device_create(int, void*);
+void* vulkan_device_create(int, void*);
 void vulkan_device_delete();
 void vulkan_myctx_create();
 void vulkan_myctx_delete();
@@ -67,7 +67,7 @@ void* glfw_surface_create(void* window, void* instance)
 
 int main()
 {
-	//init
+	//glfw init
 	glfw_init();
 
 	//vulkan
@@ -78,15 +78,19 @@ int main()
 		printf("%4d:%s\n", j, extension[j]);
 	}
 	void* instance = vulkan_init(count, extension);
+	if(0 == instance)return -1;
 
 	//glfw: window
 	GLFWwindow* window = glfw_window_create();
+	if(0 == window)return -2;
 
 	//glfw: surface
 	void* surface = glfw_surface_create(window, instance);
+	if(0 == surface)return -3;
 
 	//vulkan: device and swapchain
-	vulkan_device_create(0, surface);
+	void* device = vulkan_device_create(0, surface);
+	if(0 == device)return -4;
 
 	//vulkan: things
 	vulkan_myctx_create();
