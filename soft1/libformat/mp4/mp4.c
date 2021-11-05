@@ -502,8 +502,8 @@ int parse_stsz(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 
 	int j=off+20;	//file offset
 	u32 k;		//0 to count
-	u32 at = 0;
 	u32 sz = 0;
+	u32 sum = 0;
 	for(k=0;k<count;k++){
 		if(0 == (k % stsz_perpage)){
 			fseek(fp, j, SEEK_SET);
@@ -514,9 +514,9 @@ int parse_stsz(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 		}
 
 		sz = swap32(buf[k % stsz_perpage]);
-		printf("%.*s[%x,%x):id=%x,at=%x,sz=%x\n",depth+1,tabs, j,j+4,
-			k+1, at, sz);
-		at += sz;
+		printf("%.*s[%x,%x):id=%x,sum=%x,sz=%x\n",depth+1,tabs, j,j+4,
+			k+1, sum, sz);
+		sum += sz;
 
 		j += 4;
 		if(j >= end)break;
@@ -1129,8 +1129,63 @@ int parse_trex(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 
 
 
+struct elst{
+	u32 size;
+	u32 elst;
+	u8 ver;
+	u8 flag[3];
+	u32 cnt;
+	u32 tab[][3];
+}__attribute__((packed));
+int parse_elst(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
+{
+	struct elst* m = (void*)(p[depth-1]);
+	u32 size = swap32(m->size);
+	u32 cnt = swap32(m->cnt);
+	printf("%.*slen=%x\n",depth,tabs, size);
+	printf("%.*scnt=%x\n",depth,tabs, cnt);
+
+	int j;
+	u32 starttime;
+	u32 duration;
+	u32 speed;
+	for(j=0;j<cnt;j++){
+		duration = swap32(m->tab[j][0]);
+		starttime= swap32(m->tab[j][1]);
+		speed    = swap32(m->tab[j][2]);
+		printf("%.*s%x:starttime=%x(%d),duration=%x(%d),speed=%x(%d)\n",depth,tabs,
+			j, starttime,starttime, duration,duration, speed,speed);
+	}
+	return 0;
+}
 int parse_edts(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 {
+	//printf("%.*smdia\n",depth,tabs);
+	unsigned char* pre = p[depth-1];
+	int end = off + swap32(*(u32*)pre);
+
+	int j=off+8;
+	int k=0;
+	unsigned char* buf = p[depth];
+	for(;;){
+		fseek(fp, j, SEEK_SET);
+
+		int ret = fread(buf, 1, 0x1000, fp);
+		if(ret <= 0)return 0;
+
+		k = (buf[0]<<24)+(buf[1]<<16)+(buf[2]<<8)+buf[3];
+		printf("%.*s[%x,%x)=%.4s\n",depth,tabs, j,j+k,buf+4);
+
+		switch(*(unsigned int*)(buf+4)){
+		case hex32('e','l','s','t'):
+			parse_elst(fp, j, p, depth+1);
+			break;
+		}
+
+		if(k<0)break;
+		j += k;
+		if(j >= end)break;
+	}
 	return 0;
 }
 
