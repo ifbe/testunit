@@ -19,6 +19,33 @@ int find0001(unsigned char* ptr, int len)
 	}
 	return -1;
 }
+int parsepacket(unsigned char* ptr, int len)
+{
+	if(0 != ptr[0])return -1;
+	if(0 != ptr[1])return -2;
+	if(2 <= ptr[2])return -3;
+
+	else if(1 == ptr[2]){
+		ptr += 3;
+		len -= 3;
+	}
+	else if(0 == ptr[2]){
+		if(1 != ptr[3])return -4;
+		ptr +=4;
+		len -=4;
+	}
+
+	printf("%x,%x,%x,%x\n", ptr[0],ptr[1],ptr[2],ptr[3]);
+
+	int j;
+	for(j=1;j<len-2;j++){
+		if((0 == ptr[j])&&(0 == ptr[j+1])&&(3 == ptr[j+2])){
+			printf("003@%x\n",j);
+		}
+	}
+
+	return 0;
+}
 int main(int argc, char** argv)
 {
 	if(argc < 2){
@@ -42,7 +69,9 @@ int main(int argc, char** argv)
 		ret = find0001(buf, ret);
 		if(ret <= 0)break;
 
-		printf("[%x,%x]\n", now, now+ret);
+		printf("%x:[%x,%x]\n", cnt, now, now+ret);
+		parsepacket(buf, ret);
+
 		now += ret;
 		cnt++;
 	}

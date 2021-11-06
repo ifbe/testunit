@@ -1,5 +1,5 @@
-#include "stdio.h"
-#include "stdlib.h"
+#include <stdio.h>
+#include <stdlib.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
@@ -446,27 +446,27 @@ int parse_stsc_get_chunk(struct stsc* stsc, int sample, int* chunk, int* this_ch
 {
 	struct stsc_inner* in = (void*)stsc->tmp;
 	int max = swap32(stsc->sample_to_chunk_count);
-	int k,curr,next;
+	int k,currsample, nextsample;
 	int firstchunk, endchunk, sampleperchunk, sampledescid;
 
-	curr = 1;
+	currsample = 1;
 	for(k=0;k<max;k++){
 		firstchunk = swap32(in[k].first_chunk);
-		if(k+1 == max)endchunk = firstchunk+1;
-		else endchunk = swap32(in[k+1].first_chunk);
-
 		sampleperchunk = swap32(in[k].sample_per_chunk);
 		sampledescid = swap32(in[k].sample_desc_id);
 
-		next = curr + sampleperchunk*(endchunk-firstchunk);
-		if(sample < curr)return -1;
-		if(sample >= next){
-			curr = next;
-			continue;
+		if(k+1 < max){
+			endchunk = swap32(in[k+1].first_chunk);
+			nextsample = currsample + sampleperchunk*(endchunk-firstchunk);
+			if(sample < currsample)return -1;
+			if(sample >= nextsample){
+				currsample = nextsample;
+				continue;
+			}
 		}
 
-		*chunk = firstchunk + (sample-curr) / sampleperchunk;
-		*this_chunk_first_sample = curr + sampleperchunk * ((*chunk)-firstchunk);
+		*chunk = firstchunk + (sample-currsample) / sampleperchunk;
+		*this_chunk_first_sample = currsample + sampleperchunk * ((*chunk)-firstchunk);
 		return 0;
 	}
 
@@ -1768,24 +1768,16 @@ int readpacket(FILE* fp, int off, u8* buf, int len)
 
 int writefile(void* buf, int len)
 {
-/*	FILE* fp = fopen("out.bin", "ab+");
-
-	int ret = 0;
-	do{
-		ret = fwrite(buf, 1, len, fp);
-		printf("writefile:len=%x,ret=%x\n",len,ret);
-
-		if(ret < 0)break;
-		buf += ret;
-		len -= ret;
-	}while(len != 0);
-
+	FILE* fp = fopen("out.bin", "wb");
+	int ret = fwrite(buf, 1, len, fp);
+	printf("fwrite:len=%x,ret=%x\n",len,ret);
 	fclose(fp);
-*/
+/*
 	int fd = open("out.bin", O_RDWR|O_CREAT, S_IRWXU | S_IRWXG | S_IRWXO);
 	int ret = write(fd, buf, len);
 	printf("write:fd=%x,len=%x,ret=%x,errno=%d\n",fd,len,ret,errno);
 	close(fd);
+*/
 	return 0;
 }
 
