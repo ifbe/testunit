@@ -21,6 +21,10 @@ int mdhd_size;
 //
 int stsd_offs;
 int stsd_size;
+int sps_offs;
+int sps_size;
+int pps_offs;
+int pps_size;
 //
 int ctts_offs;
 int ctts_size;
@@ -161,6 +165,147 @@ int parse_mfhd(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 }
 
 
+void printhex(u8* buf, int len)
+{
+	int j;
+	for(j=0;j<len-1;j++)printf("%x ", buf[j]);
+	printf("%x\n", buf[j]);
+}
+
+
+struct avcC{
+	u32 size;
+	u32 type;
+	u8 ver;
+	u8 profileindication;
+	u8 profilecompatibility;
+	u8 levelindication;
+	u8 nalulength;
+	u8 ptr[];
+	//1spscnt, 2spslen, sps
+	//1ppscnt, 2ppslen, pps
+}__attribute__((packed));
+int parse_avcC(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
+{
+	struct avcC* m = (void*)(p[depth]);
+
+	fseek(fp, off, SEEK_SET);
+	//if(ret <= 0)return 0;
+
+	int ret = fread(m, 1, 0x1000, fp);
+	if(ret <= 0)return 0;
+
+	int end = off + swap32(m->size);
+	printf("%.*sver=%x\n",depth,tabs, swap16(m->ver));
+	printf("%.*snalulen=%x\n",depth,tabs, m->nalulength);
+
+
+	off += 8+4+1;		//off@{spscnt,spslen,spsptr}
+	u8* spsptr = m->ptr;
+	u16 spslen = (spsptr[1]<<8)+spsptr[2];
+	printf("%.*ssps:cnt=%x,len=%x,dat@[%x,%x]",depth,tabs,
+		spsptr[0]&0x1f, spslen, off+3, off+3+spslen);
+	printhex(spsptr+3, spslen);
+
+	trackdef[trackcnt].sps_offs = off+3;
+	trackdef[trackcnt].sps_size = spslen;
+
+
+	off += 3+spslen;	//off@{ppscnt,ppslen,ppsptr}
+	u8* ppsptr = spsptr+spslen+3;
+	u16 ppslen = (ppsptr[1]<<8)+ppsptr[2];
+	printf("%.*spps:cnt=%x,len=%x,dat@[%x,%x]",depth,tabs,
+		ppsptr[0], ppslen, off+3, off+3+ppslen);
+	printhex(ppsptr+3, ppslen);
+
+	trackdef[trackcnt].pps_offs = off+3;
+	trackdef[trackcnt].pps_size = ppslen;
+
+	return 0;
+}
+
+
+
+
+struct stsdavc1{	//sample description
+	u32 size;
+	u32 type;
+	u8 rsvd[6];
+	u16 index;
+	u16 ver;
+	u16 rev;
+	u32 vendor;
+	u32 Temporalquality;
+	u32 Spatialquality;
+	u16 width;
+	u16 height;
+	u32 Horizontal;
+	u32 Vertical;
+	u32 datasize;
+	u16 framecount;
+	u8 Compressor[32];
+	u16 depth;
+	u16 color;
+	u32 desc_count;
+	u8 tmp[];
+}__attribute__((packed));
+int parse_avc1(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
+{
+	struct stsdavc1* m = (void*)(p[depth]);
+
+	fseek(fp, off, SEEK_SET);
+	//if(ret <= 0)return 0;
+
+	int ret = fread(m, 1, 0x1000, fp);
+	if(ret <= 0)return 0;
+
+	int end = off + swap32(m->size);
+	int count = swap32(m->desc_count);
+	printf("%.*sver=%x\n",depth,tabs, swap16(m->ver));
+	printf("%.*sindex=%x\n",depth,tabs,
+		swap32(m->index));
+	printf("%.*sw=%d,h=%d\n",depth,tabs,
+		swap16(m->width), swap16(m->height) );
+	printf("%.*sH=%x,V=%x\n",depth,tabs,
+		swap32(m->Horizontal), swap32(m->Vertical) );
+	printf("%.*sframecount=%x\n",depth,tabs,
+		swap16(m->framecount) );
+	printf("%.*scompressor=%.*s\n",depth,tabs,
+		m->Compressor[0], m->Compressor+1 );
+	printf("%.*sdepth=%x\n",depth,tabs,
+		swap16(m->depth) );
+	printf("%.*scolor=%x\n",depth,tabs,
+		swap16(m->color) );
+
+
+	count = 9;
+	int j=off+0x56;
+	u32 k=0;
+	u8* buf = p[depth];
+	for(;count>0;count--){
+		fseek(fp, j, SEEK_SET);
+
+		int ret = fread(buf, 1, 0x1000, fp);
+		if(ret <= 0)return 0;
+
+		k = (buf[0]<<24)+(buf[1]<<16)+(buf[2]<<8)+buf[3];
+		printf("%.*s[%x,%x)=%.4s\n",depth+1,tabs, j,j+k,buf+4);
+
+		switch(*(unsigned int*)(buf+4)){
+		case hex32('a','v','c','C'):
+			parse_avcC(fp, j, p, depth+1);
+			break;
+		}
+
+		if(k<0)break;
+		j += k;
+		buf += k;
+		if(j >= end)break;
+	}
+	return 0;
+}
+
+
 
 
 struct SampleEntry{
@@ -200,6 +345,12 @@ int parse_stsd(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 	for(;count>0;count--){
 		k = (buf[0]<<24)+(buf[1]<<16)+(buf[2]<<8)+buf[3];
 		printf("%.*s[%x,%x)=%.4s\n",depth+1,tabs, j,j+k,buf+4);
+
+		switch(*(unsigned int*)(buf+4)){
+		case hex32('a','v','c','1'):
+			parse_avc1(fp, j, p, depth+1);
+			break;
+		}
 
 		if(k<0)break;
 		j += k;
@@ -1729,14 +1880,17 @@ int readpacket(FILE* fp, int off, u8* buf, int len)
 
 	ret = fseek(fp, stsd_offs, SEEK_SET);
 	ret = fread(stsd, 1, 0x1000, fp);
-	print8(stsd, 8);
-
+	//print8(stsd, 8);
 	fmt = *(u32*)(stsd->tmp+4);
 	printf("	codec=%.4s\n", (char*)&fmt);
 
 	ret = fseek(fp, off, SEEK_SET);
 	ret = fread(buf, 1, len<0x100000?len:0x100000, fp);
 	print8(buf, 16);
+	buf[0] = 0;
+	buf[1] = 0;
+	buf[2] = 0;
+	buf[3] = 1;
 
 	switch(fmt){
 	case hex32('m','p','4','v'):
@@ -1764,14 +1918,12 @@ int readpacket(FILE* fp, int off, u8* buf, int len)
 	printf("-------------------\n");
 	return 0;
 }
-
-
 int writefile(void* buf, int len)
 {
-	FILE* fp = fopen("out.bin", "wb");
-	int ret = fwrite(buf, 1, len, fp);
+	FILE* fo = fopen("out.bin", "ab");
+	int ret = fwrite(buf, 1, len, fo);
 	printf("fwrite:len=%x,ret=%x\n",len,ret);
-	fclose(fp);
+	fclose(fo);
 /*
 	int fd = open("out.bin", O_RDWR|O_CREAT, S_IRWXU | S_IRWXG | S_IRWXO);
 	int ret = write(fd, buf, len);
@@ -1780,6 +1932,53 @@ int writefile(void* buf, int len)
 */
 	return 0;
 }
+
+
+
+
+int storespspps(FILE* fp, u8* buf)
+{
+	int ret;
+	int sum = 0;
+	buf[0] = 0;
+	buf[1] = 0;
+	buf[2] = 0;
+	buf[3] = 1;
+	sum = 4;
+
+	fseek(fp, trackdef[0].sps_offs, SEEK_SET);
+	//if(ret <= 0)return 0;
+
+	ret = fread(buf+sum, 1, trackdef[0].sps_size, fp);
+	if(ret <= 0)return 0;
+
+	sum += trackdef[0].sps_size;
+
+
+	buf[sum+0] = 0;
+	buf[sum+1] = 0;
+	buf[sum+2] = 0;
+	buf[sum+3] = 1;
+	sum += 4;
+
+	fseek(fp, trackdef[0].pps_offs, SEEK_SET);
+	//if(ret <= 0)return 0;
+
+	ret = fread(buf+sum, 1, trackdef[0].pps_size, fp);
+	if(ret <= 0)return 0;
+
+	sum += trackdef[0].pps_size;
+
+
+	FILE* fo = fopen("out.bin", "wb");
+	ret = fwrite(buf, 1, sum, fo);
+	printf("fwrite:len=%x,ret=%x\n", sum, ret);
+	fclose(fo);
+
+	return 0;
+}
+
+
 
 
 int main(int argc, char** argv)
@@ -1810,12 +2009,16 @@ int main(int argc, char** argv)
 	if(argc < 3)goto byebye;
 
 
+
 	int pkt = atoi(argv[2]);
 	printf("pkt=%d\n", pkt);
 
 /*	float pts = atof(argv[2]);
 	printf("pts=%f\n", pts);
 */
+	//sps, pps
+	storespspps(fp, (void*)tmp);
+
 	int sample_size;
 	int sample_offs;
 	for(;;){
