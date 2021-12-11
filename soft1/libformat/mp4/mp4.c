@@ -8,7 +8,7 @@ typedef unsigned short u16;
 typedef unsigned int u32;
 typedef unsigned long long u64;
 #define hex32(a,b,c,d) (a|(b<<8)|(c<<16)|(d<<24))
-char* tabs = "								";
+char* tabs = "\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t";
 struct savetrak{
 u32 size;
 u32 type;
@@ -21,10 +21,14 @@ int mdhd_size;
 //
 int stsd_offs;
 int stsd_size;
+int vps_offs;
+int vps_size;
 int sps_offs;
 int sps_size;
 int pps_offs;
 int pps_size;
+int sei_offs;
+int sei_size;
 //
 int ctts_offs;
 int ctts_size;
@@ -63,6 +67,10 @@ u64 swap64(u64 in)
 	hi = swap32(hi);
 	return (lo<<32) | hi;
 }
+
+
+
+
 void print8(void* buf, int len)
 {
 	u8* p = buf;
@@ -71,6 +79,19 @@ void print8(void* buf, int len)
 		p[0],p[1],p[2],p[3],p[4],p[5],p[6],p[7],
 		p[8],p[9],p[10],p[11],p[12],p[13],p[14],p[15]
 	);
+}
+void printhex(u8* buf, int len)
+{
+	int j;
+	for(j=0;j<len;j++){
+		if(j==len-1){
+			printf("%02x\n", buf[j]);
+			break;
+		}
+
+		if(15 == (j%16))printf("%02x\n", buf[j]);
+		else printf("%02x ", buf[j]);
+	}
 }
 
 
@@ -165,14 +186,6 @@ int parse_mfhd(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 }
 
 
-void printhex(u8* buf, int len)
-{
-	int j;
-	for(j=0;j<len-1;j++)printf("%x ", buf[j]);
-	printf("%x\n", buf[j]);
-}
-
-
 struct avcC{
 	u32 size;
 	u32 type;
@@ -203,6 +216,120 @@ int parse_avcC(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 	off += 8+4+1;		//off@{spscnt,spslen,spsptr}
 	u8* spsptr = m->ptr;
 	u16 spslen = (spsptr[1]<<8)+spsptr[2];
+	printf("%.*sspscnt=%x\n",depth+1,tabs, spsptr[0]&0x1f);
+	printf("%.*s[%x,%x)type=sps\n",depth+1,tabs,
+		off+3, off+3+spslen);
+	printhex(spsptr+3, spslen);
+
+	trackdef[trackcnt].sps_offs = off+3;
+	trackdef[trackcnt].sps_size = spslen;
+
+
+	off += 3+spslen;	//off@{ppscnt,ppslen,ppsptr}
+	u8* ppsptr = spsptr+spslen+3;
+	u16 ppslen = (ppsptr[1]<<8)+ppsptr[2];
+	printf("%.*sppscnt=%x\n",depth+1,tabs, ppsptr[0]);
+	printf("%.*s[%x,%x)type=pps\n",depth+1,tabs,
+		off+3, off+3+ppslen);
+	printhex(ppsptr+3, ppslen);
+
+	trackdef[trackcnt].pps_offs = off+3;
+	trackdef[trackcnt].pps_size = ppslen;
+
+	return 0;
+}
+
+
+
+struct hvcC{
+	u32 size;
+	u32 type;
+	u8  configurationVersion;
+	u8  profile_space;
+	u32 general_profile_compatibility_flags;
+	u8 general_constraint_indicator_flags[6];
+	u8  general_level_idc;
+	u16 min_spatial_segmentation_idc;
+	u8  parallelismType;
+	u8  chromaFormat;
+	u8  bitDepthLumaMinus8;
+	u8  bitDepthChromaMinus8;
+	u16 avgFrameRate;
+	u8  constantFrameRate;
+	u8  numOfArrays;
+	u8 ptr[];
+}__attribute__((packed));
+int parse_hvcC(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
+{
+	struct hvcC* m = (void*)(p[depth]);
+
+	fseek(fp, off, SEEK_SET);
+	//if(ret <= 0)return 0;
+
+	int ret = fread(m, 1, 0x1000, fp);
+	if(ret <= 0)return 0;
+
+	int size = swap32(m->size);
+	int end = off + size;
+	printf("%.*sver=%x\n",depth,tabs, m->configurationVersion);
+	printf("%.*schromaFormat=%x\n",depth,tabs, m->chromaFormat&3);
+	printf("%.*sbitDepthLumaMinus8=%x\n",depth,tabs, m->bitDepthLumaMinus8&7);
+	printf("%.*sbitDepthChromaMinus8=%x\n",depth,tabs, m->bitDepthChromaMinus8&7);
+	printf("%.*savgFrameRate=%x\n",depth,tabs, swap16(m->avgFrameRate));
+	printf("%.*sconstantFrameRate=%x\n",depth,tabs, m->constantFrameRate);
+
+	int count = m->numOfArrays;
+	printf("%.*snumOfArrays=%x\n",depth,tabs, count);
+
+	u8* arr = m->ptr;
+	int pos = off + (m->ptr - (u8*)m);
+
+	int nalutype;
+	int nalucnt;
+	int nalusize;
+	while(count--){
+		nalutype = arr[0]&0x3f;
+		nalucnt = (arr[1]<<8) + arr[2];
+		printf("%.*sarray:type=%x,cnt=%x\n",depth+1,tabs, nalutype, nalucnt);
+		arr += 3;
+		pos += 3;
+
+		while(nalucnt--){
+			nalusize = (arr[0]<<8) + arr[1];
+
+			printf("%.*s[%x,%x):type=",depth+1,tabs, pos+2, pos+2+nalusize);
+			switch(nalutype){
+			case 0x20:
+				printf("vps\n");
+				trackdef[trackcnt].vps_offs = pos+2;
+				trackdef[trackcnt].vps_size = nalusize;
+				break;
+			case 0x21:
+				printf("sps\n");
+				trackdef[trackcnt].sps_offs = pos+2;
+				trackdef[trackcnt].sps_size = nalusize;
+				break;
+			case 0x22:
+				printf("pps\n");
+				trackdef[trackcnt].pps_offs = pos+2;
+				trackdef[trackcnt].pps_size = nalusize;
+				break;
+			case 0x27:
+				printf("sei\n");
+				trackdef[trackcnt].sei_offs = pos+2;
+				trackdef[trackcnt].sei_size = nalusize;
+				break;
+			}
+			printhex(arr+2, nalusize);
+
+			arr += 2+nalusize;
+			pos += 2+nalusize;
+		}
+	}
+/*
+	off += 8+4+1;		//off@{spscnt,spslen,spsptr}
+	u8* spsptr = m->ptr;
+	u16 spslen = (spsptr[1]<<8)+spsptr[2];
 	printf("%.*ssps:cnt=%x,len=%x,dat@[%x,%x]",depth,tabs,
 		spsptr[0]&0x1f, spslen, off+3, off+3+spslen);
 	printhex(spsptr+3, spslen);
@@ -220,7 +347,167 @@ int parse_avcC(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 
 	trackdef[trackcnt].pps_offs = off+3;
 	trackdef[trackcnt].pps_size = ppslen;
+*/
+	return 0;
+}
+/*
+struct svhd{
+	u32 size;
+	u32 type;
+}__attribute__((packed));
+int parse_svhd(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
+{
+	struct svhd* m = (void*)(p[depth]);
 
+	fseek(fp, off, SEEK_SET);
+	//if(ret <= 0)return 0;
+
+	int ret = fread(m, 1, 0x1000, fp);
+	if(ret <= 0)return 0;
+
+	int size = swap32(m->size);
+	//printf("%.*s[%x,%x)=%.4s\n",depth,tabs, off, off+size, (char*)&m->type);
+	return 0;
+}*/
+
+
+
+
+struct proj{
+	u32 size;
+	u32 type;
+}__attribute__((packed));
+int parse_proj(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
+{
+	struct proj* m = (void*)(p[depth]);
+
+	fseek(fp, off, SEEK_SET);
+	//if(ret <= 0)return 0;
+
+	int ret = fread(m, 1, 0x1000, fp);
+	if(ret <= 0)return 0;
+
+	int size = swap32(m->size);
+	int end = off + size;
+	//printf("%.*s[%x,%x)=%.4s\n",depth,tabs, off, off+size, (char*)&m->type);
+
+	int j=off+8;
+	u32 k=0;
+	u8* buf = p[depth];
+	while(1){
+		fseek(fp, j, SEEK_SET);
+
+		int ret = fread(buf, 1, 0x1000, fp);
+		if(ret <= 0)return 0;
+
+		k = (buf[0]<<24)+(buf[1]<<16)+(buf[2]<<8)+buf[3];
+		printf("%.*s[%x,%x)=%.4s\n",depth+1,tabs, j,j+k,buf+4);
+
+		switch(*(unsigned int*)(buf+4)){
+		case hex32('p','r','h','d'):
+			break;
+		case hex32('e','q','u','i'):
+			break;
+		}
+
+		if(k<0)break;
+		j += k;
+		buf += k;
+		if(j >= end)break;
+	}
+	return 0;
+}
+
+
+
+
+struct svhd{
+	u32 size;
+	u32 type;
+}__attribute__((packed));
+int parse_svhd(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
+{
+	struct svhd* m = (void*)(p[depth]);
+
+	fseek(fp, off, SEEK_SET);
+	//if(ret <= 0)return 0;
+
+	int ret = fread(m, 1, 0x1000, fp);
+	if(ret <= 0)return 0;
+
+	int size = swap32(m->size);
+	//printf("%.*s[%x,%x)=%.4s\n",depth,tabs, off, off+size, (char*)&m->type);
+	return 0;
+}
+
+
+
+
+struct sv3d{
+	u32 size;
+	u32 type;
+}__attribute__((packed));
+int parse_sv3d(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
+{
+	struct sv3d* m = (void*)(p[depth]);
+
+	fseek(fp, off, SEEK_SET);
+	//if(ret <= 0)return 0;
+
+	int ret = fread(m, 1, 0x1000, fp);
+	if(ret <= 0)return 0;
+
+	int end = off + swap32(m->size);
+	int j=off+8;
+	u32 k=0;
+	u8* buf = p[depth];
+	while(1){
+		fseek(fp, j, SEEK_SET);
+
+		int ret = fread(buf, 1, 0x1000, fp);
+		if(ret <= 0)return 0;
+
+		k = (buf[0]<<24)+(buf[1]<<16)+(buf[2]<<8)+buf[3];
+		printf("%.*s[%x,%x)=%.4s\n",depth+1,tabs, j,j+k,buf+4);
+
+		switch(*(unsigned int*)(buf+4)){
+		case hex32('s','v','h','d'):
+			parse_svhd(fp, j, p, depth+1);
+			break;
+		case hex32('p','r','o','j'):
+			parse_proj(fp, j, p, depth+1);
+			break;
+		}
+
+		if(k<0)break;
+		j += k;
+		buf += k;
+		if(j >= end)break;
+	}
+	return 0;
+}
+
+
+
+
+struct st3d{
+	u32 size;
+	u32 type;
+	u8 ptr[8];
+}__attribute__((packed));
+int parse_st3d(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
+{
+	struct st3d* m = (void*)(p[depth]);
+
+	fseek(fp, off, SEEK_SET);
+	//if(ret <= 0)return 0;
+
+	int ret = fread(m, 1, 0x1000, fp);
+	if(ret <= 0)return 0;
+
+	printf("%.*s:%x,%x,%x,%x,%x,%x,%x,%x\n",depth,tabs,
+		m->ptr[0], m->ptr[1], m->ptr[2], m->ptr[3],
+		m->ptr[4], m->ptr[5], m->ptr[6], m->ptr[7]);
 	return 0;
 }
 
@@ -295,6 +582,99 @@ int parse_avc1(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 		case hex32('a','v','c','C'):
 			parse_avcC(fp, j, p, depth+1);
 			break;
+		case hex32('s','t','3','d'):
+			parse_st3d(fp, j, p, depth+1);
+			break;
+		case hex32('s','v','3','d'):
+			parse_sv3d(fp, j, p, depth+1);
+			break;
+		}
+
+		if(k<0)break;
+		j += k;
+		buf += k;
+		if(j >= end)break;
+	}
+	return 0;
+}
+
+
+
+
+struct stsdhev1{	//sample description
+	u32 size;
+	u32 type;
+	u8 rsvd[6];
+	u16 index;
+	u16 ver;
+	u16 rev;
+	u32 vendor;
+	u32 Temporalquality;
+	u32 Spatialquality;
+	u16 width;
+	u16 height;
+	u32 Horizontal;
+	u32 Vertical;
+	u32 datasize;
+	u16 framecount;
+	u8 Compressor[32];
+	u16 depth;
+	u16 color;
+	u32 desc_count;
+	u8 tmp[];
+}__attribute__((packed));
+int parse_hev1(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
+{
+	struct stsdhev1* m = (void*)(p[depth]);
+
+	fseek(fp, off, SEEK_SET);
+	//if(ret <= 0)return 0;
+
+	int ret = fread(m, 1, 0x1000, fp);
+	if(ret <= 0)return 0;
+
+	int end = off + swap32(m->size);
+	int count = swap32(m->desc_count);
+	printf("%.*sver=%x\n",depth,tabs, swap16(m->ver));
+	printf("%.*sindex=%x\n",depth,tabs,
+		swap32(m->index));
+	printf("%.*sw=%d,h=%d\n",depth,tabs,
+		swap16(m->width), swap16(m->height) );
+	printf("%.*sH=%x,V=%x\n",depth,tabs,
+		swap32(m->Horizontal), swap32(m->Vertical) );
+	printf("%.*sframecount=%x\n",depth,tabs,
+		swap16(m->framecount) );
+	printf("%.*scompressor=%.*s\n",depth,tabs,
+		m->Compressor[0], m->Compressor+1 );
+	printf("%.*sdepth=%x\n",depth,tabs,
+		swap16(m->depth) );
+	printf("%.*scolor=%x\n",depth,tabs,
+		swap16(m->color) );
+
+
+	count = 9;
+	int j=off+0x56;
+	u32 k=0;
+	u8* buf = p[depth];
+	for(;count>0;count--){
+		fseek(fp, j, SEEK_SET);
+
+		int ret = fread(buf, 1, 0x1000, fp);
+		if(ret <= 0)return 0;
+
+		k = (buf[0]<<24)+(buf[1]<<16)+(buf[2]<<8)+buf[3];
+		printf("%.*s[%x,%x)=%.4s\n",depth+1,tabs, j,j+k,buf+4);
+
+		switch(*(unsigned int*)(buf+4)){
+		case hex32('h','v','c','C'):
+			parse_hvcC(fp, j, p, depth+1);
+			break;
+		case hex32('s','t','3','d'):
+			parse_st3d(fp, j, p, depth+1);
+			break;
+		case hex32('s','v','3','d'):
+			parse_sv3d(fp, j, p, depth+1);
+			break;
 		}
 
 		if(k<0)break;
@@ -349,6 +729,9 @@ int parse_stsd(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 		switch(*(unsigned int*)(buf+4)){
 		case hex32('a','v','c','1'):
 			parse_avc1(fp, j, p, depth+1);
+			break;
+		case hex32('h','e','v','1'):
+			parse_hev1(fp, j, p, depth+1);
 			break;
 		}
 
