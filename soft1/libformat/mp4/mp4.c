@@ -99,7 +99,8 @@ void printhex(u8* buf, int len)
 
 u64 parse_mdat(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 {
-	printf("%.*smdat\n",depth,tabs);
+	unsigned char* buf = p[depth];
+	printf("%.*s%x,%x,%x,%x\n",depth,tabs, buf[0],buf[1],buf[2],buf[3]);
 	return 0;
 }
 
@@ -129,7 +130,7 @@ struct mvhd{
 }__attribute__((packed));
 int parse_mvhd(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 {
-	struct mvhd* m = (void*)(p[depth-1]);
+	struct mvhd* m = (void*)(p[depth]);
 	int end = off + swap32(m->size);
 	u32 scale = swap32(m->time_scale);
 	u32 duration = swap32(m->time_duration);
@@ -175,7 +176,7 @@ struct mfhd{
 }__attribute__((packed));
 int parse_mfhd(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 {
-	struct mfhd* m = (void*)(p[depth-1]);
+	struct mfhd* m = (void*)(p[depth]);
 	int end = off + swap32(m->size);
 
 	printf("%.*sver=%x\n",depth,tabs, m->ver);
@@ -393,7 +394,7 @@ int parse_proj(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 
 	int j=off+8;
 	u32 k=0;
-	u8* buf = p[depth];
+	u8* buf = p[depth+1];
 	while(1){
 		fseek(fp, j, SEEK_SET);
 
@@ -460,7 +461,7 @@ int parse_sv3d(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 	int end = off + swap32(m->size);
 	int j=off+8;
 	u32 k=0;
-	u8* buf = p[depth];
+	u8* buf = p[depth+1];
 	while(1){
 		fseek(fp, j, SEEK_SET);
 
@@ -568,7 +569,7 @@ int parse_avc1(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 	count = 9;
 	int j=off+0x56;
 	u32 k=0;
-	u8* buf = p[depth];
+	u8* buf = p[depth+1];
 	for(;count>0;count--){
 		fseek(fp, j, SEEK_SET);
 
@@ -655,7 +656,7 @@ int parse_hev1(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 	count = 9;
 	int j=off+0x56;
 	u32 k=0;
-	u8* buf = p[depth];
+	u8* buf = p[depth+1];
 	for(;count>0;count--){
 		fseek(fp, j, SEEK_SET);
 
@@ -712,7 +713,7 @@ struct stsd{	//sample description
 }__attribute__((packed));
 int parse_stsd(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 {
-	struct stsd* m = (void*)(p[depth-1]);
+	struct stsd* m = (void*)(p[depth]);
 	int end = off + swap32(m->size);
 	int count = swap32(m->desc_count);
 	printf("%.*sver=%x\n",depth,tabs, m->ver);
@@ -731,6 +732,7 @@ int parse_stsd(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 			parse_avc1(fp, j, p, depth+1);
 			break;
 		case hex32('h','e','v','1'):
+		case hex32('h','v','c','1'):
 			parse_hev1(fp, j, p, depth+1);
 			break;
 		}
@@ -764,13 +766,13 @@ struct ctts{	//pts to dts table
 }__attribute__((packed));
 int parse_ctts(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 {
-	struct ctts* m = (void*)(p[depth-1]);
+	struct ctts* m = (void*)(p[depth]);
 	int end = off + swap32(m->size);
 	int count = swap32(m->time_to_sample_count);
 	printf("%.*sver=%x\n",depth,tabs, m->ver);
 	printf("%.*scount=%x\n",depth,tabs, count);
 
-	u32* buf = (void*)p[depth];
+	u32* buf = (void*)p[depth+1];
 	int ret;
 
 	int j=off+16, k;
@@ -816,14 +818,14 @@ struct stts{	//time-sample	//index table
 }__attribute__((packed));
 int parse_stts(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 {
-	struct stts* m = (void*)(p[depth-1]);
+	struct stts* m = (void*)(p[depth]);
 	int end = off + swap32(m->size);
 	int count = swap32(m->time_to_sample_count);
 	printf("%.*sver=%x\n",depth,tabs, m->ver);
 	printf("%.*sdesc_count=%x\n",depth,tabs,
 		count);
 
-	u32* buf = (void*)p[depth];
+	u32* buf = (void*)p[depth+1];
 	int ret;
 
 	int j=off+16, k;
@@ -888,14 +890,14 @@ struct stss{	//sync sample
 }__attribute__((packed));
 int parse_stss(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 {
-	struct stss* m = (void*)(p[depth-1]);
+	struct stss* m = (void*)(p[depth]);
 	int end = off + swap32(m->size);
 	int count = swap32(m->sync_sample_count);
 	printf("%.*sver=%x\n",depth,tabs, m->ver);
 	printf("%.*sdesc_count=%x\n",depth,tabs,
 		count);
 
-	u32* buf = (void*)p[depth];
+	u32* buf = (void*)p[depth+1];
 	int ret;
 
 	int j=off+16, k;
@@ -942,14 +944,14 @@ struct stsc{	//sample-chunk	//index table
 }__attribute__((packed));
 int parse_stsc(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 {
-	struct stsc* m = (void*)(p[depth-1]);
+	struct stsc* m = (void*)(p[depth]);
 	int end = off + swap32(m->size);
 	int count = swap32(m->sample_to_chunk_count);
 	printf("%.*sver=%x\n",depth,tabs, m->ver);
 	printf("%.*sdesc_count=%x\n",depth,tabs,
 		count);
 
-	u32* buf = (void*)p[depth];
+	u32* buf = (void*)p[depth+1];
 	int ret;
 
 	int j=off+16, k;
@@ -1022,7 +1024,7 @@ struct stsz{	//sample size
 }__attribute__((packed));
 int parse_stsz(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 {
-	struct stsz* m = (void*)(p[depth-1]);
+	struct stsz* m = (void*)(p[depth]);
 	int end = off + swap32(m->size);
 	int count = swap32(m->sample_count);
 	printf("%.*sver=%x\n",depth,tabs, m->ver);
@@ -1031,7 +1033,7 @@ int parse_stsz(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 	printf("%.*ssample_count=%x\n",depth,tabs,
 		count);
 
-	u32* buf = (void*)p[depth];
+	u32* buf = (void*)p[depth+1];
 	int ret;
 
 	int j=off+20;	//file offset
@@ -1087,14 +1089,14 @@ struct stco{	//chunk offset
 }__attribute__((packed));
 int parse_stco(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 {
-	struct stco* m = (void*)(p[depth-1]);
+	struct stco* m = (void*)(p[depth]);
 	int end = off + swap32(m->size);
 	int count = swap32(m->chunk_count);
 	printf("%.*sver=%x\n",depth,tabs, m->ver);
 	printf("%.*sdesc_count=%x\n",depth,tabs,
 		count);
 
-	u32* buf = (void*)p[depth];
+	u32* buf = (void*)p[depth+1];
 	int ret;
 
 	int j=off+16;
@@ -1142,14 +1144,14 @@ struct co64{	//chunk offset
 }__attribute__((packed));
 int parse_co64(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 {
-	struct co64* m = (void*)(p[depth-1]);
+	struct co64* m = (void*)(p[depth]);
 	int end = off + swap32(m->size);
 	int count = swap32(m->chunk_count);
 	printf("%.*sver=%x\n",depth,tabs, m->ver);
 	printf("%.*sdesc_count=%x\n",depth,tabs,
 		count);
 
-	u64* buf = (void*)p[depth];
+	u64* buf = (void*)p[depth+1];
 	int ret;
 
 	int j=off+16;
@@ -1185,12 +1187,12 @@ int parse_co64_get_chunkinfileoff(struct co64* co64, int chunk)
 int parse_stbl(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 {
 	//printf("%.*strak\n",depth,tabs);
-	unsigned char* pre = p[depth-1];
+	unsigned char* pre = p[depth];
 	int end = off + swap32(*(u32*)pre);
 
 	int j=off+8;
 	int k=0;
-	unsigned char* buf = p[depth];
+	unsigned char* buf = p[depth+1];
 	for(;;){
 		fseek(fp, j, SEEK_SET);
 
@@ -1198,7 +1200,7 @@ int parse_stbl(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 		if(ret <= 0)return 0;
 
 		k = (buf[0]<<24)+(buf[1]<<16)+(buf[2]<<8)+buf[3];
-		printf("%.*s[%x,%x)=%.4s\n",depth,tabs, j,j+k,buf+4);
+		printf("%.*s[%x,%x)=%.4s\n",depth+1,tabs, j,j+k,buf+4);
 
 		switch(*(unsigned int*)(buf+4)){
 		case hex32('s','t','s','d'):
@@ -1246,7 +1248,7 @@ struct dref{
 }__attribute__((packed));
 int parse_dref(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 {
-	struct dref* m = (void*)(p[depth-1]);
+	struct dref* m = (void*)(p[depth]);
 
 	printf("%.*sver=%x\n",depth,tabs, m->ver);
 	printf("%.*sentry_count=%x\n",depth,tabs,
@@ -1255,12 +1257,12 @@ int parse_dref(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 }
 int parse_dinf(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 {
-	unsigned char* pre = p[depth-1];
+	unsigned char* pre = p[depth];
 	int end = off + swap32(*(u32*)pre);
 
 	int j=off+8;
 	int k=0;
-	unsigned char* buf = p[depth];
+	unsigned char* buf = p[depth+1];
 	for(;;){
 		fseek(fp, j, SEEK_SET);
 
@@ -1268,7 +1270,7 @@ int parse_dinf(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 		if(ret <= 0)return 0;
 
 		k = (buf[0]<<24)+(buf[1]<<16)+(buf[2]<<8)+buf[3];
-		printf("%.*s[%x,%x)=%.4s\n",depth,tabs, j,j+k,buf+4);
+		printf("%.*s[%x,%x)=%.4s\n",depth+1,tabs, j,j+k,buf+4);
 
 		switch(*(unsigned int*)(buf+4)){
 		case hex32('d','r','e','f'):
@@ -1297,7 +1299,7 @@ struct vmhd{
 int parse_vmhd(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 {
 	//printf("%.*s????\n",depth,tabs);
-	struct vmhd* m = (void*)(p[depth-1]);
+	struct vmhd* m = (void*)(p[depth]);
 
 	printf("%.*sver=%x\n",depth,tabs, m->ver);
 	printf("%.*sgraphics_mode=%x\n",depth,tabs,
@@ -1320,7 +1322,7 @@ struct smhd{
 int parse_smhd(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 {
 	//printf("%.*s????\n",depth,tabs);
-	struct smhd* m = (void*)(p[depth-1]);
+	struct smhd* m = (void*)(p[depth]);
 
 	printf("%.*sver=%x\n",depth,tabs, m->ver);
 	printf("%.*sgraphics_mode=%x.%x\n",depth,tabs,
@@ -1330,12 +1332,12 @@ int parse_smhd(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 int parse_minf(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 {
 	//printf("%.*strak\n",depth,tabs);
-	unsigned char* pre = p[depth-1];
+	unsigned char* pre = p[depth];
 	int end = off + swap32(*(u32*)pre);
 
 	int j=off+8;
 	int k=0;
-	unsigned char* buf = p[depth];
+	unsigned char* buf = p[depth+1];
 	for(;;){
 		fseek(fp, j, SEEK_SET);
 
@@ -1343,7 +1345,7 @@ int parse_minf(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 		if(ret <= 0)return 0;
 
 		k = (buf[0]<<24)+(buf[1]<<16)+(buf[2]<<8)+buf[3];
-		printf("%.*s[%x,%x)=%.4s\n",depth,tabs, j,j+k,buf+4);
+		printf("%.*s[%x,%x)=%.4s\n",depth+1,tabs, j,j+k,buf+4);
 
 		switch(*(unsigned int*)(buf+4)){
 		case hex32('v','m','h','d'):
@@ -1384,7 +1386,7 @@ struct mdhd{
 }__attribute__((packed));
 int parse_mdhd(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 {
-	struct mdhd* m = (void*)(p[depth-1]);
+	struct mdhd* m = (void*)(p[depth]);
 	int end = off + swap32(m->size);
 	u32 scale = swap32(m->time_scale);
 	u32 duration = swap32(m->time_duration);
@@ -1425,7 +1427,7 @@ struct hdlr{
 }__attribute__((packed));
 int parse_hdlr(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 {
-	struct hdlr* m = (void*)(p[depth-1]);
+	struct hdlr* m = (void*)(p[depth]);
 	printf("%.*sver=%x\n",depth,tabs, m->ver);
 	printf("%.*spredefined=%x\n",depth,tabs,
 		swap32(m->predefined));
@@ -1440,12 +1442,12 @@ int parse_hdlr(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 int parse_mdia(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 {
 	//printf("%.*smdia\n",depth,tabs);
-	unsigned char* pre = p[depth-1];
+	unsigned char* pre = p[depth];
 	int end = off + swap32(*(u32*)pre);
 
 	int j=off+8;
 	int k=0;
-	unsigned char* buf = p[depth];
+	unsigned char* buf = p[depth+1];
 	for(;;){
 		fseek(fp, j, SEEK_SET);
 
@@ -1453,7 +1455,7 @@ int parse_mdia(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 		if(ret <= 0)return 0;
 
 		k = (buf[0]<<24)+(buf[1]<<16)+(buf[2]<<8)+buf[3];
-		printf("%.*s[%x,%x)=%.4s\n",depth,tabs, j,j+k,buf+4);
+		printf("%.*s[%x,%x)=%.4s\n",depth+1,tabs, j,j+k,buf+4);
 
 		switch(*(unsigned int*)(buf+4)){
 		case hex32('m','d','h','d'):
@@ -1499,7 +1501,7 @@ struct tkhd{
 }__attribute__((packed));
 int parse_tkhd(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 {
-	struct tkhd* m = (void*)(p[depth-1]);
+	struct tkhd* m = (void*)(p[depth]);
 
 	printf("%.*sver=%x\n",depth,tabs, m->ver);
 	printf("%.*stime_create=%x\n",depth,tabs,
@@ -1535,7 +1537,7 @@ struct tfhd{
 }__attribute__((packed));
 int parse_tfhd(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 {
-	struct tfhd* m = (void*)(p[depth-1]);
+	struct tfhd* m = (void*)(p[depth]);
 
 	printf("%.*sver=%x\n",depth,tabs, m->ver);
 	printf("%.*strackid=%x\n",depth,tabs,
@@ -1558,7 +1560,7 @@ struct tfdt{
 }__attribute__((packed));
 int parse_tfdt(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 {
-	struct tfdt* m = (void*)(p[depth-1]);
+	struct tfdt* m = (void*)(p[depth]);
 	int ver = m->ver;
 	printf("%.*sver=%x\n",depth,tabs, ver);
 	printf("%.*sdecodetime=%llx\n",depth,tabs,
@@ -1579,7 +1581,7 @@ struct trun{
 }__attribute__((packed));
 int parse_trun(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 {
-	struct trun* m = (void*)(p[depth-1]);
+	struct trun* m = (void*)(p[depth]);
 	u32 flag = (m->flag[0]<<16) | (m->flag[1]<<8) | (m->flag[2]);
 	u32 samplecount = swap32(m->samplecount);
 	printf("%.*sver=%x\n",depth,tabs, m->ver);
@@ -1646,7 +1648,7 @@ struct trex{
 }__attribute__((packed));
 int parse_trex(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 {
-	struct trex* m = (void*)(p[depth-1]);
+	struct trex* m = (void*)(p[depth]);
 
 	printf("%.*sver=%x\n",depth,tabs, m->ver);
 	printf("%.*sindex=%x\n",depth,tabs,
@@ -1673,7 +1675,7 @@ struct elst{
 }__attribute__((packed));
 int parse_elst(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 {
-	struct elst* m = (void*)(p[depth-1]);
+	struct elst* m = (void*)(p[depth]);
 	u32 size = swap32(m->size);
 	u32 cnt = swap32(m->cnt);
 	printf("%.*slen=%x\n",depth,tabs, size);
@@ -1695,12 +1697,12 @@ int parse_elst(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 int parse_edts(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 {
 	//printf("%.*smdia\n",depth,tabs);
-	unsigned char* pre = p[depth-1];
+	unsigned char* pre = p[depth];
 	int end = off + swap32(*(u32*)pre);
 
 	int j=off+8;
 	int k=0;
-	unsigned char* buf = p[depth];
+	unsigned char* buf = p[depth+1];
 	for(;;){
 		fseek(fp, j, SEEK_SET);
 
@@ -1708,7 +1710,7 @@ int parse_edts(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 		if(ret <= 0)return 0;
 
 		k = (buf[0]<<24)+(buf[1]<<16)+(buf[2]<<8)+buf[3];
-		printf("%.*s[%x,%x)=%.4s\n",depth,tabs, j,j+k,buf+4);
+		printf("%.*s[%x,%x)=%.4s\n",depth+1,tabs, j,j+k,buf+4);
 
 		switch(*(unsigned int*)(buf+4)){
 		case hex32('e','l','s','t'):
@@ -1729,14 +1731,14 @@ int parse_edts(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 int parse_trak(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 {
 	//printf("%.*strak\n",depth,tabs);
-	unsigned char* pre = p[depth-1];
+	unsigned char* pre = p[depth];
 	int end = off + swap32(*(u32*)pre);
 
 	trackdef[trackcnt].type = 0;
 
 	int j=off+8;
 	int k=0;
-	unsigned char* buf = p[depth];
+	unsigned char* buf = p[depth+1];
 	for(;;){
 		fseek(fp, j, SEEK_SET);
 
@@ -1744,7 +1746,7 @@ int parse_trak(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 		if(ret <= 0)break;
 
 		k = (buf[0]<<24)+(buf[1]<<16)+(buf[2]<<8)+buf[3];
-		printf("%.*s[%x,%x)=%.4s\n",depth,tabs, j,j+k,buf+4);
+		printf("%.*s[%x,%x)=%.4s\n",depth+1,tabs, j,j+k,buf+4);
 
 		switch(*(unsigned int*)(buf+4)){
 		case hex32('t','k','h','d'):
@@ -1769,12 +1771,12 @@ int parse_trak(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 int parse_traf(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 {
 	//printf("%.*straf\n",depth,tabs);
-	unsigned char* pre = p[depth-1];
-	int end = off + swap32(*(u32*)pre);
+	unsigned char* traf = p[depth];
+	int end = off + swap32(*(u32*)traf);
 
 	int j=off+8;
 	int k=0;
-	unsigned char* buf = p[depth];
+	unsigned char* buf = p[depth+1];
 	for(;;){
 		fseek(fp, j, SEEK_SET);
 
@@ -1782,7 +1784,7 @@ int parse_traf(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 		if(ret <= 0)break;
 
 		k = (buf[0]<<24)+(buf[1]<<16)+(buf[2]<<8)+buf[3];
-		printf("%.*s[%x,%x)=%.4s\n",depth,tabs, j,j+k,buf+4);
+		printf("%.*s[%x,%x)=%.4s\n",depth+1,tabs, j,j+k,buf+4);
 
 		switch(*(unsigned int*)(buf+4)){
 		case hex32('t','f','h','d'):
@@ -1806,12 +1808,12 @@ int parse_traf(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 int parse_mvex(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 {
 	printf("%.*smvex\n",depth,tabs);
-	unsigned char* pre = p[depth-1];
+	unsigned char* pre = p[depth];
 	int end = off + swap32(*(u32*)pre);
 
 	int j=off+8;
 	int k=0;
-	unsigned char* buf = p[depth];
+	unsigned char* buf = p[depth+1];
 	for(;;){
 		fseek(fp, j, SEEK_SET);
 
@@ -1819,7 +1821,7 @@ int parse_mvex(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 		if(ret <= 0)break;
 
 		k = (buf[0]<<24)+(buf[1]<<16)+(buf[2]<<8)+buf[3];
-		printf("%.*s[%x,%x)=%.4s\n",depth,tabs, j,j+k,buf+4);
+		printf("%.*s[%x,%x)=%.4s\n",depth+1,tabs, j,j+k,buf+4);
 
 		switch(*(unsigned int*)(buf+4)){
 		case hex32('t','r','e','x'):
@@ -1841,12 +1843,12 @@ int parse_udta(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 int parse_moov(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 {
 	//printf("%.*smoov\n",depth,tabs);
-	unsigned char* pre = p[depth-1];
+	unsigned char* pre = p[depth];
 	int end = off + swap32(*(u32*)pre);
 
 	int j=off+8;
 	int k=0;
-	unsigned char* buf = p[depth];
+	unsigned char* buf = p[depth+1];
 	for(;;){
 		fseek(fp, j, SEEK_SET);
 
@@ -1854,7 +1856,7 @@ int parse_moov(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 		if(ret <= 0)return 0;
 
 		k = (buf[0]<<24)+(buf[1]<<16)+(buf[2]<<8)+buf[3];
-		printf("%.*s[%x,%x)=%.4s\n",depth,tabs, j,j+k,buf+4);
+		printf("%.*s[%x,%x)=%.4s\n",depth+1,tabs, j,j+k,buf+4);
 
 		switch(*(unsigned int*)(buf+4)){
 		case hex32('m','v','h','d'):
@@ -1880,12 +1882,12 @@ int parse_moov(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 int parse_moof(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 {
 	//printf("%.*smoov\n",depth,tabs);
-	unsigned char* pre = p[depth-1];
-	int end = off + swap32(*(u32*)pre);
+	unsigned char* my = p[depth];
+	int end = off + swap32(*(u32*)my);
 
 	int j=off+8;
 	int k=0;
-	unsigned char* buf = p[depth];
+	unsigned char* buf = p[depth+1];
 	for(;;){
 		fseek(fp, j, SEEK_SET);
 
@@ -1893,7 +1895,7 @@ int parse_moof(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 		if(ret <= 0)return 0;
 
 		k = (buf[0]<<24)+(buf[1]<<16)+(buf[2]<<8)+buf[3];
-		printf("%.*s[%x,%x)=%.4s\n",depth,tabs, j,j+k,buf+4);
+		printf("%.*s[%x,%x)=%.4s\n",depth+1,tabs, j,j+k,buf+4);
 
 		switch(*(unsigned int*)(buf+4)){
 		case hex32('m','f','h','d'):
@@ -1912,7 +1914,7 @@ int parse_moof(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 }
 int parse_ftyp(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 {
-	unsigned char* buf = p[0];
+	unsigned char* buf = p[depth];
 	printf("%.*smajor=%.4s\n",depth,tabs, buf+8);
 	printf("%.*sminor=%x\n",depth,tabs, buf[15]);
 	printf("%.*scapatible=%.4s,%.4s,%.4s\n",depth,tabs,
@@ -1926,13 +1928,14 @@ int parse_ftyp(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 
 
 
-int parse(FILE* fp, unsigned char (*p)[0x1000], int depth)
+int parse(FILE* fp, int off, unsigned char (*p)[0x1000], int depth)
 {
 	//printf("%x,%x,%x,%x\n",p[4],p[5],p[6],p[7]);
+	printf("fp=%p,off=%x,ptr=%p,dep=%x\n",fp,off,p,depth);
 	int j=0;
 	u64 k = 0;
 
-	unsigned char* buf = p[depth];
+	unsigned char* buf = p[depth+1];
 	for(;;){
 		fseek(fp, j, SEEK_SET);
 
@@ -1945,7 +1948,7 @@ int parse(FILE* fp, unsigned char (*p)[0x1000], int depth)
 			k = k<<32;
 			k += (buf[12]<<24)+(buf[13]<<16)+(buf[14]<<8)+buf[15];
 		}
-		printf("[%x,%llx)=%.4s\n",j,j+k,buf+4);
+		printf("%.*s[%x,%llx)=%.4s\n",depth+1,tabs, j,j+k,buf+4);
 
 		switch(*(unsigned int*)(buf+4)){
 		case hex32('f','t','y','p'):
@@ -2375,7 +2378,8 @@ int main(int argc, char** argv)
 	FILE* fp = fopen(argv[1],"rb");
 	if(!fp)return 0;
 
-	int ret = parse(fp, tmp, 0);
+	printf("%s\n", argv[1]);
+	int ret = parse(fp, 0, tmp, 0);
 
 	int j;
 	printf("--------------------------------\n");
