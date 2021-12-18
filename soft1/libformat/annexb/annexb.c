@@ -4,7 +4,8 @@ int parseh264(unsigned char* buf, int len);
 int parseh265(unsigned char* buf, int len);
 
 
-static unsigned char buf[0x100000];
+#define BUFSZ 0x200000
+static unsigned char buf[BUFSZ];
 
 
 int find0001(unsigned char* ptr, int len)
@@ -79,15 +80,20 @@ int main(int argc, char** argv)
 		ret = fseek(fp, now, SEEK_SET);
 		//if(ret < 0)
 
-		ret = fread(buf, 1, 0x100000, fp);
+		ret = fread(buf, 1, BUFSZ, fp);
 		if(ret <= 0)break;
 
 		ret = find0001(buf, ret);
 		if(ret <= 0)break;
-		printf("%x@[%x,%x]:%x,%x,%x,%x\n", cnt, now, now+ret, buf[4],buf[5],buf[6],buf[7]);
+		printf("%x@[%x,%x]:%x,%x,%x,%x,%x,%x,%x,%x\n", cnt, now, now+ret,
+			buf[0],buf[1],buf[2],buf[3],
+			buf[4],buf[5],buf[6],buf[7]);
 
 		tmp = ebsp2rbsp(buf, ret, buf, ret);
 		//printf("ebsp2rbsp:%x->%x\n", ret, tmp);
+		printf("%x,%x,%x,%x,%x,%x,%x,%x\n",
+			buf[0],buf[1],buf[2],buf[3],
+			buf[4],buf[5],buf[6],buf[7]);
 
 		if('4' == codec){
 			parseh264(buf, tmp);

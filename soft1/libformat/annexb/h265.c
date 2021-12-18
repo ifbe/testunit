@@ -1,5 +1,72 @@
 #include <stdio.h>
 #include <stdlib.h>
+typedef unsigned char u8;
+
+
+
+
+void parseh265_printhex(u8* buf, int len)
+{
+	int j;
+	for(j=0;j<len;j++){
+		if(j==len-1){
+			printf("%02x\n", buf[j]);
+			break;
+		}
+
+		if(15 == (j%16))printf("%02x\n", buf[j]);
+		else printf("%02x ", buf[j]);
+	}
+}
+
+
+
+
+int parseh265_sei_user(unsigned char* buf, int len)
+{
+	printf("uuid=\n");
+	parseh265_printhex(buf, 16);
+
+	printf("str=\n");
+	printf("%.*s\n", len-16, buf+16);
+	return 0;
+}
+int parseh265_sei(unsigned char* buf, int len)
+{
+	int tmp;
+	int old = 2;
+	int now = old;
+
+	int type = 0;
+	do{
+		tmp = buf[now];
+		type += tmp;
+		now++;
+	}while(0xff == tmp);
+	printf(".[%x,%x)type=%x\n",old,now,type);
+
+	old = now;
+	int size = 0;
+	do{
+		tmp = buf[now];
+		size += tmp;
+		now++;
+	}while(0xff == tmp);
+	printf(".[%x,%x)size=%x\n",old,now,size);
+
+	old = now;
+	switch(type){
+	case 5:
+		parseh265_sei_user(buf+old, size);
+		break;
+	default:
+		now = old + size;
+		printf(".[%x,%x)payload\n",old,now);
+		parseh265_printhex(buf+old, size);
+	}
+
+	return 0;
+}
 
 
 
@@ -78,6 +145,7 @@ int parseh265(unsigned char* buf, int len)
 		break;
 	case 0x27:
 		printf("SEI\n");
+		parseh265_sei(buf, len);
 		break;
 	case 0x28:
 		printf("SEI_SUFFIX\n");
