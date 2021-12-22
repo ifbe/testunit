@@ -74,6 +74,7 @@ int h264_se(unsigned char* buf, int* pos)
 	aa = (*pos)/8;
 	bb = (*pos)%8;
 	if((buf[aa] & (0x80>>bb)) != 0)ret = -ret;
+	*pos += 1;
 
 	return ret;
 }
@@ -125,32 +126,63 @@ printf("sei{\n");
 		parseh264_printhex(buf+old, size);
 	}
 
-printf("}//sei\n");
+printf("}sei\n\n");
 	return 0;
 }
 
 
 
 /*
-void scaling_list(u32* scalinglist, int sizeofscalinglist, u32 usedefaultscalingmatrixflag)
+scaling_list(scalingList, sizeOfScalingList,useDefaultScalingMatrixFlag ) {
+	lastScale = 8
+	nextScale = 8
+	for( j = 0; j < sizeOfScalingList; j++ ) {
+		if( nextScale != 0 ) {
+			delta_scale     se(v)
+			nextScale = ( lastScale + delta_scale + 256 ) % 256
+			useDefaultScalingMatrixFlag = ( j = = 0 && nextScale = = 0 )
+		}
+		scalingList[ j ] = ( nextScale = = 0 ) ? lastScale : nextScale
+		lastScale = scalingList[ j ]
+	}
+}*/
+int scaling_list(
+	u8* buf, int bitpos,
+	int* scalinglist, int sizeofscalinglist, u32 usedefaultscalingmatrixflag)
 {
 	int lastscale = 8;
 	int nextscale = 8;
 	int j;
 	for(j=0;j<sizeofscalinglist;j++){
 		if(nextscale != 0){
-			int delta_scale = h264_se();
-			nextscale = (lastscale+delat_scale+256)%256;
+			int delta_scale = h264_se(buf, &bitpos);
+			nextscale = (lastscale+delta_scale+256)%256;
 			usedefaultscalingmatrixflag = (j==0 && nextscale==0);
 		}
 		scalinglist[j] = (nextscale==0)?lastscale:nextscale;
 		lastscale = scalinglist[j];
 	}
+	return bitpos;
+}
+
+
+
+
+/*
+hrd_parameters( ) {
+	cpb_cnt_minus1     ue(v)
+	bit_rate_scale     u(4)
+	cpb_size_scale     u(4)
+	for( SchedSelIdx = 0; SchedSelIdx <= cpb_cnt_minus1; SchedSelIdx++ ) {
+		bit_rate_value_minus1[ SchedSelIdx ]  ue(v)
+		cpb_size_value_minus1[ SchedSelIdx ]  ue(v)
+		cbr_flag[ SchedSelIdx ]   u(1)
+	}
+	initial_cpb_removal_delay_length_minus1         u(5)
+	cpb_removal_delay_length_minus1   u(5)
+	dpb_output_delay_length_minus1    u(5)
+	time_offset_length     u(5)
 }*/
-
-
-
-
 int parseh264_sps_vui_hrd(unsigned char* buf, int bitpos)
 {
 printf("sps_vui_hrd{\n");
@@ -181,9 +213,105 @@ printf("sps_vui_hrd{\n");
 	int time_offset_length = h264_u(buf, &bitpos, 5);
 	printf("time_offset_length = %x\n", time_offset_length);
 
-printf("}//sps_vui_hrd\n");
+printf("}sps_vui_hrd\n");
 	return bitpos;
 }
+
+
+
+
+/*
+vui_parameters( ) {
+	aspect_ratio_info_present_flag   u(1)
+	if( aspect_ratio_info_present_flag ) {
+		aspect_ratio_idc   u(8)
+		if( aspect_ratio_idc = = Extended_SAR ) {
+			sar_width    u(16)
+			sar_height   u(16)
+		}
+	}
+	overscan_info_present_flag  u(1)
+	if( overscan_info_present_flag )
+		overscan_appropriate_flag   u(1)
+	video_signal_type_present_flag   u(1)
+	if( video_signal_type_present_flag ) {
+		video_format   u(3)
+		video_full_range_flag   u(1)
+		colour_description_present_flag   u(1)
+		if( colour_description_present_flag ) {
+			colour_primaries   u(8)
+			transfer_characteristics   u(8)
+			matrix_coefficients    u(8)
+		}
+	}
+	chroma_loc_info_present_flag   u(1)
+	if( chroma_loc_info_present_flag ) {
+		chroma_sample_loc_type_top_field   ue(v)
+		chroma_sample_loc_type_bottom_field  ue(v)
+	}
+	timing_info_present_flag   u(1)
+	if( timing_info_present_flag ) {
+		num_units_in_tick   u(32)
+		time_scale   u(32)
+		fixed_frame_rate_flag   u(1)
+	}
+	nal_hrd_parameters_present_flag   u(1)
+	if( nal_hrd_parameters_present_flag )
+		hrd_parameters( )
+	vcl_hrd_parameters_present_flag  u(1)
+	if( vcl_hrd_parameters_present_flag )
+		hrd_parameters( )
+	if( nal_hrd_parameters_present_flag | | vcl_hrd_parameters_present_flag )
+		low_delay_hrd_flag   u(1)
+	pic_struct_present_flag   u(1)
+	bitstream_restriction_flag   u(1)
+	if( bitstream_restriction_flag ) {
+		motion_vectors_over_pic_boundaries_flag           u(1)
+		max_bytes_per_pic_denom    ue(v)
+		max_bits_per_mb_denom     ue(v)
+		log2_max_mv_length_horizontal    ue(v)
+		log2_max_mv_length_vertical    ue(v)
+		max_num_reorder_frames    ue(v)
+		max_dec_frame_buffering    ue(v)
+	}
+}*/
+struct parsed_vui{
+	u32 aspect_ratio_info_present_flag;
+	u32 aspect_ratio_idc;
+	u32 sar_width;
+	u32 sar_height;
+	u32 overscan_info_present_flag;
+	u32 overscan_appropriate_flag;
+	u32 video_signal_type_present_flag;
+	u32 video_format;
+	u32 video_full_range_flag;
+	u32 colour_description_present_flag;
+	u32 colour_primaries;
+	u32 transfer_characteristics;
+	u32 matrix_coefficients;
+	u32 chroma_loc_info_present_flag;
+	u32 chroma_sample_loc_type_top_field;
+	u32 chroma_sample_loc_type_bottom_field;
+	u32 timing_info_present_flag;
+	u32 num_units_in_tick;
+	u32 time_scale;
+	u32 fixed_frame_rate_flag;
+	u32 nal_hrd_parameters_present_flag;
+	//hrd_parameters( )
+	u32 vcl_hrd_parameters_present_flag;
+	//hrd_parameters( )
+	u32 low_delay_hrd_flag;
+	u32 pic_struct_present_flag;
+	u32 bitstream_restriction_flag;
+	u32 motion_vectors_over_pic_boundaries_flag;
+	u32 max_bytes_per_pic_denom;
+	u32 max_bits_per_mb_denom;
+	u32 log2_max_mv_length_horizontal;
+	u32 log2_max_mv_length_vertical;
+	u32 max_num_reorder_frames;
+	u32 max_dec_frame_buffering;
+};
+static struct parsed_vui pervui;
 int parseh264_sps_vui(unsigned char* buf, int bitpos)
 {
 printf("sps_vui{\n");
@@ -287,9 +415,138 @@ printf("sps_vui{\n");
 		int max_dec_frame_buffering = h264_ue(buf, &bitpos);
 		printf("max_dec_frame_buffering = %x\n", max_dec_frame_buffering);
 	}
-printf("}//sps_vui\n");
+printf("}sps_vui\n");
 	return bitpos;
 }
+
+
+
+/*
+seq_parameter_set_data( ) {
+	profile_idc    u(8)
+	constraint_set0_flag    u(1)
+	constraint_set1_flag    u(1)
+	constraint_set2_flag    u(1)
+	constraint_set3_flag    u(1)
+	constraint_set4_flag    u(1)
+	constraint_set5_flag    u(1)
+	reserved_zero_2bits     u(2)
+	level_idc           u(8)
+	seq_parameter_set_id      ue(v)
+	if(	profile_idc = = 100 |
+		profile_idc = = 110 |
+		profile_idc = = 122 |
+		profile_idc = = 244 |
+		profile_idc = = 44 |
+		profile_idc = = 83 |
+		profile_idc = = 86 |
+		profile_idc = = 118 |
+		profile_idc = = 128 |
+		profile_idc = = 138 |
+		profile_idc = = 139 |
+		profile_idc = = 134 |
+		profile_idc = = 135 )
+	{
+		chroma_format_idc    ue(v)
+		if( chroma_format_idc = = 3 )
+			separate_colour_plane_flag    u(1)
+		bit_depth_luma_minus8    ue(v)
+		bit_depth_chroma_minus8  ue(v)
+		qpprime_y_zero_transform_bypass_flag   u(1)
+		seq_scaling_matrix_present_flag   u(1)
+		if( seq_scaling_matrix_present_flag ){
+			for( i = 0; i < ( ( chroma_format_idc != 3 ) ? 8 : 12 ); i++ ) {
+				seq_scaling_list_present_flag[ i ]   u(1)
+				if( seq_scaling_list_present_flag[ i ] ){
+					if( i < 6 ){
+						scaling_list( ScalingList4x4[ i ], 16,  UseDefaultScalingMatrix4x4Flag[ i ] )
+					}
+					else{
+						scaling_list( ScalingList8x8[ i − 6 ], 64, UseDefaultScalingMatrix8x8Flag[ i − 6 ] )
+					}
+				}
+			}
+		}
+	}
+
+	log2_max_frame_num_minus4    ue(v)
+	pic_order_cnt_type    ue(v)
+	if( pic_order_cnt_type = = 0 ){
+		log2_max_pic_order_cnt_lsb_minus4   ue(v)
+	}
+	else if( pic_order_cnt_type = = 1 ) {
+		delta_pic_order_always_zero_flag   u(1)
+		offset_for_non_ref_pic   se(v)
+		offset_for_top_to_bottom_field    se(v)
+		num_ref_frames_in_pic_order_cnt_cycle   ue(v)
+		for( i = 0; i < num_ref_frames_in_pic_order_cnt_cycle; i++ ){
+			offset_for_ref_frame[ i ]   se(v)
+		}
+	}
+	max_num_ref_frames   ue(v)
+	gaps_in_frame_num_value_allowed_flag   u(1)
+	pic_width_in_mbs_minus1   ue(v)
+	pic_height_in_map_units_minus1   ue(v)
+	frame_mbs_only_flag   u(1)
+	if( !frame_mbs_only_flag ){
+		mb_adaptive_frame_field_flag   u(1)
+	}
+	direct_8x8_inference_flag   u(1)
+
+	frame_cropping_flag   u(1)
+	if( frame_cropping_flag ) {
+		frame_crop_left_offset    ue(v)
+		frame_crop_right_offset   ue(v)
+		frame_crop_top_offset   ue(v)
+		frame_crop_bottom_offset   ue(v)
+	}
+
+	vui_parameters_present_flag   u(1)
+	if( vui_parameters_present_flag ){
+		vui_parameters( )
+	}
+}*/
+struct parsed_sps{
+	u32 profile_idc;
+	u32 constraint_set_flag;
+	u32 level_idc;
+	u32 seq_parameter_set_id;
+	u32 chroma_format_idc;
+	u32 seperate_colour_plane_flag;
+	u32 bit_depth_luma_minus8;
+	u32 bit_depth_chroma_minus8;
+	u32 qpprime_y_zero_transform_bypass_flag;
+	u32 seq_scaling_matrix_present_flag;
+	u32 seq_scaling_list_present_flag[8];
+	u32 ScalingList4x4[16][16];
+	u32 UseDefaultScalingMatrix4x4Flag[16];
+	u32 ScalingList8x8[16][16];
+	u32 UseDefaultScalingMatrix8x8Flag[16];
+	u32 log2_max_frame_num_minus4;
+	u32 pic_order_cnt_type;
+	u32 log2_max_pic_order_cnt_lsb_minus4;
+	u32 delta_pic_order_always_zero_flag;
+	u32 offset_for_non_ref_pic;
+	u32 offset_for_top_to_bottom_field;
+	u32 num_ref_frames_in_pic_order_cnt_cycle;
+	u32 offset_for_ref_frame[8];
+	u32 max_num_ref_frames;
+	u32 gaps_in_frame_num_value_allowed_flag;
+	u32 pic_width_in_mbs_minus1;
+	u32 pic_height_in_map_units_minus1;
+	u32 frame_mbs_only_flag;
+	u32 mb_adaptive_frame_field_flag;
+	u32 direct_8x8_inference_flag;
+
+	u32 frame_cropping_flag;
+	u32 frame_crop_left_offset;
+	u32 frame_crop_right_offset;
+	u32 frame_crop_top_offset;
+	u32 frame_crop_bottom_offset;
+
+	u32 vui_parameters_present_flag;
+};
+static struct parsed_sps persps;
 int parseh264_sps(unsigned char* buf, int len)
 {
 printf("sps{\n");
@@ -317,9 +574,9 @@ printf("sps{\n");
 	   (139 == profile_idc) |
 	   (244 == profile_idc) )
 	{
-		int chroma_format_idc = h264_ue(buf, &bitpos);
-		printf("chroma_format_idc = %x\n", chroma_format_idc);
-		if(3 == chroma_format_idc){
+		persps.chroma_format_idc = h264_ue(buf, &bitpos);
+		printf("chroma_format_idc = %x\n", persps.chroma_format_idc);
+		if(3 == persps.chroma_format_idc){
 			int seperate_colour_plane_flag = h264_u(buf, &bitpos, 1);
 			printf("seperate_colour_plane_flag = %x\n", seperate_colour_plane_flag);
 		}
@@ -335,15 +592,21 @@ printf("sps{\n");
 
 		int seq_scaling_matrix_present_flag = h264_u(buf, &bitpos, 1);
 		printf("seq_scaling_matrix_present_flag = %x\n",seq_scaling_matrix_present_flag);
+		int scalinglist4x4[16][16];
+		int scalinglist8x8[16][64];
+		int usedefaultscalingmatrix4x4flag[16];
+		int usedefaultscalingmatrix8x8flag[16];
 		if(seq_scaling_matrix_present_flag){
 			u8 seq_scaling_list_present_flag[16];
-			for(j=0;j<((chroma_format_idc != 3)?8:12);j++){
+			for(j=0;j<((persps.chroma_format_idc != 3)?8:12);j++){
 				seq_scaling_list_present_flag[j] = h264_u(buf, &bitpos, 1);
 				if(j < 6){
-					//scaling_list(scalinglist4x4[j], 16, usedefaultscalingmatrix4x4flag[j]);
+					bitpos = scaling_list(buf, bitpos,
+						scalinglist4x4[j], 16, usedefaultscalingmatrix4x4flag[j]);
 				}
 				else{
-					//scaling_list(scalinglist8x8[j-6], 64, usedefaultscalingmatrix8x8flag[j-6]);
+					bitpos = scaling_list(buf, bitpos,
+						scalinglist8x8[j-6], 64, usedefaultscalingmatrix8x8flag[j-6]);
 				}
 			}
 		}
@@ -408,11 +671,124 @@ printf("sps{\n");
 	int vui_parameters_present_flag = h264_u(buf, &bitpos, 1);
 	printf("vui_parameters_present_flag = %x\n", vui_parameters_present_flag);
 	if(vui_parameters_present_flag){
-		parseh264_sps_vui(buf, bitpos);
+		bitpos = parseh264_sps_vui(buf, bitpos);
 	}
-printf("}//sps\n");
+printf("}sps\n\n");
 	return 0;
 }
+
+
+
+
+/*
+pic_parameter_set_rbsp( ) {
+	pic_parameter_set_id    ue(v)
+	seq_parameter_set_id    ue(v)
+	entropy_coding_mode_flag   u(1)
+	bottom_field_pic_order_in_frame_present_flag   u(1)
+	num_slice_groups_minus1   ue(v)
+	if( num_slice_groups_minus1 > 0 ) {
+		slice_group_map_type   ue(v)
+		if( slice_group_map_type = = 0 )
+		{
+			for( iGroup = 0; iGroup <= num_slice_groups_minus1; iGroup++ )
+			{
+				run_length_minus1[ iGroup ]   ue(v)
+			}
+		}
+		else if( slice_group_map_type = = 2 )
+		{
+			for( iGroup = 0; iGroup < num_slice_groups_minus1; iGroup++ )
+			{
+				top_left[ iGroup ]    ue(v)
+				bottom_right[ iGroup ]    ue(v)
+			}
+		}
+		else if( slice_group_map_type = = 3 | 
+			slice_group_map_type = = 4 |
+			slice_group_map_type = = 5 )
+		{
+			slice_group_change_direction_flag   u(1)
+			slice_group_change_rate_minus1   ue(v)
+		}
+		else if( slice_group_map_type = = 6 )
+		{
+			pic_size_in_map_units_minus1    ue(v)
+			for( i = 0; i <= pic_size_in_map_units_minus1; i++ )
+				slice_group_id[ i ]    u(v)
+			}
+		}
+	}
+
+	num_ref_idx_l0_default_active_minus1  ue(v)
+	num_ref_idx_l1_default_active_minus1  ue(v)
+	weighted_pred_flag    u(1)
+	weighted_bipred_idc   u(2)
+	pic_init_qp_minus26   se(v)
+	pic_init_qs_minus26   se(v)
+	chroma_qp_index_offset   se(v)
+	deblocking_filter_control_present_flag   u(1)
+	constrained_intra_pred_flag   u(1)
+	redundant_pic_cnt_present_flag   u(1)
+
+	if( more_rbsp_data( ) ) {
+		transform_8x8_mode_flag   u(1)
+		pic_scaling_matrix_present_flag   u(1)
+		if( pic_scaling_matrix_present_flag )
+		{
+			for( i = 0; i < 6 +( ( chroma_format_idc != 3 ) ? 2 : 6 ) * transform_8x8_mode_flag;i++ )
+			{
+				pic_scaling_list_present_flag[ i ]   u(1)
+				if( pic_scaling_list_present_flag[ i ] ){
+					if( i < 6 )
+					{
+						scaling_list( ScalingList4x4[ i ], 16,  UseDefaultScalingMatrix4x4Flag[ i ] )
+					}
+					else
+					{
+						scaling_list( ScalingList8x8[ i − 6 ], 64, UseDefaultScalingMatrix8x8Flag[ i − 6 ] )
+					}
+				}
+			}
+		}
+		second_chroma_qp_index_offset   se(v)
+	}
+	rbsp_trailing_bits( )
+}*/
+struct parsed_pps{
+	u32 pic_parameter_set_id;
+	u32 seq_parameter_set_id;
+	u32 entropy_coding_mode_flag;
+	u32 bottom_field_pic_order_in_frame_present_flag;
+	u32 num_slice_groups_minus1;
+	u32 slice_group_map_type;
+	u32 run_length_minus1[8];
+	u32 top_left[8];
+	u32 bottom_right[8];
+	u32 slice_group_change_direction_flag;
+	u32 slice_group_change_rate_minus1;
+	u32 pic_size_in_map_units_minus1;
+	u32 slice_group_id[8];
+	u32 num_ref_idx_l0_default_active_minus1;
+	u32 num_ref_idx_l1_default_active_minus1;
+	u32 weighted_pred_flag;
+	u32 weighted_bipred_idc;
+	u32 pic_init_qp_minus26;
+	u32 pic_init_qs_minus26;
+	u32 chroma_qp_index_offset;
+	u32 deblocking_filter_control_present_flag;
+	u32 constrained_intra_pred_flag;
+	u32 redundant_pic_cnt_present_flag;
+	u32 transform_8x8_mode_flag;
+	u32 pic_scaling_matrix_present_flag;
+	u32 pic_scaling_list_present_flag[16];
+	u32 ScalingList4x4[16][16];
+	u32 UseDefaultScalingMatrix4x4Flag[16];
+	u32 ScalingList8x8[16][64];
+	u32 UseDefaultScalingMatrix8x8Flag[16];
+	u32 second_chroma_qp_index_offset;
+};
+static struct parsed_pps perpps;
 int parseh264_pps(unsigned char* buf, int len)
 {
 printf("pps{\n");
@@ -497,28 +873,37 @@ printf("pps{\n");
 
 	int pic_scaling_matrix_present_flag = h264_u(buf, &bitpos, 1);
 	printf("pic_scaling_matrix_present_flag = %x\n", pic_scaling_matrix_present_flag);
-/*
 	if(pic_scaling_matrix_present_flag){
-		int xxxx = 6+transform_8x8_mode_flag*((chroma_format_idc!=3)?2:6);
+		int xxxx = 6+transform_8x8_mode_flag*((persps.chroma_format_idc!=3)?2:6);
 		int pic_scaling_list_present_flag;
+		int scalinglist4x4[16][16];
+		int scalinglist8x8[16][64];
+		int usedefaultscalingmatrix4x4flag[16];
+		int usedefaultscalingmatrix8x8flag[16];
 		for(j=0;j<xxxx;j++){
 			pic_scaling_list_present_flag = h264_u(buf, &bitpos, 1);
-			printf("pic_scaling_list_present_flag = %x\n", pic_scaling_list_present_flag);
+			printf("pic_scaling_list_present_flag[%d] = %x\n", j, pic_scaling_list_present_flag);
 			if(pic_scaling_list_present_flag){
 				if(j<6){
-					//scaling_list(scalinglist4x4[j], 16, usedefaultscalingmatrix4x4flag[j]);
+					bitpos = scaling_list(buf, bitpos,
+						scalinglist4x4[j], 16, usedefaultscalingmatrix4x4flag[j]);
 				}
 				else{
-					//scaling_list(scalinglist8x8[j-6], 64, usedefaultscalingmatrix8x8flag[j-6]);
+					bitpos = scaling_list(buf, bitpos,
+						scalinglist8x8[j-6], 64, usedefaultscalingmatrix8x8flag[j-6]);
 				}
 			}
 		}
 	}
-*/
+
 done:
-printf("}//pps\n");
+printf("}pps\n\n");
 	return 0;
 }
+
+
+
+
 int parseh264(unsigned char* buf, int len)
 {
 	switch(buf[0]&0x1f){
