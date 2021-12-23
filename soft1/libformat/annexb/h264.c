@@ -512,7 +512,7 @@ struct parsed_sps{
 	u32 level_idc;
 	u32 seq_parameter_set_id;
 	u32 chroma_format_idc;
-	u32 seperate_colour_plane_flag;
+	u32 separate_colour_plane_flag;
 	u32 bit_depth_luma_minus8;
 	u32 bit_depth_chroma_minus8;
 	u32 qpprime_y_zero_transform_bypass_flag;
@@ -522,7 +522,7 @@ struct parsed_sps{
 	u32 UseDefaultScalingMatrix4x4Flag[16];
 	u32 ScalingList8x8[16][16];
 	u32 UseDefaultScalingMatrix8x8Flag[16];
-	u32 log2_max_frame_num_minus4;
+	u32 log2_max_frame_num;
 	u32 pic_order_cnt_type;
 	u32 log2_max_pic_order_cnt_lsb_minus4;
 	u32 delta_pic_order_always_zero_flag;
@@ -577,8 +577,8 @@ printf("sps{\n");
 		persps.chroma_format_idc = h264_ue(buf, &bitpos);
 		printf("chroma_format_idc = %x\n", persps.chroma_format_idc);
 		if(3 == persps.chroma_format_idc){
-			int seperate_colour_plane_flag = h264_u(buf, &bitpos, 1);
-			printf("seperate_colour_plane_flag = %x\n", seperate_colour_plane_flag);
+			persps.separate_colour_plane_flag = h264_u(buf, &bitpos, 1);
+			printf("separate_colour_plane_flag = %x\n", persps.separate_colour_plane_flag);
 		}
 
 		int bit_depth_luma_minus8 = h264_ue(buf, &bitpos);
@@ -612,8 +612,8 @@ printf("sps{\n");
 		}
 	}
 
-	int log2_max_frame_num_minus4 = h264_ue(buf, &bitpos);
-	printf("log2_max_frame_num_minus4 = %x\n", log2_max_frame_num_minus4);
+	persps.log2_max_frame_num = h264_ue(buf, &bitpos) + 4;
+	printf("log2_max_frame_num = %x\n", persps.log2_max_frame_num);
 
 	int pic_order_cnt_type = h264_ue(buf, &bitpos);
 	printf("pic_order_cnt_type = %x\n", pic_order_cnt_type);
@@ -904,11 +904,48 @@ printf("}pps\n\n");
 
 
 
+char* h264_typetable[5]={"P","B","I","SP","SI"};
+void parseh264_slice(u8* buf, int len)
+{
+	int bitpos = 8;
+	switch(buf[0]&0x1f){
+	case 1:
+		printf("slice{\n");
+		break;
+	case 5:
+		printf("idr{\n");
+		break;
+	default:
+		printf("slice?{\n");
+		break;
+	}
+
+	u32 first_mb_in_slice = h264_ue(buf, &bitpos);
+	printf("first_mb_in_slice=%x\n",first_mb_in_slice);
+	u32 slice_type = h264_ue(buf, &bitpos);
+	printf("slice_type=%x(%s)\n",slice_type,h264_typetable[slice_type%5]);
+	u32 pic_parameter_set_id = h264_ue(buf, &bitpos);
+	printf("pic_parameter_set_id=%x\n",pic_parameter_set_id);
+
+	if(persps.separate_colour_plane_flag){
+		u8 colour_plane_id = h264_u(buf,&bitpos,2);
+		printf("colour_plane_id = %d\n",colour_plane_id);
+	}
+
+	u32 frame_num = h264_u(buf, &bitpos, persps.log2_max_frame_num);
+	printf("frame_num = %x\n",frame_num);
+
+	printf("}slice\n\n");
+}
+
+
+
+
 int parseh264(unsigned char* buf, int len)
 {
 	switch(buf[0]&0x1f){
 	case 1:
-		printf("slice\n");
+		parseh264_slice(buf, len);
 		break;
 	case 2:
 		printf("dpa\n");
@@ -920,7 +957,7 @@ int parseh264(unsigned char* buf, int len)
 		printf("dpc\n");
 		break;
 	case 5:
-		printf("idr\n");
+		parseh264_slice(buf, len);
 		break;
 	case 6:
 		parseh264_sei(buf, len);
