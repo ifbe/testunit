@@ -753,6 +753,7 @@ void vulkan_myctx_create()
 
 
 
+void output(void* buf, int len, int w, int h);
 void writefile()
 {
 	// Get layout of the image (including row pitch)
@@ -767,28 +768,7 @@ void writefile()
 	vkMapMemory(logicaldevice, outputcolor.memory, 0, VK_WHOLE_SIZE, 0, (void**)&outputmapbuf);
 	outputmapbuf += subResourceLayout.offset;
 
-
-
-
-	FILE* fp = fopen("out.ppm", "wb");
-
-	char tmp[0x100];
-	int ret = snprintf(tmp, 0x100, "P6\n%d\n%d\n255\n", widthheight.width, widthheight.height);
-	fwrite(tmp, 1, ret, fp);
-
-	int x,y;
-	for(y = 0; y < widthheight.height; y++) {
-		unsigned char *row = outputmapbuf;
-		for(x = 0; x < widthheight.width; x++) {
-			fwrite(row+2, 1, 1, fp);
-			fwrite(row+1, 1, 1, fp);
-			fwrite(row+0, 1, 1, fp);
-			row += 4;
-		}
-		outputmapbuf += subResourceLayout.rowPitch;
-	}
-
-	fclose(fp);
+	output(outputmapbuf, subResourceLayout.rowPitch, widthheight.width, widthheight.height);
 }
 
 

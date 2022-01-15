@@ -12,28 +12,9 @@ void drawframe();
 
 
 
-int output(unsigned char* buf, int pitch, int w, int h)
+int output(void* buf, int pitch, int w, int h)
 {
 	printf("buf=%p,pitch=0x%x,w=%d,h=%d\n", buf, pitch, w, h);
-	FILE* fp = fopen("out.ppm", "wb");
-
-	char tmp[0x100];
-	int ret = snprintf(tmp, 0x100, "P6\n%d\n%d\n255\n", w, h);
-	fwrite(tmp, 1, ret, fp);
-
-	int x,y;
-	unsigned char* row;
-	for(y = 0; y < h; y++) {
-		row = buf + pitch*y;
-		for(x = 0; x < w; x++) {
-			fwrite(row+2, 1, 1, fp);
-			fwrite(row+1, 1, 1, fp);
-			fwrite(row+0, 1, 1, fp);
-			row += 4;
-		}
-	}
-
-	fclose(fp);
 	return 0;
 }
 int main()
