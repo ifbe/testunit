@@ -9,9 +9,10 @@ struct attachment{
 	VkImageView view;
 };
 void vulkan_physicaldevice_logicdevice(VkPhysicalDevice* pdev, VkDevice* ldev);
+void vulkan_presentorcallback(VkSwapchainKHR* chain, void* cb);
 void vulkan_graphicqueue_graphicpool(VkQueue* queue, VkCommandPool* pool);
 void vulkan_presentqueue_presentpool(VkQueue* queue, VkCommandPool* pool);
-void vulkan_swapchain_widthheight_imagecount_attachcolor(VkSwapchainKHR* chain, VkExtent2D* wh, uint32_t* cnt, struct attachment* attach);
+void vulkan_widthheight_imagecount_attachcolor(VkExtent2D* wh, uint32_t* cnt, struct attachment* attach);
 
 
 
@@ -23,14 +24,16 @@ VkQueue graphicQueue;
 VkCommandPool graphicPool;
 VkQueue presentQueue;
 VkCommandPool presentPool;		//not exist
-//
+//onscreen
 VkSwapchainKHR swapChain = 0;
+//offscreen
+void* callback = 0;
+struct attachment outputcolor;
+VkCommandBuffer copycmdBuffers;
+//
 VkExtent2D widthheight;
 uint32_t imagecount;
 struct attachment attachcolor[8];
-//
-struct attachment outputcolor;
-VkCommandBuffer copycmdBuffers;
 //
 VkRenderPass renderPass;
 VkPipelineLayout pipelineLayout;
@@ -593,12 +596,14 @@ void vulkan_myctx_delete()
 void vulkan_myctx_create()
 {
 	vulkan_physicaldevice_logicdevice(&physicaldevice, &logicaldevice);
-	vulkan_graphicqueue_graphicpool(&graphicQueue, &graphicPool);
-	vulkan_swapchain_widthheight_imagecount_attachcolor(&swapChain, &widthheight, &imagecount, attachcolor);
+	vulkan_presentorcallback(&swapChain, &callback);
 	if(swapChain){
+		vulkan_graphicqueue_graphicpool(&graphicQueue, &graphicPool);
 		vulkan_presentqueue_presentpool(&presentQueue, 0);
+		vulkan_widthheight_imagecount_attachcolor(&widthheight, &imagecount, attachcolor);
 	}
 	else{
+		vulkan_graphicqueue_graphicpool(&graphicQueue, &graphicPool);
 		widthheight.width = 1024;
 		widthheight.height= 1024;
 
@@ -627,7 +632,7 @@ void vulkan_myctx_create()
 
 
 
-void output(void* buf, int len, int w, int h);
+void (*output)(void* buf, int len, int w, int h);
 void writefile()
 {
 	// Get layout of the image (including row pitch)
@@ -642,6 +647,7 @@ void writefile()
 	vkMapMemory(logicaldevice, outputcolor.memory, 0, VK_WHOLE_SIZE, 0, (void**)&outputmapbuf);
 	outputmapbuf += subResourceLayout.offset;
 
+	output = callback;
 	output(outputmapbuf, subResourceLayout.rowPitch, widthheight.width, widthheight.height);
 }
 

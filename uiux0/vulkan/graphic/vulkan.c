@@ -29,6 +29,7 @@ static VkCommandPool graphicPool;
 static int presentindex;
 static VkQueue presentQueue;
 //surface,swapchain
+static void* callback;
 static VkSurfaceKHR surface = 0;
 static VkSwapchainKHR swapChain = 0;
 static VkExtent2D widthheight;
@@ -87,6 +88,14 @@ void* vulkan_init(int cnt, const char** ext)
 	}
 
 	return instance;
+}
+void* vulkan_surface_create()
+{
+	return 0;
+}
+void vulkan_surface_delete(VkSurfaceKHR face)
+{
+	vkDestroySurfaceKHR(instance, face, 0);
 }
 
 
@@ -156,7 +165,7 @@ int checkDeviceExtensionProperties(VkPhysicalDevice device) {
 #define VK_QUEUE_PROTECTED_BIT        0x00000010
 #define VK_QUEUE_VIDEO_DECODE_BIT_KHR 0x00000020
 #define VK_QUEUE_VIDEO_ENCODE_BIT_KHR 0x00000040
-int checkPhysicalDeviceQueueFamilyProperties(VkPhysicalDevice device, int* gg, int* pp){
+int checkPhysicalDeviceQueueFamilyProperties(VkPhysicalDevice device, VkSurfaceKHR face, int* gg, int* pp){
 	//printf("dev=%p\n",device);
 
 	uint32_t cnt = 0;
@@ -201,8 +210,8 @@ int checkPhysicalDeviceQueueFamilyProperties(VkPhysicalDevice device, int* gg, i
 		}
 
 		support = 0;
-		if(surface){
-			vkGetPhysicalDeviceSurfaceSupportKHR(device, j, surface, &support);
+		if(face){
+			vkGetPhysicalDeviceSurfaceSupportKHR(device, j, face, &support);
 		}
 		if(support){
 			printf("present");
@@ -217,7 +226,7 @@ int checkPhysicalDeviceQueueFamilyProperties(VkPhysicalDevice device, int* gg, i
 	}
 	printf("=>transfer@%d,compute@%d,graphic@%d,present@%d\n\n", firsttransfer, firstcompute, firstgraphic, firstpresent);
 
-	if(surface){		//onscreen: need graphic and present
+	if(face){		//onscreen: need graphic and present
 		if(bestpresent >= 0){
 			if(gg)gg[0] = bestpresent;
 			if(pp)pp[0] = bestpresent;
@@ -243,14 +252,14 @@ int checkPhysicalDeviceQueueFamilyProperties(VkPhysicalDevice device, int* gg, i
 
 	return 0;
 }
-int checkSwapChain(VkPhysicalDevice device) {
+int checkSwapChain(VkPhysicalDevice device, VkSurfaceKHR face) {
 	//format
 	uint32_t formatCount;
-	vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &formatCount, 0);
+	vkGetPhysicalDeviceSurfaceFormatsKHR(device, face, &formatCount, 0);
 	if(0 == formatCount)return -1;
 
 	VkSurfaceFormatKHR formats[formatCount];
-	vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &formatCount, formats);
+	vkGetPhysicalDeviceSurfaceFormatsKHR(device, face, &formatCount, formats);
 
 	int j;
 	printf("vkGetPhysicalDeviceSurfaceFormatsKHR:\n");
@@ -261,11 +270,11 @@ int checkSwapChain(VkPhysicalDevice device) {
 
 	//presentmode
 	uint32_t presentModeCount;
-	vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &presentModeCount, 0);
+	vkGetPhysicalDeviceSurfacePresentModesKHR(device, face, &presentModeCount, 0);
 	if(0 == presentModeCount)return -2;
 
 	VkPresentModeKHR presentModes[presentModeCount];
-	vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &presentModeCount, presentModes);
+	vkGetPhysicalDeviceSurfacePresentModesKHR(device, face, &presentModeCount, presentModes);
 
 	printf("vkGetPhysicalDeviceSurfacePresentModesKHR:\n");
 	for(j=0;j<formatCount;j++){
@@ -302,7 +311,7 @@ int checkSwapChain(VkPhysicalDevice device) {
 int freephysicaldevice() {
 	return 0;
 }
-void* initphysicaldevice() {
+void* initphysicaldevice(VkSurfaceKHR face) {
 	uint32_t count = 0;
 	vkEnumeratePhysicalDevices(instance, &count, 0);
 	if(0 == count) {
@@ -321,10 +330,10 @@ void* initphysicaldevice() {
 		printf("%d:physicaldevice{\n", j);
 		chkdev = checkDeviceProperties(devs[j]);
 		chkext = checkDeviceExtensionProperties(devs[j]);
-		chkfam = checkPhysicalDeviceQueueFamilyProperties(devs[j], 0, 0);
+		chkfam = checkPhysicalDeviceQueueFamilyProperties(devs[j], face, 0, 0);
 		if( (chkdev > 0) && (chkext > 0) && (chkfam > 0) && (phy < 0) ){
-			if(surface){
-				chksur = checkSwapChain(devs[j]);
+			if(face){
+				chksur = checkSwapChain(devs[j], face);
 				if(chksur > 0)phy = j;
 			}
 			else{
@@ -349,8 +358,8 @@ void* initphysicaldevice() {
 int freelogicaldevice() {
 	return 0;
 }
-int initlogicaldevice() {
-	checkPhysicalDeviceQueueFamilyProperties(physicaldevice, &graphicindex, &presentindex);
+int initlogicaldevice(VkSurfaceKHR face) {
+	checkPhysicalDeviceQueueFamilyProperties(physicaldevice, face, &graphicindex, &presentindex);
 	printf("graphic=%d,present=%d\n",graphicindex,presentindex);
 
 
@@ -376,10 +385,10 @@ int initlogicaldevice() {
 	//devicecreateinfo
 	VkDeviceCreateInfo createInfo = {};
 	createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-	createInfo.queueCreateInfoCount = surface ? 2 : 1;
+	createInfo.queueCreateInfoCount = face ? 2 : 1;
 	createInfo.pQueueCreateInfos = queueCreateInfos;
 	createInfo.pEnabledFeatures = &deviceFeatures;
-	createInfo.enabledExtensionCount = surface ? 1 : 0;
+	createInfo.enabledExtensionCount = face ? 1 : 0;
 	createInfo.ppEnabledExtensionNames = deviceExtensions;
 	createInfo.enabledLayerCount = 0;
 	if (vkCreateDevice(physicaldevice, &createInfo, 0, &logicaldevice) != VK_SUCCESS) {
@@ -399,7 +408,7 @@ int initlogicaldevice() {
 
 
 	//present: queue
-	if(surface){
+	if(face){
 		vkGetDeviceQueue(logicaldevice, presentindex, 0, &presentQueue);
 	}
 	return 0;
@@ -411,10 +420,10 @@ int initlogicaldevice() {
 int freeswapchain() {
 	return 0;
 }
-int initswapchain() {
+int initswapchain(VkSurfaceKHR face) {
 	//capability
 	VkSurfaceCapabilitiesKHR capabilities;
-	vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicaldevice, surface, &capabilities);
+	vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicaldevice, face, &capabilities);
 
 	if(capabilities.currentExtent.width != UINT32_MAX) {
 		widthheight.width = capabilities.currentExtent.width;
@@ -438,11 +447,11 @@ int initswapchain() {
 
 	//format
 	uint32_t formatCount;
-	vkGetPhysicalDeviceSurfaceFormatsKHR(physicaldevice, surface, &formatCount, 0);
+	vkGetPhysicalDeviceSurfaceFormatsKHR(physicaldevice, face, &formatCount, 0);
 	if(0 == formatCount)return -1;
 
 	VkSurfaceFormatKHR formats[formatCount];
-	vkGetPhysicalDeviceSurfaceFormatsKHR(physicaldevice, surface, &formatCount, formats);
+	vkGetPhysicalDeviceSurfaceFormatsKHR(physicaldevice, face, &formatCount, formats);
 
 	int j;
 	VkSurfaceFormatKHR surfaceFormat = formats[0];
@@ -455,11 +464,11 @@ int initswapchain() {
 
 	//presentmode
 	uint32_t presentModeCount;
-	vkGetPhysicalDeviceSurfacePresentModesKHR(physicaldevice, surface, &presentModeCount, 0);
+	vkGetPhysicalDeviceSurfacePresentModesKHR(physicaldevice, face, &presentModeCount, 0);
 	if(0 == presentModeCount)return -2;
 
 	VkPresentModeKHR presentModes[presentModeCount];
-	vkGetPhysicalDeviceSurfacePresentModesKHR(physicaldevice, surface, &presentModeCount, presentModes);
+	vkGetPhysicalDeviceSurfacePresentModesKHR(physicaldevice, face, &presentModeCount, presentModes);
 
 	VkPresentModeKHR presentMode = VK_PRESENT_MODE_FIFO_KHR;
 	for(j=0;j<presentModeCount;j++){
@@ -470,7 +479,7 @@ int initswapchain() {
 
 	VkSwapchainCreateInfoKHR createInfo = {0};
 	createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
-	createInfo.surface = surface;
+	createInfo.surface = face;
 
 	createInfo.minImageCount = imageCount;
 	createInfo.imageFormat = surfaceFormat.format;
@@ -553,28 +562,44 @@ int initoffscreen() {
 
 int vulkan_device_delete()
 {
-	if(surface)freeswapchain();
-	else freeoffscreen();
+	if(surface){
+		freeswapchain();
+	}
+	else{
+		freeoffscreen();
+	}
 
 	freelogicaldevice();
+
 	freephysicaldevice();
 
-	vkDestroySurfaceKHR(instance, surface, 0);
 	return 0;
 }
-void* vulkan_device_create(int what, VkSurfaceKHR face)
+void* vulkan_device_create(int what, void* data)
 {
-	surface = face;
+	VkSurfaceKHR face = 0;
+	if(what != 0)face = data;
 
 	//logicaldevice <- physicaldevice
-	physicaldevice = initphysicaldevice();
+	physicaldevice = initphysicaldevice(face);
 	if(0 == physicaldevice)return 0;
-	initlogicaldevice();
+	printf("physicaldevice=%p\n", physicaldevice);
+
+	initlogicaldevice(face);
+	if(0 == logicaldevice)return 0;
+	printf("logicaldevice=%p\n", logicaldevice);
 
 	//swapchain <- physicaldevice, logicaldevice, surface
-	if(surface)initswapchain();
-	else initoffscreen();
-	printf("swapchain imagecount=%d\n", imagecount);
+	if(face){
+		initswapchain(face);
+		surface = face;
+		printf("swapchain imagecount=%d\n", imagecount);
+	}
+	else{
+		initoffscreen();
+		callback = data;
+		printf("offscreen imagecount=%d\n", imagecount);
+	}
 
 	return physicaldevice;
 }
@@ -599,10 +624,13 @@ void vulkan_presentqueue_presentpool(VkQueue* queue, VkCommandPool* pool)
 {
 	*queue = presentQueue;
 }
-void vulkan_swapchain_widthheight_imagecount_attachcolor(VkSwapchainKHR* chain, VkExtent2D* wh, uint32_t* cnt, struct attachment* attach)
+void vulkan_presentorcallback(void** chain, void** cb)
 {
 	*chain = swapChain;
-
+	*cb = callback;
+}
+void vulkan_widthheight_imagecount_attachcolor(VkExtent2D* wh, uint32_t* cnt, struct attachment* attach)
+{
 	wh->width = widthheight.width;
 	wh->height = widthheight.height;
 

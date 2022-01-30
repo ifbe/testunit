@@ -5,8 +5,10 @@
 #include <string.h>
 void* vulkan_init(int cnt, const char** ext);
 void vulkan_exit();
+void* vulkan_surface_create(int, void*);
+void vulkan_surface_delete(void*);
 void* vulkan_device_create(int, void*);
-void vulkan_device_delete();
+void vulkan_device_delete(void*);
 void vulkan_myctx_create();
 void vulkan_myctx_delete();
 void drawframe();
@@ -48,8 +50,9 @@ void* glfw_window_create()
 
 
 
-int glfw_surface_delete()
+int glfw_surface_delete(void* surface)
 {
+	vulkan_surface_delete(surface);
 	return 0;
 }
 void* glfw_surface_create(void* window, void* instance)
@@ -70,15 +73,17 @@ int main()
 	//glfw init
 	glfw_init();
 
-	//vulkan
 	uint32_t j,count = 0;
 	const char** extension = glfwGetRequiredInstanceExtensions(&count);
 	printf("glfwGetRequiredInstanceExtensions:\n");
 	for(j=0;j<count;j++){
 		printf("%4d:%s\n", j, extension[j]);
 	}
+
+	//vulkan
 	void* instance = vulkan_init(count, extension);
 	if(0 == instance)return -1;
+
 
 	//glfw: window
 	GLFWwindow* window = glfw_window_create();
@@ -88,9 +93,11 @@ int main()
 	void* surface = glfw_surface_create(window, instance);
 	if(0 == surface)return -3;
 
+
 	//vulkan: device and swapchain
-	void* device = vulkan_device_create(0, surface);
+	void* device = vulkan_device_create(1, surface);
 	if(0 == device)return -4;
+
 
 	//vulkan: things
 	vulkan_myctx_create();
@@ -103,10 +110,12 @@ int main()
 
 	//vulkan
 	vulkan_myctx_delete();
-	vulkan_device_delete();
+
+	//vulkan device
+	vulkan_device_delete(device);
 
 	//glfw
-	glfw_surface_delete();
+	glfw_surface_delete(surface);
 	glfw_window_delete(window);
 
 	//exit

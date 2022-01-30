@@ -68,11 +68,34 @@ int main()
 		printf("eglInitialize:err=%s\n", err2str(err));
 		return -1;
 	}
-	printf("eglInitialize: ret=%d,major=%d,minor=%d\n", ret,major, minor);
+	printf("eglInitialize: major=%d,minor=%d\n", major, minor);
+
+	printf("EGL_VENDOR=%s\n",eglQueryString(display, EGL_VENDOR));
+	printf("EGL_VERSION=%s\n",eglQueryString(display, EGL_VERSION));
+	printf("EGL_EXTENSIONS=%s\n",eglQueryString(display, EGL_EXTENSIONS));
 
 	int cnt;
 	eglGetConfigs(display, 0, 0, &cnt);
 	printf("cnt=%d\n", cnt);
+
+	EGLConfig cfg[cnt];
+	eglGetConfigs(display, cfg, cnt, &cnt);
+
+	int j;
+	int red,green,blue,alpha;
+	int depth,stencil;
+	for(j=0;j<cnt;j++){
+		eglGetConfigAttrib(display, cfg[j], EGL_RED_SIZE, &red);
+		eglGetConfigAttrib(display, cfg[j], EGL_GREEN_SIZE, &green);
+		eglGetConfigAttrib(display, cfg[j], EGL_BLUE_SIZE, &blue);
+		eglGetConfigAttrib(display, cfg[j], EGL_ALPHA_SIZE, &alpha);
+
+		eglGetConfigAttrib(display, cfg[j], EGL_DEPTH_SIZE, &depth);
+		eglGetConfigAttrib(display, cfg[j], EGL_STENCIL_SIZE, &stencil);
+
+		printf("%d:r%dg%db%da%d,d%ds%d\n", j,
+			red,green,blue,alpha, depth,stencil);
+	}
 
 	eglTerminate(display);
 	return 0;

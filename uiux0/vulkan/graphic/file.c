@@ -12,7 +12,7 @@ void drawframe();
 
 
 
-int output(unsigned char* buf, int pitch, int w, int h)
+static int mycb(unsigned char* buf, int pitch, int w, int h)
 {
 	printf("buf=%p,pitch=0x%x,w=%d,h=%d\n", buf, pitch, w, h);
 	FILE* fp = fopen("out.ppm", "wb");
@@ -43,7 +43,7 @@ int main()
 	if(0 == ins)return -1;
 
 	//vulkan: device and swapchain
-	void* dev = vulkan_device_create(0, 0);
+	void* dev = vulkan_device_create(0, mycb);
 	if(0 == dev)return -2;
 
 	//vulkan: things
