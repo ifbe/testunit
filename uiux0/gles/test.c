@@ -51,7 +51,7 @@ char* err2str(int err)
 }
 int main()
 {
-	printf("EGL_DEFAULT_DISPLAY=%x\n",EGL_DEFAULT_DISPLAY);
+	printf("EGL_DEFAULT_DISPLAY=%llx\n",EGL_DEFAULT_DISPLAY);
 
 	display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
 	int err = eglGetError();
