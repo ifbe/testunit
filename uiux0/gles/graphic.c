@@ -88,6 +88,38 @@ void rgbx_to_ascii(
 }
 
 
+void mydraw()
+{
+	glEnable(GL_SCISSOR_TEST);
+	glEnable(GL_DEPTH_TEST);
+	glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
+
+	glViewport(0, 0, 512, 512);
+	glScissor(0, 0, 512, 512);
+	glClearColor(1.0, 1.0, 1.0, 1.0);
+	glClear(GL_COLOR_BUFFER_BIT);
+
+	glViewport(256, 256, 512, 512);
+	glScissor(256, 256, 512, 512);
+	glClearColor(0.9, 0.9, 0.9, 1.0);
+	glClear(GL_COLOR_BUFFER_BIT);
+}
+void mydump()
+{
+	//pbuffersurface
+	int pixw = 1024;
+	int pixh = 1024;
+	GLubyte* data = (GLubyte*)malloc(pixw*pixh*4);
+	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+	glReadPixels(0,0,pixw,pixh,GL_RGBA,GL_UNSIGNED_BYTE,data);
+	//printf("glReadPixels: err=%s\n", err2str(eglGetError()));
+
+	rgbx_to_ascii(data, 0, 1024, 1024);
+
+	free(data);
+}
+
+
 int main()
 {
 	printf("EGL_DEFAULT_DISPLAY=%llx\n",EGL_DEFAULT_DISPLAY);
@@ -111,6 +143,7 @@ int main()
 
 	printf("EGL_VENDOR=%s\n",eglQueryString(display, EGL_VENDOR));
 	printf("EGL_VERSION=%s\n",eglQueryString(display, EGL_VERSION));
+	printf("EGL_CLIENT_APIS=%s\n",eglQueryString(display, EGL_CLIENT_APIS));
 	printf("EGL_EXTENSIONS=%s\n",eglQueryString(display, EGL_EXTENSIONS));
 
 	int cnt;
@@ -161,6 +194,22 @@ int main()
 	printf("format=%x\n",format);
 
 
+	//eglBindAPI(EGL_OPENGL_API);
+	eglBindAPI(EGL_OPENGL_ES_API);
+
+
+	EGLint contextAttribs[] = {
+		EGL_CONTEXT_CLIENT_VERSION, 3,
+		EGL_NONE
+	};
+	context = eglCreateContext(display, config, EGL_NO_CONTEXT, contextAttribs);
+	if(EGL_NO_CONTEXT == context) {
+		printf("@eglCreateContext: err=%s\n", err2str(eglGetError()));
+		return 0;
+	}
+	printf("context=%p\n",context);
+
+
 	EGLSurface surface = EGL_NO_SURFACE;
 	if(0){
 		surface = eglCreateWindowSurface(display, config, 0, NULL);
@@ -184,40 +233,19 @@ int main()
 	}
 	printf("surface=%p\n",surface);
 
-
-	EGLint contextAttribs[] = {
-		EGL_CONTEXT_CLIENT_VERSION, 3,
-		EGL_NONE
-	};
-	context = eglCreateContext(display, config, EGL_NO_CONTEXT, contextAttribs);
-	if(EGL_NO_CONTEXT == context) {
-		printf("@eglCreateContext: err=%s\n", err2str(eglGetError()));
-		return 0;
-	}
-	printf("context=%p\n",context);
-
-
 	ret = eglMakeCurrent(display, surface, surface, context);
        	if(ret == EGL_FALSE) {
 		printf("@eglMakeCurrent: err=%s\n", err2str(ret));
 		return 0;
 	}
 
+	printf("GL_VENDOR=%s\n",glGetString(GL_VENDOR));
+	printf("GL_VERSION=%s\n",glGetString(GL_VERSION));
+	printf("GL_RENDERER=%s\n",glGetString(GL_RENDERER));
+	printf("GL_SHADING_LANGUAGE_VERSION=%s\n",glGetString(GL_SHADING_LANGUAGE_VERSION));
+	printf("GL_EXTENSIONS=%s\n",glGetString(GL_EXTENSIONS));
 
-	glEnable(GL_SCISSOR_TEST);
-	glEnable(GL_DEPTH_TEST);
-	glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
-
-	glViewport(0, 0, 512, 512);
-	glScissor(0, 0, 512, 512);
-	glClearColor(1.0, 1.0, 1.0, 1.0);
-	glClear(GL_COLOR_BUFFER_BIT);
-
-	glViewport(256, 256, 512, 512);
-	glScissor(256, 256, 512, 512);
-	glClearColor(0.9, 0.9, 0.9, 1.0);
-	glClear(GL_COLOR_BUFFER_BIT);
-
+	mydraw();
 
 	ret = eglSwapBuffers(display, surface);
        	if(ret != EGL_TRUE){
@@ -225,22 +253,17 @@ int main()
 		//return 0;
 	}
 
+	mydump();
 
-	//pbuffersurface
-	int pixw = 1024;
-	int pixh = 1024;
-	GLubyte* data = (GLubyte*)malloc(pixw*pixh*4);
-	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-	glReadPixels(0,0,pixw,pixh,GL_RGBA,GL_UNSIGNED_BYTE,data);
-	//printf("glReadPixels: err=%s\n", err2str(eglGetError()));
-
-	rgbx_to_ascii(data, 0, 1024, 1024);
-
-	free(data);
-
-
-	if (context != EGL_NO_CONTEXT)eglDestroyContext(display, context);
-	if (surface != EGL_NO_SURFACE)eglDestroySurface(display, surface);
+exitsurface:
+	if (surface != EGL_NO_SURFACE){
+		eglDestroySurface(display, surface);
+	}
+exitcontext:
+	if (context != EGL_NO_CONTEXT){
+		eglDestroyContext(display, context);
+	}
+exitgles:
 	eglTerminate(display);
 	return 0;
 }

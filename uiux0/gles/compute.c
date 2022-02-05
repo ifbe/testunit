@@ -38,7 +38,12 @@ main (int32_t argc, char* argv[])
    int major,minor;
    res = eglInitialize (egl_dpy, &major, &minor);
    assert (res);
-   printf("ver=%d.%d\n",major,minor);
+
+	printf("EGL_VENDOR=%s\n",eglQueryString(egl_dpy, EGL_VENDOR));
+	printf("EGL_VERSION=%s\n",eglQueryString(egl_dpy, EGL_VERSION));
+	printf("EGL_CLIENT_APIS=%s\n",eglQueryString(egl_dpy, EGL_CLIENT_APIS));
+	printf("EGL_EXTENSIONS=%s\n",eglQueryString(egl_dpy, EGL_EXTENSIONS));
+	printf("....\n");
  
    const char *egl_extension_st = eglQueryString (egl_dpy, EGL_EXTENSIONS);
    assert (strstr (egl_extension_st, "EGL_KHR_create_context") != NULL);
@@ -70,6 +75,13 @@ main (int32_t argc, char* argv[])
    res = eglMakeCurrent (egl_dpy, EGL_NO_SURFACE, EGL_NO_SURFACE, core_ctx);
    assert (res);
  
+	printf("GL_VENDOR=%s\n",glGetString(GL_VENDOR));
+	printf("GL_VERSION=%s\n",glGetString(GL_VERSION));
+	printf("GL_RENDERER=%s\n",glGetString(GL_RENDERER));
+	printf("GL_SHADING_LANGUAGE_VERSION=%s\n",glGetString(GL_SHADING_LANGUAGE_VERSION));
+	printf("GL_EXTENSIONS=%s\n",glGetString(GL_EXTENSIONS));
+	printf("....\n");
+
    /* setup a compute shader */
    GLuint compute_shader = glCreateShader (GL_COMPUTE_SHADER);
    assert (glGetError () == GL_NO_ERROR);
