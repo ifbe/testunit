@@ -3,7 +3,7 @@
 #include <GLES3/gl31.h>
 #include <assert.h>
 #include <fcntl.h>
-#include <gbm.h>
+//#include <gbm.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>

@@ -1,4 +1,4 @@
-SDK=/opt/vulkansdk/1.2.189.0/x86_64
+SDK=/opt/vulkansdk/1.2.198.1/x86_64
 
 maccolor:
 	clang ../glfw.c ../vulkan.c color.c -lvulkan -lglfw
