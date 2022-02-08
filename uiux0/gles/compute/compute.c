@@ -11,7 +11,7 @@
  
 static char COMPUTE_SHADER_SRC[] = 
 "#version 310 es\n"
-"layout(local_size_x=1,local_size_y=1,local_size_z=1) in;\n"
+"layout(local_size_x=4,local_size_y=4,local_size_z=1) in;\n"
 "layout(std430, binding = 0) readonly buffer Input0 {\n"
 "    float data[];\n"
 "} input0;\n"
@@ -21,7 +21,7 @@ static char COMPUTE_SHADER_SRC[] =
 "void main(){\n"
 "    uint idx = gl_GlobalInvocationID.x;\n"
 "    uint idy = gl_GlobalInvocationID.y;\n"
-"    uint id = idx+idx+idx+idx+idy;\n"
+"    uint id = idy+idy+idy+idy+idy+idy+idy+idy+idx;\n"
 "    output0.data[id] = input0.data[id] + 100.0;\n"
 "}\n";
 
@@ -94,11 +94,11 @@ void test()
 	float arraydata[arraysize];
 	int x,y;
 	for(x=0;x<arraysize;x++)arraydata[x] = (float)x;
-	for(y=0;y<4;y++){
-		for(x=0;x<3;x++){
-			printf("%f, ", arraydata[y*4+x]);
+	for(y=0;y<8;y++){
+		for(x=0;x<7;x++){
+			printf("%f, ", arraydata[y*8+x]);
 		}
-		printf("%f\n", arraydata[y*4+x]);
+		printf("%f\n", arraydata[y*8+x]);
 	}
 	GLuint input0SSbo = setupSSBufferObject(0, arraydata, arraysize);
 	GLuint outputSSbo = setupSSBufferObject(1, NULL, arraysize);
@@ -123,7 +123,7 @@ void test()
 	glUseProgram (shader_program);
 	assert(glGetError () == GL_NO_ERROR);
  
-	glDispatchCompute(4, 4, 1);
+	glDispatchCompute(1, 2, 1);
 	assert(glGetError() == GL_NO_ERROR);
 
 	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
@@ -131,11 +131,11 @@ void test()
 
 	glBindBuffer(GL_SHADER_STORAGE_BUFFER, outputSSbo);
 	float* pOut = (float*)glMapBufferRange(GL_SHADER_STORAGE_BUFFER, 0, arraysize * sizeof(float), GL_MAP_READ_BIT);
-	for(y=0;y<4;y++){
-		for(x=0;x<3;x++){
-			printf("%f, ", pOut[y*4+x]);
+	for(y=0;y<8;y++){
+		for(x=0;x<7;x++){
+			printf("%f, ", pOut[y*8+x]);
 		}
-		printf("%f\n", pOut[y*4+x]);
+		printf("%f\n", pOut[y*8+x]);
 	}
 	glUnmapBuffer(GL_SHADER_STORAGE_BUFFER);
 /*

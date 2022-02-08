@@ -79,12 +79,9 @@ int Initmyctx()
 {
 	HRESULT hr;
 
-	//1. Compile vshader and pshader
-    ID3DBlob* VSBlob = NULL;
+	//1. vshader
+	ID3DBlob* VSBlob = NULL;
 	ID3DBlob* VSError= NULL;
-	ID3DBlob* PSBlob = NULL;
-	ID3DBlob* PSError= NULL;
-
 	hr = D3DCompile(
 		vshader, sizeof(vshader), "vs",
 		0, 0,	//define, include
@@ -97,6 +94,15 @@ int Initmyctx()
 		return 0;
 	}
 
+	hr = g_dx11device->CreateVertexShader(VSBlob->GetBufferPointer(), VSBlob->GetBufferSize(), NULL, &g_pVertexShader );
+	if(FAILED(hr)){
+		VSBlob->Release();
+		return hr;
+	}
+
+	//2. pshader
+	ID3DBlob* PSBlob = NULL;
+	ID3DBlob* PSError= NULL;
 	hr = D3DCompile(
 		pshader, sizeof(pshader), "ps",
 		0, 0,	//define, include
@@ -107,13 +113,6 @@ int Initmyctx()
 	if(FAILED(hr)){
 		MessageBox(NULL, (char*)PSError->GetBufferPointer(), "D3DCompile(pshader)",MB_OK);
 		return 0;
-	}
-
-	//2. Create vshader and pshader
-	hr = g_dx11device->CreateVertexShader(VSBlob->GetBufferPointer(), VSBlob->GetBufferSize(), NULL, &g_pVertexShader );
-	if(FAILED(hr)){	
-		VSBlob->Release();
-        return hr;
 	}
 
 	hr = g_dx11device->CreatePixelShader(PSBlob->GetBufferPointer(), PSBlob->GetBufferSize(), NULL, &g_pPixelShader );

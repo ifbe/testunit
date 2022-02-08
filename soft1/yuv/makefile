@@ -1,0 +1,2 @@
+all:
+	gcc yuv.c

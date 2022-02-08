@@ -1,5 +1,5 @@
-#include <Windows.h>
 #include <string>
+#include <Windows.h>
 #include <D3D11.h>
 #include <d3dcompiler.h>
 using namespace std;
@@ -13,6 +13,14 @@ ID3D11DeviceContext*    g_dx11context(NULL);
 
 //my own
 char cshader[] =
+"struct BufferType{"
+"	int val;"
+"};"
+//"StructuredBuffer<BufferType> inbuf : register(t0);"
+"RWStructuredBuffer<BufferType> outbuf : register(u0);"
+"[numthreads(4,4,1)]"
+"void main(uint3 id:sv_dispatchthreadid){"
+"	outbuf[id.y*8 + id.x].val += 100;"
 "}";
 
 
@@ -36,6 +44,81 @@ int Initmyctx()
 
 
 
+void printadapter(IDXGIAdapter* adapter)
+{
+	DXGI_ADAPTER_DESC desc;
+	adapter->GetDesc(&desc);
+
+	char str[128];
+	WideCharToMultiByte(CP_ACP, 0, desc.Description, -1, str, 128, NULL, FALSE);
+	printf("Description=%s\n", str);
+
+	printf("VendorId=%x,DeviceId=%x\n", desc.VendorId, desc.DeviceId);
+	printf("SubSysId=%x,Revision=%x\n", desc.SubSysId, desc.Revision);
+	printf("DedicatedVideoMemory=%p,DedicatedSystemMemory=%p,SharedSystemMemory=%p\n", desc.DedicatedVideoMemory, desc.DedicatedSystemMemory, desc.SharedSystemMemory);
+}
+void enumadapter()
+{
+	IDXGIFactory* factory = NULL;
+	CreateDXGIFactory(__uuidof(IDXGIFactory), (void**)&factory);
+
+	UINT j;
+	IDXGIAdapter* adapter;
+	for(j=0;j<100;j++){
+		if(DXGI_ERROR_NOT_FOUND == factory->EnumAdapters(j, &adapter))break;
+		printf("enumadapter:%d{\n", j);
+		printadapter(adapter);
+		printf("}\n");
+	}
+}
+
+
+
+void printd3d11device(ID3D11Device* d3d11device)
+{
+	IDXGIDevice* dxgidevice = NULL;
+	d3d11device->QueryInterface(&dxgidevice);
+
+	IDXGIAdapter* adapter = NULL;
+	dxgidevice->GetAdapter( &adapter );
+
+	printf("chosen adapter{\n");
+	printadapter(adapter);
+	printf("}\n");
+}
+void printresult(ID3D11Buffer* outbuf)
+{
+	D3D11_BUFFER_DESC desc;
+	ZeroMemory(&desc, sizeof(desc));
+	desc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
+	desc.Usage = D3D11_USAGE_STAGING;
+	desc.BindFlags = 0;
+	desc.MiscFlags = 0;
+	desc.ByteWidth = 4*8*8;
+
+	ID3D11Buffer* dbgbuf;
+	HRESULT hr = g_dx11device->CreateBuffer(&desc, 0, &dbgbuf);
+	if(FAILED(hr)){
+		printf("CreateBuffer: dbgbuf fail\n");
+		return;
+	}
+
+	g_dx11context->CopyResource(dbgbuf, outbuf);
+
+	D3D11_MAPPED_SUBRESOURCE mapres;
+	g_dx11context->Map(dbgbuf, 0, D3D11_MAP_READ, 0, &mapres);
+
+	int* ptr = (int*)mapres.pData;
+	int x,y;
+	for(y=0;y<8;y++){
+		for(x=0;x<7;x++)printf("%d ",ptr[y*8+x]);
+		printf("%d\n",ptr[y*8+7]);
+	}
+}
+
+
+
+
 void FreeD3D11()
 {
 	g_dx11context->Release();
@@ -43,7 +126,9 @@ void FreeD3D11()
 }
 BOOL InitD3D11()
 {
-	// a.创建设备和上下文
+	enumadapter();
+
+	//create device and context
 	D3D_FEATURE_LEVEL myFeatureLevel;
 
 	UINT createDeviceFlags = 0;
@@ -68,6 +153,90 @@ BOOL InitD3D11()
 		return FALSE;
 	}
 
+	printd3d11device(g_dx11device);
+
+
+	ID3DBlob* csBlob = NULL;
+	ID3DBlob* csError= NULL;
+	hr = D3DCompile(
+		cshader, sizeof(cshader), "cs",
+		0, 0,	//define, include
+		"main", "cs_5_0",	//entry, target
+		0, 0,	//flag1, flag2
+		&csBlob, &csError
+	);
+	if(FAILED(hr)){
+		MessageBox(NULL, (char*)csError->GetBufferPointer(), "D3DCompile(cshader)",MB_OK);
+		return 0;
+	}
+
+	ID3D11ComputeShader* cs;
+	hr = g_dx11device->CreateComputeShader(csBlob->GetBufferPointer(), csBlob->GetBufferSize(), NULL, &cs );
+	if(FAILED(hr)){
+		csBlob->Release();
+		return hr;
+	}
+
+
+	D3D11_BUFFER_DESC desc;
+	ZeroMemory(&desc, sizeof(desc));
+	desc.BindFlags = D3D11_BIND_UNORDERED_ACCESS | D3D11_BIND_SHADER_RESOURCE;
+	desc.ByteWidth = 4*8*8;
+	desc.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
+	desc.StructureByteStride = 4;
+
+	int x,y;
+	int initdata[8*8];
+	for(y=0;y<8;y++){
+		for(x=0;x<8;x++)initdata[y*8+x] = y*8+x;
+	}
+	for(y=0;y<8;y++){
+		for(x=0;x<7;x++)printf("%d ",initdata[y*8+x]);
+		printf("%d\n",initdata[y*8+7]);
+	}
+
+	D3D11_SUBRESOURCE_DATA subres;
+	subres.pSysMem = initdata;
+
+	ID3D11Buffer* d3d11buffer;
+	hr = g_dx11device->CreateBuffer(&desc, &subres, &d3d11buffer);
+	if(FAILED(hr)){
+		printf("CreateBuffer: uavbuf fail\n");
+		return 0;
+	}
+/*
+	D3D11_SHADER_RESOURCE_VIEW_DESC viewdesc;
+	ZeroMemory(&viewdesc, sizeof(viewdesc));
+	viewdesc.ViewDimension = D3D11_SRV_DIMENSION_BUFFEREX;
+	viewdesc.BufferEx.FirstElement = 0;
+	viewdesc.Format = DXGI_FORMAT_UNKNOWN;
+	viewdesc.BufferEx.NumElements = 8*8;
+
+	ID3D11ShaderResourceView* srv;
+	g_dx11device->CreateShaderResourceView(d3d11buffer, &viewdesc, &srv);
+*/
+	D3D11_UNORDERED_ACCESS_VIEW_DESC uavdesc;
+	ZeroMemory(&uavdesc, sizeof(uavdesc));
+	uavdesc.ViewDimension = D3D11_UAV_DIMENSION_BUFFER;
+	uavdesc.Buffer.FirstElement = 0;
+	uavdesc.Format = DXGI_FORMAT_UNKNOWN;
+	uavdesc.Buffer.NumElements = 8*8;
+
+	ID3D11UnorderedAccessView* uav;
+	g_dx11device->CreateUnorderedAccessView(d3d11buffer, &uavdesc, &uav);
+
+
+
+	printf("--------compute setup------------\n");
+	g_dx11context->CSSetShader(cs, 0, 0);
+	//g_dx11context->CSSetConstantBuffers(0, 1, &csv);
+	//g_dx11context->CSSetShaderResources(0, 1, &srv);
+	g_dx11context->CSSetUnorderedAccessViews(0, 1, &uav, NULL);
+	g_dx11context->Dispatch(1, 2, 1);
+	printf("--------compute finish------------\n");
+
+	Sleep(1);
+	printresult(d3d11buffer);
 	return TRUE;
 }
 
@@ -83,7 +252,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR cmdLine, 
 
 	compute();
 
-	Freemyctx()
+	Freemyctx();
 	FreeD3D11();
 	return 0;
 }
