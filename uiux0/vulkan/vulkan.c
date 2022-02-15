@@ -175,12 +175,12 @@ int checkPhysicalDeviceQueueFamilyProperties(VkPhysicalDevice device, VkSurfaceK
 	vkGetPhysicalDeviceQueueFamilyProperties(device, &cnt, fam);
 
 	int j;
-	int bestpresent = -1;
+	int firstcomputewithpresent = -1;
 	int firsttransfer = -1;
 	int firstcompute = -1;
 	int firstgraphic = -1;
 	int firstpresent = -1;
-	VkBool32 support = 0;
+	VkBool32 supportsurface = 0;
 	printf("vkGetPhysicalDeviceQueueFamilyProperties:\n");
 	for(j=0;j<cnt;j++) {
 		printf("%d:	%d=", j, fam[j].queueFlags);
@@ -209,16 +209,16 @@ int checkPhysicalDeviceQueueFamilyProperties(VkPhysicalDevice device, VkSurfaceK
 			if(firstgraphic < 0)firstgraphic = j;
 		}
 
-		support = 0;
+		supportsurface = 0;
 		if(face){
-			vkGetPhysicalDeviceSurfaceSupportKHR(device, j, face, &support);
+			vkGetPhysicalDeviceSurfaceSupportKHR(device, j, face, &supportsurface);
 		}
-		if(support){
+		if(supportsurface){
 			printf("present");
 			if(firstpresent < 0)firstpresent = j;
 
 			if(fam[j].queueFlags & VK_QUEUE_GRAPHICS_BIT){
-				bestpresent = j;
+				if(firstcomputewithpresent < 0)firstcomputewithpresent = j;
 			}
 		}
 
@@ -227,9 +227,9 @@ int checkPhysicalDeviceQueueFamilyProperties(VkPhysicalDevice device, VkSurfaceK
 	printf("=>transfer@%d,compute@%d,graphic@%d,present@%d\n\n", firsttransfer, firstcompute, firstgraphic, firstpresent);
 
 	if(face){		//onscreen: need graphic and present
-		if(bestpresent >= 0){
-			if(gg)gg[0] = bestpresent;
-			if(pp)pp[0] = bestpresent;
+		if(firstcomputewithpresent >= 0){
+			if(gg)gg[0] = firstcomputewithpresent;
+			if(pp)pp[0] = firstcomputewithpresent;
 			return 1;
 		}
 		if((firstgraphic >= 0) && (firstpresent >= 0)){
@@ -323,7 +323,7 @@ void* initphysicaldevice(VkSurfaceKHR face) {
 	vkEnumeratePhysicalDevices(instance, &count, devs);
 	printf("vkEnumeratePhysicalDevices:\n");
 
-	int j,phy=-1;
+	int j,best=-1;
 	int chkdev,chkext,chkfam,chksur;
 	physicaldevice = VK_NULL_HANDLE;
 	for(j=0;j<count;j++) {
@@ -331,25 +331,25 @@ void* initphysicaldevice(VkSurfaceKHR face) {
 		chkdev = checkDeviceProperties(devs[j]);
 		chkext = checkDeviceExtensionProperties(devs[j]);
 		chkfam = checkPhysicalDeviceQueueFamilyProperties(devs[j], face, 0, 0);
-		if( (chkdev > 0) && (chkext > 0) && (chkfam > 0) && (phy < 0) ){
+		if( (chkdev > 0) && (chkext > 0) && (chkfam > 0) && (best < 0) ){
 			if(face){
 				chksur = checkSwapChain(devs[j], face);
-				if(chksur > 0)phy = j;
+				if(chksur > 0)best = j;
 			}
 			else{
-				phy = j;
+				best = j;
 			}
 		}
 		printf("score=%d,%d,%d,%d\n",chkdev,chkext,chkfam,chksur);
 		printf("}\n\n");
 	}
-	if(phy < 0){
+	if(best < 0){
 		printf("no physicaldevice\n");
 		return 0;
 	}
 
-	printf("=>choose device=%d(%p)\n", phy, devs[phy]);
-	return devs[phy];
+	printf("=>choose device=%d(%p)\n", best, devs[best]);
+	return devs[best];
 }
 
 

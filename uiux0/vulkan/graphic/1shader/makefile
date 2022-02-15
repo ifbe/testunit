@@ -1,32 +1,45 @@
 SDK=/opt/vulkansdk/1.2.198.1/x86_64
+sdlvulkan=../../main_sdl.c ../../vulkan.c
+glfwvulkan=../../main_glfw.c ../../vulkan.c
+filevulkan=../../main_file.c ../../vulkan.c
+stdoutvulkan=../../main_stdout.c ../../vulkan.c
 
-maccolor:
-	clang ../glfw.c ../vulkan.c color.c -lvulkan -lglfw
-macdepth:
-	clang ../glfw.c ../vulkan.c depth.c -lvulkan -lglfw
+macglfwvulkancolor:
+	clang color.c ${glfwvulkan} -lvulkan -lglfw
+macglfwvulkandepth:
+	clang depth.c ${glfwvulkan} -lvulkan -lglfw
+macsdlvulkancolor:
+	clang color.c ${sdlvulkan} -lvulkan -lglfw
+macsdlkandepth:
+	clang depth.c ${sdlvulkan} -lvulkan -lglfw
 
-wincolor:
-	gcc ../glfw.c ../vulkan.c color.c -lvulkan-1 -lglfw3 -lgdi32
-windepth:
-	gcc ../glfw.c ../vulkan.c depth.c -lvulkan-1 -lglfw3 -lgdi32
+winglfwvulkancolor:
+	gcc ../glfw.c ../vulkan.c color.c ${glfwvulkan} -lvulkan-1 -lglfw3 -lgdi32
+winglfwvulkandepth:
+	gcc ../glfw.c ../vulkan.c depth.c ${glfwulkan}} -lvulkan-1 -lglfw3 -lgdi32
+winsdlvulkancolor:
+	gcc ../glfw.c ../vulkan.c color.c ${sdlvulkan} -lvulkan-1 -lglfw3 -lgdi32
+winsdlvulkandepth:
+	gcc ../glfw.c ../vulkan.c depth.c ${sdlvulkan}} -lvulkan-1 -lglfw3 -lgdi32
 
-linuxcolor:
-	gcc ../glfw.c ../vulkan.c color.c -I${SDK}/include -L${SDK}/lib -lvulkan -lglfw3 -lX11 -ldl -lm -lpthread
-linuxdepth:
-	gcc ../glfw.c ../vulkan.c depth.c -I${SDK}/include -L${SDK}/lib -lvulkan -lglfw3 -lX11 -ldl -lm -lpthread
+linuxglfwvulkancolor:
+	gcc ../glfw.c ../vulkan.c color.c ${glfwulkan}} -I${SDK}/include -L${SDK}/lib -lvulkan -lglfw3 -lX11 -ldl -lm -lpthread
+linuxglfwvulkandepth:
+	gcc ../glfw.c ../vulkan.c depth.c ${glfwulkan}} -I${SDK}/include -L${SDK}/lib -lvulkan -lglfw3 -lX11 -ldl -lm -lpthread
+linuxsdlvulkancolor:
+	gcc ../glfw.c ../vulkan.c color.c ${sdlvulkan}} -I${SDK}/include -L${SDK}/lib -lvulkan -lglfw3 -lX11 -ldl -lm -lpthread
+linuxsdlvulkandepth:
+	gcc ../glfw.c ../vulkan.c depth.c ${sdlvulkan}} -I${SDK}/include -L${SDK}/lib -lvulkan -lglfw3 -lX11 -ldl -lm -lpthread
 
 stdoutcolor:
-	gcc ../stdout.c ../vulkan.c color.c -lvulkan
+	gcc ../stdout.c ../vulkan.c color.c ${stdoutvulkan} -lvulkan
 stdoutdepth:
-	gcc ../stdout.c ../vulkan.c depth.c -lvulkan
+	gcc ../stdout.c ../vulkan.c depth.c ${stdoutvulkan} -lvulkan
 
-offscreencolor:
-	gcc ../file.c ../vulkan.c color.c -lvulkan
-offscreendepth:
-	gcc ../file.c ../vulkan.c depth.c -lvulkan
-
-offscreenrun:
-	DISPLAY=:0 ./a.out
+filecolor:
+	gcc ../file.c ../vulkan.c color.c ${filevulkan} -lvulkan
+filedepth:
+	gcc ../file.c ../vulkan.c depth.c ${filevulkan} -lvulkan
 
 glslc:
 	glslc shader.vert -o shader.vert.spv
@@ -37,6 +50,9 @@ sdkglslc:
 glslangvalidator:
 	glslangValidator --target-env vulkan1.2 shader.vert -o shader.vert.spv
 	glslangValidator --target-env vulkan1.2 shader.frag -o shader.frag.spv
+
+offscreenrun:
+	DISPLAY=:0 ./a.out
 
 clean:
 	rm *.out *.spv

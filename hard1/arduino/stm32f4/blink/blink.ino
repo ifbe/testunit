@@ -1,5 +1,5 @@
 //board: generic stm32f4 serials
-//board part number: blackpill f103c8
+//board part number: blackpill f411ce
 //USB support: CDC(generic serial)
 #define LEDPIN PC13
 #define KEYPIN PA0
