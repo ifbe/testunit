@@ -9,9 +9,8 @@ struct attachment{
 	VkImageView view;
 };
 void vulkan_physicaldevice_logicdevice(VkPhysicalDevice* pdev, VkDevice* ldev);
-void vulkan_presentorcallback(VkSwapchainKHR* chain, void* cb);
 void vulkan_graphicqueue_graphicpool(VkQueue* queue, VkCommandPool* pool);
-void vulkan_presentqueue_presentpool(VkQueue* queue, VkCommandPool* pool);
+void vulkan_presentqueue_swapchain(VkQueue* queue, VkSwapchainKHR* chain);
 void vulkan_widthheight_imagecount_attachcolor(VkExtent2D* wh, uint32_t* cnt, struct attachment* attach);
 
 
@@ -106,6 +105,11 @@ int freecolortarget() {
 	return 0;
 }
 int initcolortarget() {
+	widthheight.width = 1024;
+	widthheight.height= 1024;
+
+	imagecount = 1;
+
 	//0.format
 	attachcolor[0].format = VK_FORMAT_R8G8B8A8_UNORM;	//VK_FORMAT_B8G8R8A8_SRGB;
 
@@ -593,25 +597,23 @@ void vulkan_myctx_delete()
 	freepipeline();
 	freerenderpass();
 }
-void vulkan_myctx_create()
+void vulkan_myctx_create(void* cb)
 {
 	vulkan_physicaldevice_logicdevice(&physicaldevice, &logicaldevice);
-	vulkan_presentorcallback(&swapChain, &callback);
+	vulkan_presentqueue_swapchain(&presentQueue, &swapChain);
 	if(swapChain){
 		vulkan_graphicqueue_graphicpool(&graphicQueue, &graphicPool);
-		vulkan_presentqueue_presentpool(&presentQueue, 0);
+
 		vulkan_widthheight_imagecount_attachcolor(&widthheight, &imagecount, attachcolor);
 	}
 	else{
 		vulkan_graphicqueue_graphicpool(&graphicQueue, &graphicPool);
-		widthheight.width = 1024;
-		widthheight.height= 1024;
 
-		imagecount = 1;
+		initcolortarget();
 
 		initcopydest();
 
-		initcolortarget();
+		callback = cb;
 	}
 
 	//pipeline <- renderpass

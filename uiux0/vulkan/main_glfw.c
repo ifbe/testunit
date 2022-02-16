@@ -9,7 +9,7 @@ void* vulkan_surface_create(int, void*);
 void vulkan_surface_delete(void*);
 void* vulkan_device_create(int, void*);
 void vulkan_device_delete(void*);
-void vulkan_myctx_create();
+void vulkan_myctx_create(void*);
 void vulkan_myctx_delete();
 void drawframe();
 
@@ -100,7 +100,7 @@ int main()
 
 
 	//vulkan: things
-	vulkan_myctx_create();
+	vulkan_myctx_create(0);
 
 	//forever
 	while (!glfwWindowShouldClose(window)) {

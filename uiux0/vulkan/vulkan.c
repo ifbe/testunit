@@ -311,7 +311,7 @@ int checkSwapChain(VkPhysicalDevice device, VkSurfaceKHR face) {
 int freephysicaldevice() {
 	return 0;
 }
-void* initphysicaldevice(VkSurfaceKHR face) {
+void* initphysicaldevice(int what, VkSurfaceKHR face) {
 	uint32_t count = 0;
 	vkEnumeratePhysicalDevices(instance, &count, 0);
 	if(0 == count) {
@@ -502,11 +502,11 @@ int initswapchain(VkSurfaceKHR face) {
 	createInfo.presentMode = presentMode;
 	createInfo.clipped = VK_TRUE;
 	createInfo.oldSwapchain = VK_NULL_HANDLE;
-
 	if (vkCreateSwapchainKHR(logicaldevice, &createInfo, 0, &swapChain) != VK_SUCCESS) {
 		printf("error@vkCreateSwapchainKHR\n");
 		return -1;
 	}
+
 
 	vkGetSwapchainImagesKHR(logicaldevice, swapChain, &imagecount, 0);
 	VkImage swapChainImages[imagecount];
@@ -542,31 +542,10 @@ int initswapchain(VkSurfaceKHR face) {
 
 
 
-int freeoffscreen() {
-	return 0;
-}
-int initoffscreen() {
-	swapChain = 0;
-
-	widthheight.width = 0;
-	widthheight.height= 0;
-
-	imagecount = 0;
-
-	attachcolor[0].format = 0;
-	return 0;
-}
-
-
-
-
 int vulkan_device_delete()
 {
 	if(surface){
 		freeswapchain();
-	}
-	else{
-		freeoffscreen();
 	}
 
 	freelogicaldevice();
@@ -575,13 +554,10 @@ int vulkan_device_delete()
 
 	return 0;
 }
-void* vulkan_device_create(int what, void* data)
+void* vulkan_device_create(int what, VkSurfaceKHR face)
 {
-	VkSurfaceKHR face = 0;
-	if(what != 0)face = data;
-
 	//logicaldevice <- physicaldevice
-	physicaldevice = initphysicaldevice(face);
+	physicaldevice = initphysicaldevice(what, face);
 	if(0 == physicaldevice)return 0;
 	printf("physicaldevice=%p\n", physicaldevice);
 
@@ -595,11 +571,6 @@ void* vulkan_device_create(int what, void* data)
 		surface = face;
 		printf("swapchain imagecount=%d\n", imagecount);
 	}
-	else{
-		initoffscreen();
-		callback = data;
-		printf("offscreen imagecount=%d\n", imagecount);
-	}
 
 	return physicaldevice;
 }
@@ -612,22 +583,10 @@ void vulkan_physicaldevice_logicdevice(VkPhysicalDevice* pdev, VkDevice* ldev)
 	*pdev = physicaldevice;
 	*ldev = logicaldevice;
 }
-void vulkan_computequeue_computepool(VkQueue* queue, VkCommandPool* pool)
-{
-}
-void vulkan_graphicqueue_graphicpool(VkQueue* queue, VkCommandPool* pool)
-{
-	*queue = graphicQueue;
-	*pool = graphicPool;
-}
-void vulkan_presentqueue_presentpool(VkQueue* queue, VkCommandPool* pool)
+void vulkan_presentqueue_swapchain(VkQueue* queue, void** chain)
 {
 	*queue = presentQueue;
-}
-void vulkan_presentorcallback(void** chain, void** cb)
-{
 	*chain = swapChain;
-	*cb = callback;
 }
 void vulkan_widthheight_imagecount_attachcolor(VkExtent2D* wh, uint32_t* cnt, struct attachment* attach)
 {
@@ -642,4 +601,14 @@ void vulkan_widthheight_imagecount_attachcolor(VkExtent2D* wh, uint32_t* cnt, st
 		attach[j].image = attachcolor[j].image;
 		attach[j].view = attachcolor[j].view;
 	}
+}
+void vulkan_graphicqueue_graphicpool(VkQueue* queue, VkCommandPool* pool)
+{
+	*queue = graphicQueue;
+	*pool = graphicPool;
+}
+void vulkan_computequeue_computepool(VkQueue* queue, VkCommandPool* pool)
+{
+	*queue = computeQueue;
+	*pool = computePool;
 }
