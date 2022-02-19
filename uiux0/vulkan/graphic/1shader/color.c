@@ -8,6 +8,8 @@ struct attachment{
 	VkImage image;
 	VkImageView view;
 };
+void* vulkan_device_create(int, void*);
+void vulkan_device_delete(void*);
 void vulkan_physicaldevice_logicdevice(VkPhysicalDevice* pdev, VkDevice* ldev);
 void vulkan_graphicqueue_graphicpool(VkQueue* queue, VkCommandPool* pool);
 void vulkan_presentqueue_swapchain(VkQueue* queue, VkSwapchainKHR* chain);
@@ -596,9 +598,14 @@ void vulkan_myctx_delete()
 	freeframebuffer();
 	freepipeline();
 	freerenderpass();
+
+	vulkan_device_delete(physicaldevice);
 }
-void vulkan_myctx_create(void* cb)
+void vulkan_myctx_create(void* face, void* cb)
 {
+	void* device = vulkan_device_create(1, face);
+	if(0 == device)return;
+
 	vulkan_physicaldevice_logicdevice(&physicaldevice, &logicaldevice);
 	vulkan_presentqueue_swapchain(&presentQueue, &swapChain);
 	if(swapChain){

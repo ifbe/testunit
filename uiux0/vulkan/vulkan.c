@@ -29,7 +29,6 @@ static VkCommandPool graphicPool;
 static int presentindex;
 static VkQueue presentQueue;
 //surface,swapchain
-static void* callback;
 static VkSurfaceKHR surface = 0;
 static VkSwapchainKHR swapChain = 0;
 static VkExtent2D widthheight;
@@ -105,7 +104,7 @@ int checkDeviceProperties(VkPhysicalDevice device) {
 	VkPhysicalDeviceProperties prop;
 	vkGetPhysicalDeviceProperties(device, &prop);
 
-	int good = -1;
+	int score = -1;
 	printf("vkGetPhysicalDeviceProperties:\n");
 	printf("	apiver=%x\n", prop.apiVersion);
 	printf("	drvver=%x\n", prop.driverVersion);
@@ -119,11 +118,11 @@ int checkDeviceProperties(VkPhysicalDevice device) {
 		break;
 	case VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU:
 		printf("igpu\n");
-		good = 1;
+		score = 1;
 		break;
 	case VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU:
 		printf("dgpu\n");
-		good = 1;
+		score = 2;
 		break;
 	case VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU:
 		printf("vgpu\n");
@@ -137,9 +136,9 @@ int checkDeviceProperties(VkPhysicalDevice device) {
 	}
 
 	printf("\n");
-	return good;
+	return score;
 }
-int checkDeviceExtensionProperties(VkPhysicalDevice device) {
+int checkDeviceExtensionProperties(VkPhysicalDevice device, void* name) {
 	uint32_t cnt;
 	vkEnumerateDeviceExtensionProperties(device, 0, &cnt, 0);
 
@@ -151,7 +150,7 @@ int checkDeviceExtensionProperties(VkPhysicalDevice device) {
 	int ret = -1;
 	for(j=0;j<cnt;j++) {
 		printf("%d:	ver=%04d,str=%s\n", j, ext[j].specVersion, ext[j].extensionName);
-		if(0 == strcmp(ext[j].extensionName, VK_KHR_SWAPCHAIN_EXTENSION_NAME)){
+		if(0 == strcmp(ext[j].extensionName, name)){
 			if(ret < 0)ret = j;
 		}
 	}
@@ -165,7 +164,7 @@ int checkDeviceExtensionProperties(VkPhysicalDevice device) {
 #define VK_QUEUE_PROTECTED_BIT        0x00000010
 #define VK_QUEUE_VIDEO_DECODE_BIT_KHR 0x00000020
 #define VK_QUEUE_VIDEO_ENCODE_BIT_KHR 0x00000040
-int checkPhysicalDeviceQueueFamilyProperties(VkPhysicalDevice device, VkSurfaceKHR face, int* gg, int* pp){
+int checkPhysicalDeviceQueueFamilyProperties(VkPhysicalDevice device, VkSurfaceKHR face, int what){
 	//printf("dev=%p\n",device);
 
 	uint32_t cnt = 0;
@@ -175,7 +174,7 @@ int checkPhysicalDeviceQueueFamilyProperties(VkPhysicalDevice device, VkSurfaceK
 	vkGetPhysicalDeviceQueueFamilyProperties(device, &cnt, fam);
 
 	int j;
-	int firstcomputewithpresent = -1;
+	int firstgraphicwithpresent = -1;
 	int firsttransfer = -1;
 	int firstcompute = -1;
 	int firstgraphic = -1;
@@ -209,48 +208,33 @@ int checkPhysicalDeviceQueueFamilyProperties(VkPhysicalDevice device, VkSurfaceK
 			if(firstgraphic < 0)firstgraphic = j;
 		}
 
-		supportsurface = 0;
 		if(face){
+			supportsurface = 0;
 			vkGetPhysicalDeviceSurfaceSupportKHR(device, j, face, &supportsurface);
-		}
-		if(supportsurface){
-			printf("present");
-			if(firstpresent < 0)firstpresent = j;
 
-			if(fam[j].queueFlags & VK_QUEUE_GRAPHICS_BIT){
-				if(firstcomputewithpresent < 0)firstcomputewithpresent = j;
+			if(supportsurface){
+				printf("present");
+				if(firstpresent < 0)firstpresent = j;
+
+				if(fam[j].queueFlags & VK_QUEUE_GRAPHICS_BIT){
+					if(firstgraphicwithpresent < 0)firstgraphicwithpresent = j;
+				}
 			}
 		}
 
 		printf("\n");
 	}
-	printf("=>transfer@%d,compute@%d,graphic@%d,present@%d\n\n", firsttransfer, firstcompute, firstgraphic, firstpresent);
 
-	if(face){		//onscreen: need graphic and present
-		if(firstcomputewithpresent >= 0){
-			if(gg)gg[0] = firstcomputewithpresent;
-			if(pp)pp[0] = firstcomputewithpresent;
-			return 1;
-		}
-		if((firstgraphic >= 0) && (firstpresent >= 0)){
-			if(gg)gg[0] = firstgraphic;
-			if(pp)pp[0] = firstpresent;
-			return 1;
-		}
+	if(face){
+		if( (firstgraphicwithpresent < 0) && (firstpresent < 0) )return -1;
 	}
-	else{		//offscreen: need graphic
-		if(firstgraphic >= 0){
-			if(gg)gg[0] = firstgraphic;
-			return 1;
-		}
+	if(what & VK_QUEUE_GRAPHICS_BIT){
+		if(firstgraphic < 0)return -1;
 	}
-	if(0){		//need compute
-		if(firstcompute > 0){
-			return 1;
-		}
+	if(what & VK_QUEUE_COMPUTE_BIT){
+		if(firstcompute < 0)return -1;
 	}
-
-	return 0;
+	return 1;
 }
 int checkSwapChain(VkPhysicalDevice device, VkSurfaceKHR face) {
 	//format
@@ -329,8 +313,8 @@ void* initphysicaldevice(int what, VkSurfaceKHR face) {
 	for(j=0;j<count;j++) {
 		printf("%d:physicaldevice{\n", j);
 		chkdev = checkDeviceProperties(devs[j]);
-		chkext = checkDeviceExtensionProperties(devs[j]);
-		chkfam = checkPhysicalDeviceQueueFamilyProperties(devs[j], face, 0, 0);
+		chkext = checkDeviceExtensionProperties(devs[j], VK_KHR_SWAPCHAIN_EXTENSION_NAME);
+		chkfam = checkPhysicalDeviceQueueFamilyProperties(devs[j], face, what);
 		if( (chkdev > 0) && (chkext > 0) && (chkfam > 0) && (best < 0) ){
 			if(face){
 				chksur = checkSwapChain(devs[j], face);
@@ -355,11 +339,98 @@ void* initphysicaldevice(int what, VkSurfaceKHR face) {
 
 
 
+int getPhysicalDeviceQueueFamilyProperties(VkPhysicalDevice device, VkSurfaceKHR face, int* gg, int* pp){
+	//printf("dev=%p\n",device);
+
+	uint32_t cnt = 0;
+	vkGetPhysicalDeviceQueueFamilyProperties(device, &cnt, 0);
+
+	VkQueueFamilyProperties fam[cnt];
+	vkGetPhysicalDeviceQueueFamilyProperties(device, &cnt, fam);
+
+	int j;
+	int firstgraphicwithpresent = -1;
+	int firsttransfer = -1;
+	int firstcompute = -1;
+	int firstgraphic = -1;
+	int firstpresent = -1;
+	VkBool32 supportsurface = 0;
+	printf("vkGetPhysicalDeviceQueueFamilyProperties:\n");
+	for(j=0;j<cnt;j++) {
+		printf("%d:	%d=", j, fam[j].queueFlags);
+		if(fam[j].queueFlags & VK_QUEUE_VIDEO_ENCODE_BIT_KHR){	//64
+			printf("encode,");
+		}
+		if(fam[j].queueFlags & VK_QUEUE_VIDEO_DECODE_BIT_KHR){	//32
+			printf("decode,");
+		}
+		if(fam[j].queueFlags & VK_QUEUE_PROTECTED_BIT){	//16
+			printf("protected,");
+		}
+		if(fam[j].queueFlags & VK_QUEUE_SPARSE_BINDING_BIT){	//8
+			printf("sprase,");
+		}
+		if(fam[j].queueFlags & VK_QUEUE_TRANSFER_BIT){	//4
+			printf("transfer,");
+			if(firsttransfer < 0)firsttransfer = j;
+		}
+		if(fam[j].queueFlags & VK_QUEUE_COMPUTE_BIT){	//2
+			printf("compute,");
+			if(firstcompute < 0)firstcompute = j;
+		}
+		if(fam[j].queueFlags & VK_QUEUE_GRAPHICS_BIT){	//1
+			printf("graphic,");
+			if(firstgraphic < 0)firstgraphic = j;
+		}
+
+		supportsurface = 0;
+		if(face){
+			vkGetPhysicalDeviceSurfaceSupportKHR(device, j, face, &supportsurface);
+		}
+		if(supportsurface){
+			printf("present");
+			if(firstpresent < 0)firstpresent = j;
+
+			if(fam[j].queueFlags & VK_QUEUE_GRAPHICS_BIT){
+				if(firstgraphicwithpresent < 0)firstgraphicwithpresent = j;
+			}
+		}
+
+		printf("\n");
+	}
+	printf("=>transfer@%d,compute@%d,graphic@%d,present@%d\n\n", firsttransfer, firstcompute, firstgraphic, firstpresent);
+
+	if(face){		//onscreen: need graphic and present
+		if(firstgraphicwithpresent >= 0){
+			if(gg)gg[0] = firstgraphicwithpresent;
+			if(pp)pp[0] = firstgraphicwithpresent;
+			return 1;
+		}
+		if((firstgraphic >= 0) && (firstpresent >= 0)){
+			if(gg)gg[0] = firstgraphic;
+			if(pp)pp[0] = firstpresent;
+			return 1;
+		}
+	}
+	else{		//offscreen: need graphic
+		if(firstgraphic >= 0){
+			if(gg)gg[0] = firstgraphic;
+			return 1;
+		}
+	}
+	if(0){		//need compute
+		if(firstcompute > 0){
+			return 1;
+		}
+	}
+
+	return 0;
+}
 int freelogicaldevice() {
 	return 0;
 }
 int initlogicaldevice(VkSurfaceKHR face) {
-	checkPhysicalDeviceQueueFamilyProperties(physicaldevice, face, &graphicindex, &presentindex);
+	getPhysicalDeviceQueueFamilyProperties(physicaldevice, face, &graphicindex, &presentindex);
 	printf("graphic=%d,present=%d\n",graphicindex,presentindex);
 
 

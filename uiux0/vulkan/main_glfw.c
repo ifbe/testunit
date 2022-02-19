@@ -5,11 +5,7 @@
 #include <string.h>
 void* vulkan_init(int cnt, const char** ext);
 void vulkan_exit();
-void* vulkan_surface_create(int, void*);
-void vulkan_surface_delete(void*);
-void* vulkan_device_create(int, void*);
-void vulkan_device_delete(void*);
-void vulkan_myctx_create(void*);
+void vulkan_myctx_create(void* surface, void* callback);
 void vulkan_myctx_delete();
 void drawframe();
 
@@ -52,7 +48,6 @@ void* glfw_window_create()
 
 int glfw_surface_delete(void* surface)
 {
-	vulkan_surface_delete(surface);
 	return 0;
 }
 void* glfw_surface_create(void* window, void* instance)
@@ -94,13 +89,8 @@ int main()
 	if(0 == surface)return -3;
 
 
-	//vulkan: device and swapchain
-	void* device = vulkan_device_create(1, surface);
-	if(0 == device)return -4;
-
-
 	//vulkan: things
-	vulkan_myctx_create(0);
+	vulkan_myctx_create(surface, 0);
 
 	//forever
 	while (!glfwWindowShouldClose(window)) {
@@ -111,8 +101,6 @@ int main()
 	//vulkan
 	vulkan_myctx_delete();
 
-	//vulkan device
-	vulkan_device_delete(device);
 
 	//glfw
 	glfw_surface_delete(surface);

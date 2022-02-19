@@ -5,9 +5,7 @@ typedef unsigned char u8;
 typedef unsigned short u16;
 void* vulkan_init(int cnt, const char** ext);
 void vulkan_exit();
-void* vulkan_device_create(int, void*);
-void vulkan_device_delete();
-void vulkan_myctx_create(void*);
+void vulkan_myctx_create(void* surface, void* callback);
 void vulkan_myctx_delete();
 void drawframe();
 
@@ -60,21 +58,14 @@ int main()
 	void* ins = vulkan_init(0, 0);
 	if(0 == ins)return -1;
 
-	//vulkan: device and swapchain
-	void* dev = vulkan_device_create(1, 0);
-	if(0 == dev)return -2;
-
 	//vulkan: things
-	vulkan_myctx_create(mycb);
+	vulkan_myctx_create(0, mycb);
 
 	//once
 	drawframe();
 
 	//vulkan
 	vulkan_myctx_delete();
-
-	//
-	vulkan_device_delete();
 
 	//exit
 	vulkan_exit();
