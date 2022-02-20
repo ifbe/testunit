@@ -20,13 +20,15 @@ VkCommandPool computePool;
 
 void vulkan_myctx_create()
 {
-        physicaldevice = vulkan_device_create(2, 0);
-        if(0 == physicaldevice)return;
+	physicaldevice = vulkan_device_create(2, 0);
+	if(0 == physicaldevice)return;
 
 	vulkan_physicaldevice_logicdevice(&physicaldevice, &logicaldevice);
 }
 void vulkan_myctx_delete()
 {
+	vkQueueWaitIdle(computeQueue);
+
 	vulkan_device_delete(physicaldevice);
 }
 

@@ -13,16 +13,16 @@ static char COMPUTE_SHADER_SRC[] =
 "#version 310 es\n"
 "layout(local_size_x=4,local_size_y=4,local_size_z=1) in;\n"
 "layout(std430, binding = 0) readonly buffer Input0 {\n"
-"    float data[];\n"
+"	uint data[];\n"
 "} input0;\n"
 "layout(std430, binding = 1) writeonly buffer Output {\n"
-"    float data[];\n"
+"	uint data[];\n"
 "} output0;\n"
 "void main(){\n"
-"    uint idx = gl_GlobalInvocationID.x;\n"
-"    uint idy = gl_GlobalInvocationID.y;\n"
-"    uint id = idy+idy+idy+idy+idy+idy+idy+idy+idx;\n"
-"    output0.data[id] = input0.data[id] + 100.0;\n"
+"	uint idx = gl_GlobalInvocationID.x;\n"
+"	uint idy = gl_GlobalInvocationID.y;\n"
+"	uint pos = uint(16)*idy + idx;\n"
+"	output0.data[pos] = input0.data[pos] + uint(100);\n"
 "}\n";
 
 
@@ -73,14 +73,14 @@ void shader_rmexe(GLuint s)
 }
 
 
-GLuint setupSSBufferObject(GLuint index, float* pIn, GLuint count)
+GLuint setupSSBufferObject(GLuint index, void* pIn, GLuint len)
 {
 	GLuint ssbo;
 	glGenBuffers(1, &ssbo);
 
 	glBindBuffer(GL_SHADER_STORAGE_BUFFER, ssbo);
 
-	glBufferData(GL_SHADER_STORAGE_BUFFER, count * sizeof(float), pIn, GL_STATIC_DRAW);
+	glBufferData(GL_SHADER_STORAGE_BUFFER, len, pIn, GL_STATIC_DRAW);
 
 	glBindBufferBase(GL_SHADER_STORAGE_BUFFER, index, ssbo);
 
@@ -91,17 +91,17 @@ GLuint setupSSBufferObject(GLuint index, float* pIn, GLuint count)
 void test()
 {
 	#define arraysize 256
-	float arraydata[arraysize];
+	int arraydata[arraysize];
 	int x,y;
 	for(x=0;x<arraysize;x++)arraydata[x] = (float)x;
-	for(y=0;y<8;y++){
-		for(x=0;x<7;x++){
-			printf("%f, ", arraydata[y*8+x]);
+	for(y=0;y<16;y++){
+		for(x=0;x<15;x++){
+			printf("%03d, ", arraydata[y*16+x]);
 		}
-		printf("%f\n", arraydata[y*8+x]);
+		printf("%03d\n", arraydata[y*16+x]);
 	}
-	GLuint input0SSbo = setupSSBufferObject(0, arraydata, arraysize);
-	GLuint outputSSbo = setupSSBufferObject(1, NULL, arraysize);
+	GLuint input0SSbo = setupSSBufferObject(0, arraydata, arraysize*4);
+	GLuint outputSSbo = setupSSBufferObject(1, NULL, arraysize*4);
 /*	int x,y;
 	float data[16][16];
 	for(y=0;y<16;y++){
@@ -123,19 +123,19 @@ void test()
 	glUseProgram (shader_program);
 	assert(glGetError () == GL_NO_ERROR);
  
-	glDispatchCompute(1, 2, 1);
+	glDispatchCompute(3, 2, 1);
 	assert(glGetError() == GL_NO_ERROR);
 
 	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 	printf("Compute shader dispatched and finished successfully\n");
 
 	glBindBuffer(GL_SHADER_STORAGE_BUFFER, outputSSbo);
-	float* pOut = (float*)glMapBufferRange(GL_SHADER_STORAGE_BUFFER, 0, arraysize * sizeof(float), GL_MAP_READ_BIT);
-	for(y=0;y<8;y++){
-		for(x=0;x<7;x++){
-			printf("%f, ", pOut[y*8+x]);
+	int* pOut = (int*)glMapBufferRange(GL_SHADER_STORAGE_BUFFER, 0, arraysize * 4, GL_MAP_READ_BIT);
+	for(y=0;y<16;y++){
+		for(x=0;x<15;x++){
+			printf("%03d, ", pOut[y*16+x]);
 		}
-		printf("%f\n", pOut[y*8+x]);
+		printf("%03d\n", pOut[y*16+x]);
 	}
 	glUnmapBuffer(GL_SHADER_STORAGE_BUFFER);
 /*

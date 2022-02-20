@@ -1,0 +1,12 @@
+#version 450
+layout (local_size_x = 4, local_size_y = 4, local_size_z = 1) in;
+
+layout(binding = 0) buffer Pos {
+	uint values[ ];
+};
+
+void main(){
+	uint ix = gl_GlobalInvocationID.x;
+	uint iy = gl_GlobalInvocationID.y;
+	values[iy*16+ix] = iy*16 + ix + 100;
+}

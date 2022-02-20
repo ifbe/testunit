@@ -5,9 +5,6 @@
 const char* validationLayers[] = {
     "VK_LAYER_KHRONOS_validation"
 };
-const char* deviceExtensions[] = {
-    VK_KHR_SWAPCHAIN_EXTENSION_NAME
-};
 
 
 
@@ -79,13 +76,25 @@ void* vulkan_init(int cnt, const char** ext)
 	createInfo.enabledExtensionCount = cnt;
 	createInfo.ppEnabledExtensionNames = ext;
 	createInfo.enabledLayerCount = 0;
+	//createInfo.ppEnabledLayerNames = validationLayers;
 	createInfo.pNext = 0;
 
 	if (vkCreateInstance(&createInfo, 0, &instance) != VK_SUCCESS) {
 		printf("failed to create instance!\n");
 		return 0;
 	}
+	printf("instance=%p\n", instance);
 
+/*
+	VkDebugReportCallbackCreateInfoEXT debugReportCreateInfo = {};
+	debugReportCreateInfo.sType = VK_STRUCTURE_TYPE_DEBUG_REPORT_CALLBACK_CREATE_INFO_EXT;
+	debugReportCreateInfo.flags = VK_DEBUG_REPORT_ERROR_BIT_EXT | VK_DEBUG_REPORT_WARNING_BIT_EXT;
+	debugReportCreateInfo.pfnCallback = (PFN_vkDebugReportCallbackEXT)debugMessageCallback;
+
+	PFN_vkCreateDebugReportCallbackEXT vkCreateDebugReportCallbackEXT = reinterpret_cast<PFN_vkCreateDebugReportCallbackEXT>(vkGetInstanceProcAddr(instance, "vkCreateDebugReportCallbackEXT"));
+	VK_CHECK_RESULT(vkCreateDebugReportCallbackEXT(instance, &debugReportCreateInfo, nullptr, &debugReportCallback));
+*/
+	printf("----------------instance ok----------------\n\n");
 	return instance;
 }
 void* vulkan_surface_create()
@@ -339,7 +348,10 @@ void* initphysicaldevice(int what, VkSurfaceKHR face) {
 
 
 
-int getPhysicalDeviceQueueFamilyProperties(VkPhysicalDevice device, VkSurfaceKHR face, int* gg, int* pp){
+int getPhysicalDeviceQueueFamilyProperties(
+	VkPhysicalDevice device, VkSurfaceKHR face,
+	int* gg, int* pp, int* cc)
+{
 	//printf("dev=%p\n",device);
 
 	uint32_t cnt = 0;
@@ -398,30 +410,24 @@ int getPhysicalDeviceQueueFamilyProperties(VkPhysicalDevice device, VkSurfaceKHR
 
 		printf("\n");
 	}
-	printf("=>transfer@%d,compute@%d,graphic@%d,present@%d\n\n", firsttransfer, firstcompute, firstgraphic, firstpresent);
 
 	if(face){		//onscreen: need graphic and present
 		if(firstgraphicwithpresent >= 0){
 			if(gg)gg[0] = firstgraphicwithpresent;
 			if(pp)pp[0] = firstgraphicwithpresent;
-			return 1;
 		}
 		if((firstgraphic >= 0) && (firstpresent >= 0)){
 			if(gg)gg[0] = firstgraphic;
 			if(pp)pp[0] = firstpresent;
-			return 1;
 		}
 	}
 	else{		//offscreen: need graphic
 		if(firstgraphic >= 0){
 			if(gg)gg[0] = firstgraphic;
-			return 1;
 		}
 	}
-	if(0){		//need compute
-		if(firstcompute > 0){
-			return 1;
-		}
+	if(firstcompute > 0){
+		if(cc)cc[0] = firstcompute;
 	}
 
 	return 0;
@@ -429,54 +435,90 @@ int getPhysicalDeviceQueueFamilyProperties(VkPhysicalDevice device, VkSurfaceKHR
 int freelogicaldevice() {
 	return 0;
 }
-int initlogicaldevice(VkSurfaceKHR face) {
-	getPhysicalDeviceQueueFamilyProperties(physicaldevice, face, &graphicindex, &presentindex);
-	printf("graphic=%d,present=%d\n",graphicindex,presentindex);
+int initlogicaldevice(int what, VkSurfaceKHR face) {
+	//queue index
+	getPhysicalDeviceQueueFamilyProperties(physicaldevice, face, &graphicindex, &presentindex, &computeindex);
+	printf("graphic,present=%d,%d, compute=%d\n",graphicindex,presentindex, computeindex);
+
+	//queue create info
+	VkDeviceQueueCreateInfo queueCreateInfos[3] = {};
+	float queuePriority = 1.0f;
+	int queuecount = 0;
+	printf("queueCreateInfos:");
+	if((what&VK_QUEUE_GRAPHICS_BIT) && (graphicindex >= 0)){
+		printf("%d=graphic,", queuecount);
+		queueCreateInfos[queuecount].sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+		queueCreateInfos[queuecount].queueFamilyIndex = graphicindex;
+		queueCreateInfos[queuecount].queueCount = 1;
+		queueCreateInfos[queuecount].pQueuePriorities = &queuePriority;
+		queuecount += 1;
+	}
+	if((what&VK_QUEUE_COMPUTE_BIT) && (computeindex >= 0)){
+		printf("%d=compute,", queuecount);
+		queueCreateInfos[queuecount].sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+		queueCreateInfos[queuecount].queueFamilyIndex = presentindex;
+		queueCreateInfos[queuecount].queueCount = 1;
+		queueCreateInfos[queuecount].pQueuePriorities = &queuePriority;
+		queuecount += 1;
+	}
+	if(face && (presentindex >= 0) && (graphicindex != presentindex)){
+		printf("%d=present,", queuecount);
+		queueCreateInfos[queuecount].sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+		queueCreateInfos[queuecount].queueFamilyIndex = presentindex;
+		queueCreateInfos[queuecount].queueCount = 1;
+		queueCreateInfos[queuecount].pQueuePriorities = &queuePriority;
+		queuecount += 1;
+	}
+	printf("\n");
 
 
 	//device feature
 	VkPhysicalDeviceFeatures deviceFeatures = {};
 
-
-	//queue create info
-	VkDeviceQueueCreateInfo queueCreateInfos[2] = {};
-	float queuePriority = 1.0f;
-
-	queueCreateInfos[0].sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-	queueCreateInfos[0].queueFamilyIndex = graphicindex;
-	queueCreateInfos[0].queueCount = 1;
-	queueCreateInfos[0].pQueuePriorities = &queuePriority;
-
-	queueCreateInfos[1].sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-	queueCreateInfos[1].queueFamilyIndex = presentindex;
-	queueCreateInfos[1].queueCount = 1;
-	queueCreateInfos[1].pQueuePriorities = &queuePriority;
-
+	//device extension
+	const char* deviceExtensions[] = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
 
 	//devicecreateinfo
 	VkDeviceCreateInfo createInfo = {};
 	createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-	createInfo.queueCreateInfoCount = face ? 2 : 1;
+	createInfo.queueCreateInfoCount = queuecount;
 	createInfo.pQueueCreateInfos = queueCreateInfos;
-	createInfo.pEnabledFeatures = &deviceFeatures;
 	createInfo.enabledExtensionCount = face ? 1 : 0;
 	createInfo.ppEnabledExtensionNames = deviceExtensions;
+	createInfo.pEnabledFeatures = &deviceFeatures;
 	createInfo.enabledLayerCount = 0;
 	if (vkCreateDevice(physicaldevice, &createInfo, 0, &logicaldevice) != VK_SUCCESS) {
 		printf("error@vkCreateDevice\n");
 		return -1;
 	}
+	printf("logicaldevice=%p\n", logicaldevice);
 
 	//graphic: queue, pool
-	vkGetDeviceQueue(logicaldevice, graphicindex, 0, &graphicQueue);
+	if((what&VK_QUEUE_GRAPHICS_BIT) && (graphicindex >= 0)){
+		vkGetDeviceQueue(logicaldevice, graphicindex, 0, &graphicQueue);
 
-	VkCommandPoolCreateInfo poolInfo = {};
-	poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-	poolInfo.queueFamilyIndex = graphicindex;
-	if (vkCreateCommandPool(logicaldevice, &poolInfo, 0, &graphicPool) != VK_SUCCESS) {
-		printf("error@vkCreateCommandPool\n");
+		VkCommandPoolCreateInfo poolInfo = {};
+		poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+		poolInfo.queueFamilyIndex = graphicindex;
+		if (vkCreateCommandPool(logicaldevice, &poolInfo, 0, &graphicPool) != VK_SUCCESS) {
+			printf("error@vkCreateCommandPool\n");
+		}
+		printf("graphicpool=%p\n",graphicPool);
 	}
 
+	//compute: queue, pool
+	if((what&VK_QUEUE_COMPUTE_BIT) && (computeindex >= 0)){
+		vkGetDeviceQueue(logicaldevice, computeindex, 0, &computeQueue);
+
+		VkCommandPoolCreateInfo poolInfo = {};
+		poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+		poolInfo.queueFamilyIndex = computeindex;
+        poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+		if (vkCreateCommandPool(logicaldevice, &poolInfo, 0, &computePool) != VK_SUCCESS) {
+			printf("error@vkCreateCommandPool\n");
+		}
+		printf("computepool=%p\n",computePool);
+	}
 
 	//present: queue
 	if(face){
@@ -577,12 +619,14 @@ int initswapchain(VkSurfaceKHR face) {
 		printf("error@vkCreateSwapchainKHR\n");
 		return -1;
 	}
+	printf("swapchain=%p\n",swapChain);
 
 
 	vkGetSwapchainImagesKHR(logicaldevice, swapChain, &imagecount, 0);
 	VkImage swapChainImages[imagecount];
 	vkGetSwapchainImagesKHR(logicaldevice, swapChain, &imagecount, swapChainImages);
 
+	printf("swapchain imagecount=%d\n", imagecount);
 	for(j=0;j<imagecount; j++) {
 		attachcolor[j].format = surfaceFormat.format;
 		attachcolor[j].image = swapChainImages[j];
@@ -606,6 +650,7 @@ int initswapchain(VkSurfaceKHR face) {
 		if (vkCreateImageView(logicaldevice, &createInfo, 0, &attachcolor[j].view) != VK_SUCCESS) {
 			printf("error@vkCreateImageView:%d\n",j);
 		}
+		printf("%d:image=%p,view=%p\n", j, swapChainImages[j], attachcolor[j].view);
 	}
 	return 0;
 }
@@ -630,17 +675,17 @@ void* vulkan_device_create(int what, VkSurfaceKHR face)
 	//logicaldevice <- physicaldevice
 	physicaldevice = initphysicaldevice(what, face);
 	if(0 == physicaldevice)return 0;
-	printf("physicaldevice=%p\n", physicaldevice);
+	printf("----------------physicaldevice ok----------------\n\n");
 
-	initlogicaldevice(face);
+	initlogicaldevice(what, face);
 	if(0 == logicaldevice)return 0;
-	printf("logicaldevice=%p\n", logicaldevice);
+	printf("----------------logicaldevice and queue ok----------------\n\n");
 
 	//swapchain <- physicaldevice, logicaldevice, surface
 	if(face){
 		initswapchain(face);
 		surface = face;
-		printf("swapchain imagecount=%d\n", imagecount);
+		printf("----------------swapchain and image ok----------------\n\n");
 	}
 
 	return physicaldevice;
@@ -653,6 +698,16 @@ void vulkan_physicaldevice_logicdevice(VkPhysicalDevice* pdev, VkDevice* ldev)
 {
 	*pdev = physicaldevice;
 	*ldev = logicaldevice;
+}
+void vulkan_graphicqueue_graphicpool(VkQueue* queue, VkCommandPool* pool)
+{
+	*queue = graphicQueue;
+	*pool = graphicPool;
+}
+void vulkan_computequeue_computepool(VkQueue* queue, VkCommandPool* pool)
+{
+	*queue = computeQueue;
+	*pool = computePool;
 }
 void vulkan_presentqueue_swapchain(VkQueue* queue, void** chain)
 {
@@ -672,14 +727,4 @@ void vulkan_widthheight_imagecount_attachcolor(VkExtent2D* wh, uint32_t* cnt, st
 		attach[j].image = attachcolor[j].image;
 		attach[j].view = attachcolor[j].view;
 	}
-}
-void vulkan_graphicqueue_graphicpool(VkQueue* queue, VkCommandPool* pool)
-{
-	*queue = graphicQueue;
-	*pool = graphicPool;
-}
-void vulkan_computequeue_computepool(VkQueue* queue, VkCommandPool* pool)
-{
-	*queue = computeQueue;
-	*pool = computePool;
 }
