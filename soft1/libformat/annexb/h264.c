@@ -8,6 +8,12 @@ typedef unsigned long long u64;
 
 
 
+int h264_log2(u32 x)
+{
+        return __builtin_clz(x|1);
+}
+
+
 void parseh264_printhex(u8* buf, int len)
 {
 	int j;
@@ -524,7 +530,7 @@ struct parsed_sps{
 	u32 UseDefaultScalingMatrix8x8Flag[16];
 	u32 log2_max_frame_num;
 	u32 pic_order_cnt_type;
-	u32 log2_max_pic_order_cnt_lsb_minus4;
+	u32 log2_max_pic_order_cnt_lsb;
 	u32 delta_pic_order_always_zero_flag;
 	u32 offset_for_non_ref_pic;
 	u32 offset_for_top_to_bottom_field;
@@ -615,14 +621,14 @@ printf("sps{\n");
 	persps.log2_max_frame_num = h264_ue(buf, &bitpos) + 4;
 	printf("log2_max_frame_num = %x\n", persps.log2_max_frame_num);
 
-	int pic_order_cnt_type = h264_ue(buf, &bitpos);
-	printf("pic_order_cnt_type = %x\n", pic_order_cnt_type);
-	if(0 == pic_order_cnt_type){
-		int log2_max_pic_order_cnt_lsb_minus4 = h264_ue(buf, &bitpos);
-		printf("log2_max_pic_order_cnt_lsb_minus4 = %x\n",log2_max_pic_order_cnt_lsb_minus4);
+	persps.pic_order_cnt_type = h264_ue(buf, &bitpos);
+	printf("pic_order_cnt_type = %x\n", persps.pic_order_cnt_type);
+	if(0 == persps.pic_order_cnt_type){
+		persps.log2_max_pic_order_cnt_lsb = h264_ue(buf, &bitpos)+4;
+		printf("log2_max_pic_order_cnt_lsb = %x\n",persps.log2_max_pic_order_cnt_lsb);
 	}
-	else if(1 == pic_order_cnt_type){
-		int delta_pic_order_always_zero_flag = h264_u(buf, &bitpos, 1);
+	else if(1 == persps.pic_order_cnt_type){
+		persps.delta_pic_order_always_zero_flag = h264_u(buf, &bitpos, 1);
 		int offset_for_non_ref_pic = h264_se(buf, &bitpos);
 		int offset_for_top_to_bottom_field = h264_se(buf, &bitpos);
 		int num_ref_frames_in_pic_order_cnt_cycle = h264_ue(buf, &bitpos);
@@ -645,9 +651,9 @@ printf("sps{\n");
 	int pic_height_in_map_units_minus1 = h264_ue(buf, &bitpos);
 	printf("pic_height_in_map_units_minus1 = %x(%d)\n", pic_height_in_map_units_minus1, (pic_height_in_map_units_minus1+1)*16);
 
-	int frame_mbs_only_flag = h264_u(buf, &bitpos, 1);
-	printf("frame_mbs_only_flag = %x\n", frame_mbs_only_flag);
-	if(!frame_mbs_only_flag){
+	persps.frame_mbs_only_flag = h264_u(buf, &bitpos, 1);
+	printf("frame_mbs_only_flag = %x\n", persps.frame_mbs_only_flag);
+	if(!persps.frame_mbs_only_flag){
 		int mb_adaptive_frame_field_flag = h264_u(buf, &bitpos, 1);
 		printf("mb_adaptive_frame_field_flag = %x\n", mb_adaptive_frame_field_flag);
 	}
@@ -801,26 +807,26 @@ printf("pps{\n");
 	int seq_parameter_set_id = h264_ue(buf, &bitpos);
 	printf("seq_parameter_set_id = %x\n", seq_parameter_set_id);
 
-	int entropy_coding_mode_flag = h264_u(buf, &bitpos, 1);
-	printf("entropy_coding_mode_flag = %x\n", entropy_coding_mode_flag);
+	perpps.entropy_coding_mode_flag = h264_u(buf, &bitpos, 1);
+	printf("entropy_coding_mode_flag = %x\n", perpps.entropy_coding_mode_flag);
 
-	int bottom_field_pic_order_in_frame_present_flag = h264_u(buf, &bitpos, 1);
-	printf("bottom_field_pic_order_in_frame_present_flag = %x\n",bottom_field_pic_order_in_frame_present_flag);
-	int num_slice_groups_minus1 = h264_ue(buf, &bitpos);
-	printf("num_slice_groups_minus1 = %x\n", num_slice_groups_minus1);
-	if(num_slice_groups_minus1 > 0){
-		int slice_group_map_type = h264_ue(buf, &bitpos);
-		printf("slice_group_map_type = %x\n", slice_group_map_type);
+	perpps.bottom_field_pic_order_in_frame_present_flag = h264_u(buf, &bitpos, 1);
+	printf("bottom_field_pic_order_in_frame_present_flag = %x\n",perpps.bottom_field_pic_order_in_frame_present_flag);
+	perpps.num_slice_groups_minus1 = h264_ue(buf, &bitpos);
+	printf("num_slice_groups_minus1 = %x\n", perpps.num_slice_groups_minus1);
+	if(perpps.num_slice_groups_minus1 > 0){
+		perpps.slice_group_map_type = h264_ue(buf, &bitpos);
+		printf("slice_group_map_type = %x\n", perpps.slice_group_map_type);
 
-		int pic_size_in_map_units_minus1;
-		switch(slice_group_map_type){
+		perpps.pic_size_in_map_units_minus1;
+		switch(perpps.slice_group_map_type){
 		case 0:
-			for(j=0;j<num_slice_groups_minus1;j++){
+			for(j=0;j<perpps.num_slice_groups_minus1;j++){
 				printf("%d:run_length_minus1 = %x\n", j, h264_ue(buf, &bitpos));
 			}
 			break;
 		case 2:
-			for(j=0;j<num_slice_groups_minus1;j++){
+			for(j=0;j<perpps.num_slice_groups_minus1;j++){
 				printf("%d:top_left = %x\n", j, h264_ue(buf, &bitpos));
 				printf("%d:run_length_minus1 = %x\n", j, h264_ue(buf, &bitpos));
 			}
@@ -829,12 +835,13 @@ printf("pps{\n");
 		case 4:
 		case 5:
 			printf("slice_group_change_direction_flag = %x\n", h264_u(buf, &bitpos, 1));
-			printf("slice_group_change_rate_minus1 = %x\n", h264_ue(buf, &bitpos));
+			perpps.slice_group_change_rate_minus1 = h264_ue(buf, &bitpos);
+			printf("slice_group_change_rate_minus1 = %x\n", perpps.slice_group_change_rate_minus1);
 			break;
 		case 6:
-			pic_size_in_map_units_minus1 = h264_ue(buf, &bitpos);
-			printf("pic_size_in_map_units_minus1 = %x\n", pic_size_in_map_units_minus1);
-			for(j=0;j<pic_size_in_map_units_minus1;j++){
+			perpps.pic_size_in_map_units_minus1 = h264_ue(buf, &bitpos);
+			printf("pic_size_in_map_units_minus1 = %x\n", perpps.pic_size_in_map_units_minus1);
+			for(j=0;j<perpps.pic_size_in_map_units_minus1;j++){
 				printf("%d:slice_group_id = %x\n", j, h264_ue(buf, &bitpos));	//todo: it is u(v)
 			}
 			break;
@@ -846,10 +853,10 @@ printf("pps{\n");
 	int num_ref_idx_11_default_active_minus1 = h264_ue(buf, &bitpos);
 	printf("num_ref_idx_11_default_active_minus1 = %x\n", num_ref_idx_11_default_active_minus1);
 
-	int weighted_pred_flag = h264_u(buf, &bitpos, 1);
-	printf("weighted_pred_flag = %x\n", weighted_pred_flag);
-	int weighted_bipred_idc = h264_u(buf, &bitpos, 2);
-	printf("weighted_bipred_idc = %x\n", weighted_bipred_idc);
+	perpps.weighted_pred_flag = h264_u(buf, &bitpos, 1);
+	printf("weighted_pred_flag = %x\n", perpps.weighted_pred_flag);
+	perpps.weighted_bipred_idc = h264_u(buf, &bitpos, 2);
+	printf("weighted_bipred_idc = %x\n", perpps.weighted_bipred_idc);
 
 	int pic_init_qp_minus26 = h264_se(buf, &bitpos);
 	printf("pic_init_qp_minus26 = %x\n", pic_init_qp_minus26);
@@ -859,12 +866,12 @@ printf("pps{\n");
 	int chroma_qp_index_offset = h264_se(buf, &bitpos);
 	printf("chroma_qp_index_offset = %x\n", chroma_qp_index_offset);
 
-	int deblocking_filter_control_present_flag = h264_u(buf, &bitpos, 1);
-	printf("deblocking_filter_control_present_flag = %x\n", deblocking_filter_control_present_flag);
+	perpps.deblocking_filter_control_present_flag = h264_u(buf, &bitpos, 1);
+	printf("deblocking_filter_control_present_flag = %x\n", perpps.deblocking_filter_control_present_flag);
 	int constrained_intra_pred_flag = h264_u(buf, &bitpos, 1);
 	printf("constrained_intra_pred_flag = %x\n", constrained_intra_pred_flag);
-	int redundant_pic_cnt_present_flag = h264_u(buf, &bitpos, 1);
-	printf("redundant_pic_cnt_present_flag = %x\n", redundant_pic_cnt_present_flag);
+	perpps.redundant_pic_cnt_present_flag = h264_u(buf, &bitpos, 1);
+	printf("redundant_pic_cnt_present_flag = %x\n", perpps.redundant_pic_cnt_present_flag);
 
 	if(bitpos >= (len+2)*8)goto done;
 
@@ -904,11 +911,418 @@ printf("}pps\n\n");
 
 
 
+/*
+pred_weight_table( ) {
+	luma_log2_weight_denom	ue(v)
+	if( ChromaArrayType != 0 ){
+		chroma_log2_weight_denom	ue(v)
+	}
+	for( i = 0; i <= num_ref_idx_l0_active_minus1; i++ ) {
+		luma_weight_l0_flag	u(1)
+		if( luma_weight_l0_flag ) {
+			luma_weight_l0[ i ]	se(v)
+			luma_offset_l0[ i ]	se(v)
+		}
+		if( ChromaArrayType != 0 ) {
+			chroma_weight_l0_flag	u(1)
+			if( chroma_weight_l0_flag ){
+			for( j =0; j < 2; j++ ) {
+				chroma_weight_l0[ i ][ j ]	se(v)
+				chroma_offset_l0[ i ][ j ]	se(v)
+			}
+			}
+		}
+	}
+
+	if( slice_type % 5 = = 1 ){
+		for( i = 0; i <= num_ref_idx_l1_active_minus1; i++ ) {
+			luma_weight_l1_flag	u(1)
+			if( luma_weight_l1_flag ) {
+				luma_weight_l1[ i ]	se(v)
+					luma_offset_l1[ i ]	se(v)
+			}
+
+			if( ChromaArrayType != 0 ) {
+				chroma_weight_l1_flag	u(1)
+				if( chroma_weight_l1_flag ){
+				for( j = 0; j < 2; j++ ) {
+					chroma_weight_l1[ i ][ j ]	se(v)
+					chroma_offset_l1[ i ][ j ]	se(v)
+				}
+				}
+			}
+		}
+	}
+}*/
+int pred_weight_table(u8* buf, int bitpos,
+	int ChromaArrayType, int slicetype,
+	int num_ref_idx_l0_active_minus1, int num_ref_idx_l1_active_minus1)
+{
+	int luma_log2_weight_denom = h264_ue(buf, &bitpos);
+	if( ChromaArrayType != 0 ){
+		int chroma_log2_weight_denom = h264_ue(buf, &bitpos);
+	}
+	int i,j;
+	for( i = 0; i <= num_ref_idx_l0_active_minus1; i++ ) {
+		u8 luma_weight_l0_flag = h264_u(buf, &bitpos, 1);
+		if( luma_weight_l0_flag ) {
+			//luma_weight_l0[ i ] = h264_se(buf, &bitpos);
+			//luma_offset_l0[ i ] = h264_se(buf, &bitpos);
+			h264_se(buf, &bitpos);
+			h264_se(buf, &bitpos);
+		}
+		if( ChromaArrayType != 0 ) {
+			u8 chroma_weight_l0_flag = h264_u(buf, &bitpos, 1);
+			if( chroma_weight_l0_flag ){
+			for( j =0; j < 2; j++ ) {
+				//chroma_weight_l0[ i ][ j ] = h264_se(buf, &bitpos);
+				//chroma_offset_l0[ i ][ j ] = h264_se(buf, &bitpos);
+				h264_se(buf, &bitpos);
+				h264_se(buf, &bitpos);
+			}
+			}
+		}
+	}
+
+	if( slicetype == 1 ){
+		for( i = 0; i <= num_ref_idx_l1_active_minus1; i++ ) {
+			u8 luma_weight_l1_flag = h264_u(buf, &bitpos, 1);
+			if( luma_weight_l1_flag ) {
+				//luma_weight_l1[ i ] = h264_se(buf, &bitpos);
+				//luma_offset_l1[ i ] = h264_se(buf, &bitpos);
+				h264_se(buf, &bitpos);
+				h264_se(buf, &bitpos);
+			}
+
+			if( ChromaArrayType != 0 ) {
+				u8 chroma_weight_l1_flag = h264_u(buf, &bitpos, 1);
+				if( chroma_weight_l1_flag ){
+				for( j = 0; j < 2; j++ ) {
+					//chroma_weight_l1[ i ][ j ] = h264_se(buf, &bitpos);
+					//chroma_offset_l1[ i ][ j ] = h264_se(buf, &bitpos);
+					h264_se(buf, &bitpos);
+					h264_se(buf, &bitpos);
+				}
+				}
+			}
+		}
+	}
+	return bitpos;
+}
+
+
+/*
+ref_pic_list_modification( ) {
+	if(slice_type%5 != 2 && slice_type%5 != 4){
+		ref_pic_list_modification_flag_l0	u(1)
+		if( ref_pic_list_modification_flag_l0 ){
+		do {
+			modification_of_pic_nums_idc	ue(v)
+			if( modification_of_pic_nums_idc = = 0 | | modification_of_pic_nums_idc = = 1 ){
+				abs_diff_pic_num_minus1	ue(v)
+			}
+			else if( modification_of_pic_nums_idc = = 2 ){
+				long_term_pic_num	ue(v)
+			}
+		} while( modification_of_pic_nums_idc != 3 )
+		}
+	}
+
+	if(slice_type%5 == 1){
+		ref_pic_list_modification_flag_l1	u(1)
+		if( ref_pic_list_modification_flag_l1 ){
+		do {
+			modification_of_pic_nums_idc	ue(v)
+			if( modification_of_pic_nums_idc = = 0 | | modification_of_pic_nums_idc = = 1 ){
+				abs_diff_pic_num_minus1	ue(v)
+			}
+			else if( modification_of_pic_nums_idc = = 2 ){
+				long_term_pic_num	ue(v)
+			}
+		} while( modification_of_pic_nums_idc != 3 )
+		}
+	}
+}
+ref_pic_list_mvc_modification( ) {
+	if(slice_type%5 != 2 && slice_type%5 != 4){
+		ref_pic_list_modification_flag_l0	u(1)
+		if( ref_pic_list_modification_flag_l0 ){
+		do {
+			modification_of_pic_nums_idc	ue(v)
+			if( modification_of_pic_nums_idc = = 0 | | modification_of_pic_nums_idc = = 1 ){
+				abs_diff_pic_num_minus1	ue(v)
+			}
+			else if( modification_of_pic_nums_idc = = 2 ){
+				long_term_pic_num	ue(v)
+			}
+			else if( modification_of_pic_nums_idc = = 4 | | modification_of_pic_nums_idc = = 5 ){
+				abs_diff_view_idx_minus1	ue(v)
+			}
+		} while( modification_of_pic_nums_idc != 3 )
+		}
+	}
+	if(slice_type%5 == 1){
+		ref_pic_list_modification_flag_l1	u(1)
+		if( ref_pic_list_modification_flag_l1 ){
+		do {
+			modification_of_pic_nums_idc	ue(v)
+			if( modification_of_pic_nums_idc = = 0 | | modification_of_pic_nums_idc = = 1 ){
+				abs_diff_pic_num_minus1	ue(v)
+			}
+			else if( modification_of_pic_nums_idc = = 2 ){
+				long_term_pic_num	ue(v)
+			}
+			else if( modification_of_pic_nums_idc = = 4 | | modification_of_pic_nums_idc = = 5 ){
+				abs_diff_view_idx_minus1	ue(v)
+			}
+		} while( modification_of_pic_nums_idc != 3 )
+		}
+	}
+}
+*/
+int ref_pic_list_modification(u8* buf, int bitpos, int slicetype) {
+	if( (slicetype != 2) && (slicetype != 4) ) {
+		u8 ref_pic_list_modification_flag_l0 = h264_u(buf, &bitpos, 1);
+		u8 modification_of_pic_nums_idc;
+		if( ref_pic_list_modification_flag_l0 ){
+		do {
+			modification_of_pic_nums_idc = h264_ue(buf, &bitpos);
+			if( modification_of_pic_nums_idc == 0 | modification_of_pic_nums_idc == 1 ){
+				int abs_diff_pic_num = h264_ue(buf, &bitpos)+1;
+				printf("abs_diff_pic_num=%d\n",abs_diff_pic_num);
+			}
+			else if( modification_of_pic_nums_idc == 2 ){
+				int long_term_pic_num = h264_ue(buf, &bitpos);
+				printf("long_term_pic_num=%d\n",long_term_pic_num);
+			}
+		} while( modification_of_pic_nums_idc != 3 );
+		}
+	}
+	if( slicetype == 1 ) {
+		u8 ref_pic_list_modification_flag_l1 = h264_u(buf, &bitpos, 1);
+		u8 modification_of_pic_nums_idc;
+		if( ref_pic_list_modification_flag_l1 ){
+		do {
+			modification_of_pic_nums_idc = h264_ue(buf, &bitpos);
+			if( modification_of_pic_nums_idc == 0 | modification_of_pic_nums_idc == 1 ){
+				int abs_diff_pic_num = h264_ue(buf, &bitpos)+1;
+				printf("abs_diff_pic_num=%d\n",abs_diff_pic_num);
+			}
+			else if( modification_of_pic_nums_idc == 2 ){
+				int long_term_pic_num = h264_ue(buf, &bitpos);
+				printf("long_term_pic_num=%d\n",long_term_pic_num);
+			}
+		} while( modification_of_pic_nums_idc != 3 );
+		}
+	}
+	return bitpos;
+}
+int ref_pic_list_mvc_modification(u8* buf, int bitpos, int slicetype) {
+	if( (slicetype != 2) && (slicetype != 4) ) {
+		u8 ref_pic_list_modification_flag_l0 = h264_u(buf, &bitpos, 1);
+		u8 modification_of_pic_nums_idc;
+		if( ref_pic_list_modification_flag_l0 ){
+		do {
+			modification_of_pic_nums_idc = h264_ue(buf, &bitpos);
+			if( modification_of_pic_nums_idc == 0 | modification_of_pic_nums_idc == 1 ){
+				int abs_diff_pic_num = h264_ue(buf, &bitpos)+1;
+				printf("abs_diff_pic_num=%d\n",abs_diff_pic_num);
+			}
+			else if( modification_of_pic_nums_idc == 2 ){
+				int long_term_pic_num = h264_ue(buf, &bitpos);
+				printf("long_term_pic_num=%d\n",long_term_pic_num);
+			}
+			else if( modification_of_pic_nums_idc == 4 | modification_of_pic_nums_idc == 5 ){
+				int abs_diff_view_idx_minus1 = h264_ue(buf, &bitpos);
+				printf("abs_diff_view_idx_minus1=%d\n",abs_diff_view_idx_minus1);
+			}
+		} while( modification_of_pic_nums_idc != 3 );
+		}
+	}
+	if( slicetype == 1 ) {
+		u8 ref_pic_list_modification_flag_l1 = h264_u(buf, &bitpos, 1);
+		u8 modification_of_pic_nums_idc;
+		if( ref_pic_list_modification_flag_l1 ){
+		do {
+			modification_of_pic_nums_idc = h264_ue(buf, &bitpos);
+			if( modification_of_pic_nums_idc == 0 | modification_of_pic_nums_idc == 1 ){
+				int abs_diff_pic_num = h264_ue(buf, &bitpos)+1;
+				printf("abs_diff_pic_num=%d\n",abs_diff_pic_num);
+			}
+			else if( modification_of_pic_nums_idc == 2 ){
+				int long_term_pic_num = h264_ue(buf, &bitpos);
+				printf("long_term_pic_num=%d\n",long_term_pic_num);
+			}
+			else if( modification_of_pic_nums_idc == 4 | modification_of_pic_nums_idc == 5 ){
+				int abs_diff_view_idx_minus1 = h264_ue(buf, &bitpos);
+				printf("abs_diff_view_idx_minus1=%d\n",abs_diff_view_idx_minus1);
+			}
+		} while( modification_of_pic_nums_idc != 3 );
+		}
+	}
+	return bitpos;
+}
+
+/*
+dec_ref_pic_marking( ) {
+	if( IdrPicFlag ) {
+		no_output_of_prior_pics_flag	u(1)
+		long_term_reference_flag	u(1)
+	} else {
+		adaptive_ref_pic_marking_mode_flag	u(1)
+		if( adaptive_ref_pic_marking_mode_flag ){
+		do {
+			memory_management_control_operation	ue(v)
+			if( memory_management_control_operation = = 1 | | memory_management_control_operation = = 3 ){
+				difference_of_pic_nums_minus1	ue(v)
+			}
+			if(memory_management_control_operation = = 2 ){
+				long_term_pic_num	ue(v)
+			}
+			if( memory_management_control_operation = = 3 | | memory_management_control_operation = = 6 ){
+				long_term_frame_idx	ue(v)
+			}
+			if( memory_management_control_operation = = 4 ){
+				max_long_term_frame_idx_plus1	ue(v)
+			}
+		} while( memory_management_control_operation != 0 )
+		}
+	}
+}
+*/
+int dec_ref_pic_marking(u8* buf, int bitpos, int IdrPicFlag) {
+	if( IdrPicFlag ) {
+		u8 no_output_of_prior_pics_flag = h264_u(buf, &bitpos, 1);
+		u8 long_term_reference_flag = h264_u(buf, &bitpos, 1);
+	} else {
+		u8 adaptive_ref_pic_marking_mode_flag = h264_u(buf, &bitpos, 1);
+		if( adaptive_ref_pic_marking_mode_flag ){
+		int memory_management_control_operation;
+		do {
+			memory_management_control_operation = h264_ue(buf, &bitpos);
+			if( memory_management_control_operation == 1 | memory_management_control_operation == 3 ){
+				int difference_of_pic_nums_minus1 = h264_ue(buf, &bitpos);
+				printf("difference_of_pic_nums_minus1=%d\n",difference_of_pic_nums_minus1);
+			}
+			if(memory_management_control_operation == 2 ){
+				int long_term_pic_num = h264_ue(buf, &bitpos);
+				printf("long_term_pic_num=%d\n",long_term_pic_num);
+			}
+			if( memory_management_control_operation == 3 | memory_management_control_operation == 6 ){
+				int long_term_frame_idx = h264_ue(buf, &bitpos);
+				printf("long_term_frame_idx=%d\n",long_term_frame_idx);
+			}
+			if( memory_management_control_operation == 4 ){
+				int max_long_term_frame_idx_plus1 = h264_ue(buf, &bitpos);
+				printf("max_long_term_frame_idx_plus1=%d\n",max_long_term_frame_idx_plus1);
+			}
+		} while( memory_management_control_operation != 0 );
+		}
+	}
+	return bitpos;
+}
+
+/*
+slice_header( ) {
+	first_mb_in_slice	ue(v)
+	slice_type		ue(v)
+	pic_parameter_set_id	ue(v)
+
+	if( separate_colour_plane_flag = = 1 ){
+		colour_plane_id		u(2)
+	}
+
+	frame_num	u(v)
+
+	if( !frame_mbs_only_flag ) {
+		field_pic_flag		u(1)
+		if( field_pic_flag ){
+			bottom_field_flag	u(1)
+		}
+	}
+
+	IdrPicFlag = ( ( nal_unit_type = = 5 ) ? 1 : 0 )
+	if( IdrPicFlag ){
+		idr_pic_id		ue(v)
+	}
+
+	if( pic_order_cnt_type = = 0 ) {
+		pic_order_cnt_lsb		u(v)
+		if( bottom_field_pic_order_in_frame_present_flag && !field_pic_flag ){
+			delta_pic_order_cnt_bottom	se(v)
+		}
+	}
+
+	if( pic_order_cnt_type = = 1 && !delta_pic_order_always_zero_flag ) {
+		delta_pic_order_cnt[ 0 ]	se(v)
+		if( bottom_field_pic_order_in_frame_present_flag && !field_pic_flag )
+			delta_pic_order_cnt[ 1 ]	se(v)
+	}
+
+	if( redundant_pic_cnt_present_flag ){
+		redundant_pic_cnt	ue(v)
+	}
+
+	if( slice_type = = B ){
+		direct_spatial_mv_pred_flag	u(1)
+	}
+
+	if( slice_type = = P | | slice_type = = SP | | slice_type = = B ) {
+		num_ref_idx_active_override_flag	u(1)
+		if( num_ref_idx_active_override_flag ) {
+			num_ref_idx_l0_active_minus1	ue(v)
+			if( slice_type = = B ){
+				num_ref_idx_l1_active_minus1	ue(v)
+			}
+		}
+	}
+
+	if( nal_unit_type = = 20 | | nal_unit_type = = 21 ){
+		ref_pic_list_mvc_modification( ) // specified in Annex H
+	}
+	else{
+		ref_pic_list_modification( )
+	}
+
+	if(	( weighted_pred_flag && ( slice_type = = P | | slice_type = = SP ) ) | |
+		( weighted_bipred_idc = = 1 && slice_type = = B ) ){
+		pred_weight_table( )
+	}
+	if( nal_ref_idc != 0 ){
+		dec_ref_pic_marking( )
+	}
+	if( entropy_coding_mode_flag && slice_type != I && slice_type != SI ){
+		cabac_init_idc	ue(v)
+	}
+	slice_qp_delta	se(v)
+	if( slice_type = = SP | | slice_type = = SI ) {
+		if( slice_type = = SP ){
+			sp_for_switch_flag	u(1)
+		}
+		slice_qs_delta	se(v)
+	}
+
+	if( deblocking_filter_control_present_flag ) {
+		disable_deblocking_filter_idc	ue(v)
+		if( disable_deblocking_filter_idc != 1 ) {
+			slice_alpha_c0_offset_div2	se(v)
+			slice_beta_offset_div2	se(v)
+		}
+	}
+
+	if( num_slice_groups_minus1 > 0 && slice_group_map_type >= 3 && slice_group_map_type <= 5){
+		slice_group_change_cycle	u(v)
+	}
+}
+
+*/
 char* h264_typetable[5]={"P","B","I","SP","SI"};
 void parseh264_slice(u8* buf, int len)
 {
 	int bitpos = 8;
-	switch(buf[0]&0x1f){
+	int nal_ref_idc = (buf[0]>>5)&3;
+	int nal_unit_type = buf[0]&0x1f;
+	switch(nal_unit_type){
 	case 1:
 		printf("slice{\n");
 		break;
@@ -935,6 +1349,109 @@ void parseh264_slice(u8* buf, int len)
 	u32 frame_num = h264_u(buf, &bitpos, persps.log2_max_frame_num);
 	printf("frame_num = %x\n",frame_num);
 
+	u8 field_pic_flag = 0;
+	if( !persps.frame_mbs_only_flag ) {
+		field_pic_flag = h264_u(buf, &bitpos, 1);
+		if( field_pic_flag ){
+			u8 bottom_field_flag = h264_u(buf, &bitpos, 1);
+			printf("bottom_field_flag=%x\n",bottom_field_flag);
+		}
+	}
+
+	u8 IdrPicFlag = ( nal_unit_type == 5 ) ? 1 : 0;
+	if( IdrPicFlag ){
+		int idr_pic_id = h264_ue(buf, &bitpos);
+		printf("idr_pic_id=%x\n",idr_pic_id);
+	}
+
+	if( persps.pic_order_cnt_type == 0 ) {
+		int pic_order_cnt_lsb = h264_u(buf, &bitpos, persps.log2_max_pic_order_cnt_lsb);
+		printf("pic_order_cnt_lsb = %x\n",pic_order_cnt_lsb);
+		if( perpps.bottom_field_pic_order_in_frame_present_flag && !field_pic_flag ){
+			int delta_pic_order_cnt_bottom = h264_se(buf, &bitpos);
+			printf("delta_pic_order_cnt_bottom = %x\n",delta_pic_order_cnt_bottom);
+		}
+	}
+
+	if( persps.pic_order_cnt_type == 1 && !persps.delta_pic_order_always_zero_flag ) {
+		int delta_pic_order_cnt0 = h264_se(buf, &bitpos);
+		printf("delta_pic_order_cnt[0]=%d\n",delta_pic_order_cnt0);
+		if( perpps.bottom_field_pic_order_in_frame_present_flag && !field_pic_flag ){
+			int delta_pic_order_cnt1 = h264_se(buf, &bitpos);
+			printf("delta_pic_order_cnt[1]=%d\n",delta_pic_order_cnt1);
+		}
+	}
+
+	if( perpps.redundant_pic_cnt_present_flag ){
+		int redundant_pic_cnt = h264_ue(buf, &bitpos);
+		printf("redundant_pic_cnt=%d\n",redundant_pic_cnt);
+	}
+
+	int slicetype = slice_type%5;;
+	if( slicetype == 1 ){	//B
+		u8 direct_spatial_mv_pred_flag = h264_u(buf, &bitpos, 1);
+		printf("direct_spatial_mv_pred_flag=%d\n",direct_spatial_mv_pred_flag);
+	}
+	int num_ref_idx_l0_active_minus1 = 0;
+	int num_ref_idx_l1_active_minus1 = 0;
+	if( (slicetype == 0) | (slicetype == 1) | (slicetype == 3) ){
+		u8 num_ref_idx_active_override_flag = h264_u(buf, &bitpos, 1);
+		if( num_ref_idx_active_override_flag ) {
+			num_ref_idx_l0_active_minus1 = h264_ue(buf, &bitpos);
+			printf("num_ref_idx_l0_active_minus1=%d\n",num_ref_idx_l0_active_minus1);
+			if( slicetype == 1 ){
+				num_ref_idx_l1_active_minus1 = h264_ue(buf, &bitpos);
+				printf("num_ref_idx_l1_active_minus1=%d\n",num_ref_idx_l1_active_minus1);
+			}
+		}
+	}
+
+	if( (nal_unit_type == 20) | (nal_unit_type == 21) ){
+		ref_pic_list_mvc_modification(buf, bitpos, slicetype);
+	}
+	else{
+		bitpos = ref_pic_list_modification(buf, bitpos, slicetype);
+	}
+
+	if(	( perpps.weighted_pred_flag && ( slicetype == 0 | slicetype == 3 ) ) |
+		( perpps.weighted_bipred_idc == 1 && slicetype == 1 ) ){
+		int ChromaArrayType = persps.separate_colour_plane_flag ? 0 : persps.chroma_format_idc;
+		bitpos = pred_weight_table(buf, bitpos,
+				ChromaArrayType, slicetype,
+				num_ref_idx_l0_active_minus1, num_ref_idx_l1_active_minus1);
+	}
+	if( nal_ref_idc != 0 ){
+		bitpos = dec_ref_pic_marking(buf, bitpos, IdrPicFlag);
+	}
+	if( perpps.entropy_coding_mode_flag && slicetype != 2 && slicetype != 4 ){
+		int cabac_init_idc = h264_ue(buf, &bitpos);
+		printf("cabac_init_idc=%x\n",cabac_init_idc);
+	}
+
+	int slice_qp_delta = h264_se(buf, &bitpos);
+	printf("slice_qp_delta=%d\n",slice_qp_delta);
+
+	if( slicetype == 3 | slicetype == 4 ) {
+		if( slicetype == 3 ){
+			u8 sp_for_switch_flag = h264_u(buf, &bitpos, 1);
+		}
+		int slice_qs_delta = h264_se(buf, &bitpos);
+	}
+
+	if( perpps.deblocking_filter_control_present_flag ) {
+		int disable_deblocking_filter_idc = h264_ue(buf, &bitpos);
+		if( disable_deblocking_filter_idc != 1 ) {
+			int slice_alpha_c0_offset_div2 = h264_se(buf, &bitpos);
+			int slice_beta_offset_div2 = h264_se(buf, &bitpos);
+		}
+	}
+
+	if( perpps.num_slice_groups_minus1 > 0 && perpps.slice_group_map_type >= 3 && perpps.slice_group_map_type <= 5){
+		//int vv = Ceil( Log2( pic_size_in_map_units / slice_group_change_rate + 1 ) );
+		int vv = h264_log2( (perpps.pic_size_in_map_units_minus1+1) / (perpps.slice_group_change_rate_minus1+1) + 1 );
+		int slice_group_change_cycle = h264_u(buf, &bitpos, vv);
+		printf("slice_group_change_cycle=%x\n",slice_group_change_cycle);
+	}
 	printf("}slice\n\n");
 }
 
