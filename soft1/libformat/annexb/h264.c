@@ -4,6 +4,12 @@ typedef unsigned char u8;
 typedef unsigned short u16;
 typedef unsigned int u32;
 typedef unsigned long long u64;
+#define _P 0
+#define _B 1
+#define _I 2
+#define _SP 3
+#define _SI 4
+char* h264_typetable[5]={"P","B","I","SP","SI"};
 
 
 
@@ -512,7 +518,7 @@ seq_parameter_set_data( ) {
 		vui_parameters( )
 	}
 }*/
-struct parsed_sps{
+struct sps_parsed{
 	u32 profile_idc;
 	u32 constraint_set_flag;
 	u32 level_idc;
@@ -552,7 +558,16 @@ struct parsed_sps{
 
 	u32 vui_parameters_present_flag;
 };
-static struct parsed_sps persps;
+static struct sps_parsed persps[16]={};
+static int sps_status[16]={};
+void* setsps(int id)
+{
+	return &persps[id];
+}
+void* getsps(int id)
+{
+	return &persps[id];
+}
 int parseh264_sps(unsigned char* buf, int len)
 {
 printf("sps{\n");
@@ -565,6 +580,12 @@ printf("sps{\n");
 	int bitpos = 32;
 	int seq_parameter_set_id = h264_ue(buf, &bitpos);
 	printf("seq_parameter_set_id = %x\n", seq_parameter_set_id);
+
+	struct sps_parsed* thesps = setsps(seq_parameter_set_id);
+	if(0 == thesps){
+		printf("error:cannot setsps\n");
+		return 0;
+	}
 
 	if(( 44 == profile_idc) |
 	   ( 83 == profile_idc) |
@@ -580,11 +601,11 @@ printf("sps{\n");
 	   (139 == profile_idc) |
 	   (244 == profile_idc) )
 	{
-		persps.chroma_format_idc = h264_ue(buf, &bitpos);
-		printf("chroma_format_idc = %x\n", persps.chroma_format_idc);
-		if(3 == persps.chroma_format_idc){
-			persps.separate_colour_plane_flag = h264_u(buf, &bitpos, 1);
-			printf("separate_colour_plane_flag = %x\n", persps.separate_colour_plane_flag);
+		thesps->chroma_format_idc = h264_ue(buf, &bitpos);
+		printf("chroma_format_idc = %x\n", thesps->chroma_format_idc);
+		if(3 == thesps->chroma_format_idc){
+			thesps->separate_colour_plane_flag = h264_u(buf, &bitpos, 1);
+			printf("separate_colour_plane_flag = %x\n", thesps->separate_colour_plane_flag);
 		}
 
 		int bit_depth_luma_minus8 = h264_ue(buf, &bitpos);
@@ -604,7 +625,7 @@ printf("sps{\n");
 		int usedefaultscalingmatrix8x8flag[16];
 		if(seq_scaling_matrix_present_flag){
 			u8 seq_scaling_list_present_flag[16];
-			for(j=0;j<((persps.chroma_format_idc != 3)?8:12);j++){
+			for(j=0;j<((thesps->chroma_format_idc != 3)?8:12);j++){
 				seq_scaling_list_present_flag[j] = h264_u(buf, &bitpos, 1);
 				if(j < 6){
 					bitpos = scaling_list(buf, bitpos,
@@ -618,17 +639,17 @@ printf("sps{\n");
 		}
 	}
 
-	persps.log2_max_frame_num = h264_ue(buf, &bitpos) + 4;
-	printf("log2_max_frame_num = %x\n", persps.log2_max_frame_num);
+	thesps->log2_max_frame_num = h264_ue(buf, &bitpos) + 4;
+	printf("log2_max_frame_num = %x\n", thesps->log2_max_frame_num);
 
-	persps.pic_order_cnt_type = h264_ue(buf, &bitpos);
-	printf("pic_order_cnt_type = %x\n", persps.pic_order_cnt_type);
-	if(0 == persps.pic_order_cnt_type){
-		persps.log2_max_pic_order_cnt_lsb = h264_ue(buf, &bitpos)+4;
-		printf("log2_max_pic_order_cnt_lsb = %x\n",persps.log2_max_pic_order_cnt_lsb);
+	thesps->pic_order_cnt_type = h264_ue(buf, &bitpos);
+	printf("pic_order_cnt_type = %x\n", thesps->pic_order_cnt_type);
+	if(0 == thesps->pic_order_cnt_type){
+		thesps->log2_max_pic_order_cnt_lsb = h264_ue(buf, &bitpos)+4;
+		printf("log2_max_pic_order_cnt_lsb = %x\n",thesps->log2_max_pic_order_cnt_lsb);
 	}
-	else if(1 == persps.pic_order_cnt_type){
-		persps.delta_pic_order_always_zero_flag = h264_u(buf, &bitpos, 1);
+	else if(1 == thesps->pic_order_cnt_type){
+		thesps->delta_pic_order_always_zero_flag = h264_u(buf, &bitpos, 1);
 		int offset_for_non_ref_pic = h264_se(buf, &bitpos);
 		int offset_for_top_to_bottom_field = h264_se(buf, &bitpos);
 		int num_ref_frames_in_pic_order_cnt_cycle = h264_ue(buf, &bitpos);
@@ -651,11 +672,11 @@ printf("sps{\n");
 	int pic_height_in_map_units_minus1 = h264_ue(buf, &bitpos);
 	printf("pic_height_in_map_units_minus1 = %x(%d)\n", pic_height_in_map_units_minus1, (pic_height_in_map_units_minus1+1)*16);
 
-	persps.frame_mbs_only_flag = h264_u(buf, &bitpos, 1);
-	printf("frame_mbs_only_flag = %x\n", persps.frame_mbs_only_flag);
-	if(!persps.frame_mbs_only_flag){
-		int mb_adaptive_frame_field_flag = h264_u(buf, &bitpos, 1);
-		printf("mb_adaptive_frame_field_flag = %x\n", mb_adaptive_frame_field_flag);
+	thesps->frame_mbs_only_flag = h264_u(buf, &bitpos, 1);
+	printf("frame_mbs_only_flag = %x\n", thesps->frame_mbs_only_flag);
+	if(!thesps->frame_mbs_only_flag){
+		thesps->mb_adaptive_frame_field_flag = h264_u(buf, &bitpos, 1);
+		printf("mb_adaptive_frame_field_flag = %x\n", thesps->mb_adaptive_frame_field_flag);
 	}
 
 	int direct_8x8_inference_flag = h264_u(buf, &bitpos, 1);
@@ -679,7 +700,7 @@ printf("sps{\n");
 	if(vui_parameters_present_flag){
 		bitpos = parseh264_sps_vui(buf, bitpos);
 	}
-printf("}sps\n\n");
+printf("}sps(%x,%x)\n\n",bitpos,len<<3);
 	return 0;
 }
 
@@ -761,7 +782,7 @@ pic_parameter_set_rbsp( ) {
 	}
 	rbsp_trailing_bits( )
 }*/
-struct parsed_pps{
+struct pps_parsed{
 	u32 pic_parameter_set_id;
 	u32 seq_parameter_set_id;
 	u32 entropy_coding_mode_flag;
@@ -794,7 +815,16 @@ struct parsed_pps{
 	u32 UseDefaultScalingMatrix8x8Flag[16];
 	u32 second_chroma_qp_index_offset;
 };
-static struct parsed_pps perpps;
+static struct pps_parsed perpps[16]={};
+static int pps_status[16]={};
+void* setpps(int id)
+{
+	return &perpps[id];
+}
+void* getpps(int id)
+{
+	return &perpps[id];
+}
 int parseh264_pps(unsigned char* buf, int len)
 {
 printf("pps{\n");
@@ -807,26 +837,40 @@ printf("pps{\n");
 	int seq_parameter_set_id = h264_ue(buf, &bitpos);
 	printf("seq_parameter_set_id = %x\n", seq_parameter_set_id);
 
-	perpps.entropy_coding_mode_flag = h264_u(buf, &bitpos, 1);
-	printf("entropy_coding_mode_flag = %x\n", perpps.entropy_coding_mode_flag);
+	struct pps_parsed* thepps = setpps(pic_parameter_set_id);
+	if(0 == thepps){
+		printf("error:cannot setpps\n");
+		return 0;
+	}
+	thepps->seq_parameter_set_id = seq_parameter_set_id;
+	thepps->pic_parameter_set_id = pic_parameter_set_id;
 
-	perpps.bottom_field_pic_order_in_frame_present_flag = h264_u(buf, &bitpos, 1);
-	printf("bottom_field_pic_order_in_frame_present_flag = %x\n",perpps.bottom_field_pic_order_in_frame_present_flag);
-	perpps.num_slice_groups_minus1 = h264_ue(buf, &bitpos);
-	printf("num_slice_groups_minus1 = %x\n", perpps.num_slice_groups_minus1);
-	if(perpps.num_slice_groups_minus1 > 0){
-		perpps.slice_group_map_type = h264_ue(buf, &bitpos);
-		printf("slice_group_map_type = %x\n", perpps.slice_group_map_type);
+	struct sps_parsed* thesps = getsps(seq_parameter_set_id);
+	if(0 == thesps){
+		printf("error:sps not found\n");
+		return 0;
+	}
 
-		perpps.pic_size_in_map_units_minus1;
-		switch(perpps.slice_group_map_type){
+	thepps->entropy_coding_mode_flag = h264_u(buf, &bitpos, 1);
+	printf("entropy_coding_mode_flag = %x\n", thepps->entropy_coding_mode_flag);
+
+	thepps->bottom_field_pic_order_in_frame_present_flag = h264_u(buf, &bitpos, 1);
+	printf("bottom_field_pic_order_in_frame_present_flag = %x\n",thepps->bottom_field_pic_order_in_frame_present_flag);
+	thepps->num_slice_groups_minus1 = h264_ue(buf, &bitpos);
+	printf("num_slice_groups_minus1 = %x\n", thepps->num_slice_groups_minus1);
+	if(thepps->num_slice_groups_minus1 > 0){
+		thepps->slice_group_map_type = h264_ue(buf, &bitpos);
+		printf("slice_group_map_type = %x\n", thepps->slice_group_map_type);
+
+		thepps->pic_size_in_map_units_minus1;
+		switch(thepps->slice_group_map_type){
 		case 0:
-			for(j=0;j<perpps.num_slice_groups_minus1;j++){
+			for(j=0;j<thepps->num_slice_groups_minus1;j++){
 				printf("%d:run_length_minus1 = %x\n", j, h264_ue(buf, &bitpos));
 			}
 			break;
 		case 2:
-			for(j=0;j<perpps.num_slice_groups_minus1;j++){
+			for(j=0;j<thepps->num_slice_groups_minus1;j++){
 				printf("%d:top_left = %x\n", j, h264_ue(buf, &bitpos));
 				printf("%d:run_length_minus1 = %x\n", j, h264_ue(buf, &bitpos));
 			}
@@ -835,13 +879,13 @@ printf("pps{\n");
 		case 4:
 		case 5:
 			printf("slice_group_change_direction_flag = %x\n", h264_u(buf, &bitpos, 1));
-			perpps.slice_group_change_rate_minus1 = h264_ue(buf, &bitpos);
-			printf("slice_group_change_rate_minus1 = %x\n", perpps.slice_group_change_rate_minus1);
+			thepps->slice_group_change_rate_minus1 = h264_ue(buf, &bitpos);
+			printf("slice_group_change_rate_minus1 = %x\n", thepps->slice_group_change_rate_minus1);
 			break;
 		case 6:
-			perpps.pic_size_in_map_units_minus1 = h264_ue(buf, &bitpos);
-			printf("pic_size_in_map_units_minus1 = %x\n", perpps.pic_size_in_map_units_minus1);
-			for(j=0;j<perpps.pic_size_in_map_units_minus1;j++){
+			thepps->pic_size_in_map_units_minus1 = h264_ue(buf, &bitpos);
+			printf("pic_size_in_map_units_minus1 = %x\n", thepps->pic_size_in_map_units_minus1);
+			for(j=0;j<thepps->pic_size_in_map_units_minus1;j++){
 				printf("%d:slice_group_id = %x\n", j, h264_ue(buf, &bitpos));	//todo: it is u(v)
 			}
 			break;
@@ -853,10 +897,10 @@ printf("pps{\n");
 	int num_ref_idx_11_default_active_minus1 = h264_ue(buf, &bitpos);
 	printf("num_ref_idx_11_default_active_minus1 = %x\n", num_ref_idx_11_default_active_minus1);
 
-	perpps.weighted_pred_flag = h264_u(buf, &bitpos, 1);
-	printf("weighted_pred_flag = %x\n", perpps.weighted_pred_flag);
-	perpps.weighted_bipred_idc = h264_u(buf, &bitpos, 2);
-	printf("weighted_bipred_idc = %x\n", perpps.weighted_bipred_idc);
+	thepps->weighted_pred_flag = h264_u(buf, &bitpos, 1);
+	printf("weighted_pred_flag = %x\n", thepps->weighted_pred_flag);
+	thepps->weighted_bipred_idc = h264_u(buf, &bitpos, 2);
+	printf("weighted_bipred_idc = %x\n", thepps->weighted_bipred_idc);
 
 	int pic_init_qp_minus26 = h264_se(buf, &bitpos);
 	printf("pic_init_qp_minus26 = %x\n", pic_init_qp_minus26);
@@ -866,12 +910,12 @@ printf("pps{\n");
 	int chroma_qp_index_offset = h264_se(buf, &bitpos);
 	printf("chroma_qp_index_offset = %x\n", chroma_qp_index_offset);
 
-	perpps.deblocking_filter_control_present_flag = h264_u(buf, &bitpos, 1);
-	printf("deblocking_filter_control_present_flag = %x\n", perpps.deblocking_filter_control_present_flag);
+	thepps->deblocking_filter_control_present_flag = h264_u(buf, &bitpos, 1);
+	printf("deblocking_filter_control_present_flag = %x\n", thepps->deblocking_filter_control_present_flag);
 	int constrained_intra_pred_flag = h264_u(buf, &bitpos, 1);
 	printf("constrained_intra_pred_flag = %x\n", constrained_intra_pred_flag);
-	perpps.redundant_pic_cnt_present_flag = h264_u(buf, &bitpos, 1);
-	printf("redundant_pic_cnt_present_flag = %x\n", perpps.redundant_pic_cnt_present_flag);
+	thepps->redundant_pic_cnt_present_flag = h264_u(buf, &bitpos, 1);
+	printf("redundant_pic_cnt_present_flag = %x\n", thepps->redundant_pic_cnt_present_flag);
 
 	if(bitpos >= (len+2)*8)goto done;
 
@@ -881,7 +925,7 @@ printf("pps{\n");
 	int pic_scaling_matrix_present_flag = h264_u(buf, &bitpos, 1);
 	printf("pic_scaling_matrix_present_flag = %x\n", pic_scaling_matrix_present_flag);
 	if(pic_scaling_matrix_present_flag){
-		int xxxx = 6+transform_8x8_mode_flag*((persps.chroma_format_idc!=3)?2:6);
+		int xxxx = 6+transform_8x8_mode_flag*((thesps->chroma_format_idc!=3)?2:6);
 		int pic_scaling_list_present_flag;
 		int scalinglist4x4[16][16];
 		int scalinglist8x8[16][64];
@@ -904,7 +948,7 @@ printf("pps{\n");
 	}
 
 done:
-printf("}pps\n\n");
+printf("}pps(%x,%x)\n\n",bitpos,len<<3);
 	return 0;
 }
 
@@ -1222,6 +1266,180 @@ int dec_ref_pic_marking(u8* buf, int bitpos, int IdrPicFlag) {
 	return bitpos;
 }
 
+int more_rbsp_data()
+{
+	return 1;
+}
+int NextMbAddress(int n)
+{
+/*
+	if(num_slice_groups_minus1==0){
+		for(i=0;i<PicSizeInMapUnits;i++)mapUnitToSliceGroupMap[ i ] = 0;
+	}
+	else{
+		switch(slice_group_map_type){
+		case 0:		//8.2.2.1
+			break;
+		case 1:		//8.2.2.2
+			break;
+		case 2:		//8.2.2.3
+			break;
+		case 3:		//8.2.2.4
+			break;
+		case 4:		//8.2.2.5
+			break;
+		case 5:		//8.2.2.6
+			break;
+		case 6:		//8.2.2.7
+			break;
+		}
+	}
+
+int i;
+for(i=0;i<PicSizeInMbs;i++){
+	if(frame_mbs_only_flag==1)|(field_pic_flag==1){
+		MbToSliceGroupMap[ i ] = mapUnitToSliceGroupMap[ i ];
+	}
+	else if(MbaffFrameFlag==1){
+		MbToSliceGroupMap[ i ] = mapUnitToSliceGroupMap[ i / 2 ];
+	}
+	else if(frame_mbs_only_flag==0)&&(mb_adaptive_frame_field_flag==0)&&(field_pic_flag==0)){
+		MbToSliceGroupMap[ i ] = mapUnitToSliceGroupMap[
+			( i / ( 2 * PicWidthInMbs ) ) * PicWidthInMbs
+			+ ( i % PicWidthInMbs ) ];
+	}
+
+	int i=n+1;
+	int PicWidthInMbs = pic_width_in_mbs_minus1 + 1;
+	int PicHeightInMbs = FrameHeightInMbs / ( 1 + field_pic_flag );
+	int PicSizeInMbs = PicWidthInMbs = pic_width_in_mbs_minus1 + 1 * PicHeightInMbs;
+	while( i < PicSizeInMbs && MbToSliceGroupMap[ i ] != MbToSliceGroupMap[ n ] )i++;
+	nextMbAddress = i;
+*/
+	return 0;
+}
+
+/*
+slice_data( ) {
+	if( entropy_coding_mode_flag )
+	while( !byte_aligned( ) )
+		cabac_alignment_one_bit	f(1)
+
+	CurrMbAddr = first_mb_in_slice * ( 1 + MbaffFrameFlag )
+	moreDataFlag = 1
+	prevMbSkipped = 0
+
+	do {
+		if( slice_type != I && slice_type != SI ){
+			if( !entropy_coding_mode_flag ) {
+				mb_skip_run		=ue(v)
+				prevMbSkipped = ( mb_skip_run > 0 )
+				for( i=0; i<mb_skip_run; i++ ){
+					CurrMbAddr = NextMbAddress( CurrMbAddr )
+				}
+				if( mb_skip_run > 0 ){
+					moreDataFlag = more_rbsp_data( )
+				}
+			} else {
+				mb_skip_flag		=ae(v)
+				moreDataFlag = !mb_skip_flag
+			}
+		}
+		if( moreDataFlag ) {
+			if( MbaffFrameFlag && ( CurrMbAddr % 2 = = 0 | |( CurrMbAddr % 2 = = 1 && prevMbSkipped ) ) ){
+				mb_field_decoding_flag		=u(1)|ae(v)
+			}
+			macroblock_layer( ) 2 | 3
+		}
+		if( !entropy_coding_mode_flag ){
+			moreDataFlag = more_rbsp_data( )
+		}
+		else {
+			if( slice_type != I && slice_type != SI ){
+				prevMbSkipped = mb_skip_flag
+			}
+			if( MbaffFrameFlag && CurrMbAddr % 2 = = 0 ){
+				moreDataFlag = 1
+			}
+			else {
+				end_of_slice_flag		=ae(v)
+				moreDataFlag = !end_of_slice_flag
+			}
+		}
+		CurrMbAddr = NextMbAddress( CurrMbAddr )
+	} while( moreDataFlag )
+}
+*/
+struct head_parsed{
+	int field_pic_flag;
+	int first_mb_in_slice;
+};
+struct head_parsed shead[] = {};
+int slice_data(u8* buf, int bitpos,
+	struct sps_parsed* thesps, struct pps_parsed* thepps,
+	int slicetype)
+{
+	if( thepps->entropy_coding_mode_flag ){
+		int t=bitpos/8;
+		if(bitpos&7)printf("padding=...%x | %x | %x,%x...\n",buf[t-1],buf[t],buf[t+1],buf[t+2]);
+		else printf("padding=...%x,%x | %x,%x...\n",buf[t-2],buf[t-1],buf[t+0],buf[t+1]);
+		if(bitpos&7)bitpos += 8-(bitpos&7);
+	}
+
+	int MbaffFrameFlag = ( thesps->mb_adaptive_frame_field_flag && !shead->field_pic_flag );
+	int CurrMbAddr = shead->first_mb_in_slice * ( 1 + MbaffFrameFlag );
+	int moreDataFlag = 1;
+	int prevMbSkipped = 0;
+	//do {
+		int i;
+		int mb_skip_run;
+		int mb_skip_flag;
+		if( slicetype != _I && slicetype != _SI ){
+			if( !thepps->entropy_coding_mode_flag ) {
+				mb_skip_run = h264_ue(buf, &bitpos);
+				printf("mb_skip_run=%x\n",mb_skip_run);
+				prevMbSkipped = ( mb_skip_run > 0 );
+				printf("prevMbSkipped=%x\n",prevMbSkipped);
+				for( i=0; i<mb_skip_run; i++ ){
+					CurrMbAddr = NextMbAddress( CurrMbAddr );
+				}
+				if( mb_skip_run > 0 ){
+					moreDataFlag = more_rbsp_data( );
+				}
+			} else {
+				//mb_skip_flag = h264_ae(buf, &bitpos);
+				//moreDataFlag = !mb_skip_flag;
+			}
+		}
+/*		if( moreDataFlag ) {
+			if( MbaffFrameFlag && ( CurrMbAddr % 2 = = 0 | |( CurrMbAddr % 2 = = 1 && prevMbSkipped ) ) ){
+				mb_field_decoding_flag		=u(1)|ae(v)
+			}
+			macroblock_layer( ) 2 | 3
+		}
+		if( !entropy_coding_mode_flag ){
+			moreDataFlag = more_rbsp_data( )
+		}
+		else {
+			if( slice_type != I && slice_type != SI ){
+				prevMbSkipped = mb_skip_flag
+			}
+			if( MbaffFrameFlag && CurrMbAddr % 2 = = 0 ){
+				moreDataFlag = 1
+			}
+			else {
+				end_of_slice_flag		=ae(v)
+				moreDataFlag = !end_of_slice_flag
+			}
+		}
+		CurrMbAddr = NextMbAddress( CurrMbAddr )
+*/
+	//} while( moreDataFlag )
+
+	return bitpos;
+}
+
+
 /*
 slice_header( ) {
 	first_mb_in_slice	ue(v)
@@ -1316,7 +1534,6 @@ slice_header( ) {
 }
 
 */
-char* h264_typetable[5]={"P","B","I","SP","SI"};
 void parseh264_slice(u8* buf, int len)
 {
 	int bitpos = 8;
@@ -1334,25 +1551,36 @@ void parseh264_slice(u8* buf, int len)
 		break;
 	}
 
-	u32 first_mb_in_slice = h264_ue(buf, &bitpos);
-	printf("first_mb_in_slice=%x\n",first_mb_in_slice);
+	shead->first_mb_in_slice = h264_ue(buf, &bitpos);
+	printf("first_mb_in_slice=%x\n",shead->first_mb_in_slice);
 	u32 slice_type = h264_ue(buf, &bitpos);
 	printf("slice_type=%x(%s)\n",slice_type,h264_typetable[slice_type%5]);
 	u32 pic_parameter_set_id = h264_ue(buf, &bitpos);
 	printf("pic_parameter_set_id=%x\n",pic_parameter_set_id);
 
-	if(persps.separate_colour_plane_flag){
+	struct pps_parsed* thepps = getpps(pic_parameter_set_id);
+	if(0 == thepps){
+		printf("error:pps not found\n");
+		return;
+	}
+	struct sps_parsed* thesps = getsps(thepps->seq_parameter_set_id);
+	if(0 == thepps){
+		printf("error:sps not found\n");
+		return;
+	}
+
+	if(thesps->separate_colour_plane_flag){
 		u8 colour_plane_id = h264_u(buf,&bitpos,2);
 		printf("colour_plane_id = %d\n",colour_plane_id);
 	}
 
-	u32 frame_num = h264_u(buf, &bitpos, persps.log2_max_frame_num);
+	u32 frame_num = h264_u(buf, &bitpos, thesps->log2_max_frame_num);
 	printf("frame_num = %x\n",frame_num);
 
-	u8 field_pic_flag = 0;
-	if( !persps.frame_mbs_only_flag ) {
-		field_pic_flag = h264_u(buf, &bitpos, 1);
-		if( field_pic_flag ){
+	shead->field_pic_flag = 0;
+	if( !thesps->frame_mbs_only_flag ) {
+		shead->field_pic_flag = h264_u(buf, &bitpos, 1);
+		if( shead->field_pic_flag ){
 			u8 bottom_field_flag = h264_u(buf, &bitpos, 1);
 			printf("bottom_field_flag=%x\n",bottom_field_flag);
 		}
@@ -1364,25 +1592,25 @@ void parseh264_slice(u8* buf, int len)
 		printf("idr_pic_id=%x\n",idr_pic_id);
 	}
 
-	if( persps.pic_order_cnt_type == 0 ) {
-		int pic_order_cnt_lsb = h264_u(buf, &bitpos, persps.log2_max_pic_order_cnt_lsb);
+	if( thesps->pic_order_cnt_type == 0 ) {
+		int pic_order_cnt_lsb = h264_u(buf, &bitpos, thesps->log2_max_pic_order_cnt_lsb);
 		printf("pic_order_cnt_lsb = %x\n",pic_order_cnt_lsb);
-		if( perpps.bottom_field_pic_order_in_frame_present_flag && !field_pic_flag ){
+		if( thepps->bottom_field_pic_order_in_frame_present_flag && !shead->field_pic_flag ){
 			int delta_pic_order_cnt_bottom = h264_se(buf, &bitpos);
 			printf("delta_pic_order_cnt_bottom = %x\n",delta_pic_order_cnt_bottom);
 		}
 	}
 
-	if( persps.pic_order_cnt_type == 1 && !persps.delta_pic_order_always_zero_flag ) {
+	if( thesps->pic_order_cnt_type == 1 && !thesps->delta_pic_order_always_zero_flag ) {
 		int delta_pic_order_cnt0 = h264_se(buf, &bitpos);
 		printf("delta_pic_order_cnt[0]=%d\n",delta_pic_order_cnt0);
-		if( perpps.bottom_field_pic_order_in_frame_present_flag && !field_pic_flag ){
+		if( thepps->bottom_field_pic_order_in_frame_present_flag && !shead->field_pic_flag ){
 			int delta_pic_order_cnt1 = h264_se(buf, &bitpos);
 			printf("delta_pic_order_cnt[1]=%d\n",delta_pic_order_cnt1);
 		}
 	}
 
-	if( perpps.redundant_pic_cnt_present_flag ){
+	if( thepps->redundant_pic_cnt_present_flag ){
 		int redundant_pic_cnt = h264_ue(buf, &bitpos);
 		printf("redundant_pic_cnt=%d\n",redundant_pic_cnt);
 	}
@@ -1413,9 +1641,9 @@ void parseh264_slice(u8* buf, int len)
 		bitpos = ref_pic_list_modification(buf, bitpos, slicetype);
 	}
 
-	if(	( perpps.weighted_pred_flag && ( slicetype == 0 | slicetype == 3 ) ) |
-		( perpps.weighted_bipred_idc == 1 && slicetype == 1 ) ){
-		int ChromaArrayType = persps.separate_colour_plane_flag ? 0 : persps.chroma_format_idc;
+	if(	( thepps->weighted_pred_flag && ( slicetype == 0 | slicetype == 3 ) ) |
+		( thepps->weighted_bipred_idc == 1 && slicetype == 1 ) ){
+		int ChromaArrayType = thesps->separate_colour_plane_flag ? 0 : thesps->chroma_format_idc;
 		bitpos = pred_weight_table(buf, bitpos,
 				ChromaArrayType, slicetype,
 				num_ref_idx_l0_active_minus1, num_ref_idx_l1_active_minus1);
@@ -1423,7 +1651,7 @@ void parseh264_slice(u8* buf, int len)
 	if( nal_ref_idc != 0 ){
 		bitpos = dec_ref_pic_marking(buf, bitpos, IdrPicFlag);
 	}
-	if( perpps.entropy_coding_mode_flag && slicetype != 2 && slicetype != 4 ){
+	if( thepps->entropy_coding_mode_flag && slicetype != 2 && slicetype != 4 ){
 		int cabac_init_idc = h264_ue(buf, &bitpos);
 		printf("cabac_init_idc=%x\n",cabac_init_idc);
 	}
@@ -1438,7 +1666,7 @@ void parseh264_slice(u8* buf, int len)
 		int slice_qs_delta = h264_se(buf, &bitpos);
 	}
 
-	if( perpps.deblocking_filter_control_present_flag ) {
+	if( thepps->deblocking_filter_control_present_flag ) {
 		int disable_deblocking_filter_idc = h264_ue(buf, &bitpos);
 		if( disable_deblocking_filter_idc != 1 ) {
 			int slice_alpha_c0_offset_div2 = h264_se(buf, &bitpos);
@@ -1446,13 +1674,20 @@ void parseh264_slice(u8* buf, int len)
 		}
 	}
 
-	if( perpps.num_slice_groups_minus1 > 0 && perpps.slice_group_map_type >= 3 && perpps.slice_group_map_type <= 5){
+	if( thepps->num_slice_groups_minus1 > 0 && thepps->slice_group_map_type >= 3 && thepps->slice_group_map_type <= 5){
 		//int vv = Ceil( Log2( pic_size_in_map_units / slice_group_change_rate + 1 ) );
-		int vv = h264_log2( (perpps.pic_size_in_map_units_minus1+1) / (perpps.slice_group_change_rate_minus1+1) + 1 );
+		int vv = h264_log2( (thepps->pic_size_in_map_units_minus1+1) / (thepps->slice_group_change_rate_minus1+1) + 1 );
 		int slice_group_change_cycle = h264_u(buf, &bitpos, vv);
 		printf("slice_group_change_cycle=%x\n",slice_group_change_cycle);
 	}
-	printf("}slice\n\n");
+
+	printf("----(%x,%x)\n",bitpos,len<<3);
+
+	bitpos = slice_data(buf, bitpos,
+		thesps, thepps,
+		slicetype);
+
+	printf("}slice(%x,%x)\n\n",bitpos,len<<3);
 }
 
 
