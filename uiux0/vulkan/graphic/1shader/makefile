@@ -16,20 +16,20 @@ macsdlkandepth:
 winglfwvulkancolor:
 	gcc color.c ${glfwvulkan} -lvulkan-1 -lglfw3 -lgdi32
 winglfwvulkandepth:
-	gcc depth.c ${glfwulkan}} -lvulkan-1 -lglfw3 -lgdi32
+	gcc depth.c ${glfwulkan} -lvulkan-1 -lglfw3 -lgdi32
 winsdlvulkancolor:
 	gcc color.c ${sdlvulkan} -lvulkan-1 -lglfw3 -lgdi32
 winsdlvulkandepth:
-	gcc depth.c ${sdlvulkan}} -lvulkan-1 -lglfw3 -lgdi32
+	gcc depth.c ${sdlvulkan} -lvulkan-1 -lglfw3 -lgdi32
 
 linuxglfwvulkancolor:
-	gcc color.c ${glfwulkan}} -I${SDK}/include -L${SDK}/lib -lvulkan -lglfw3 -lX11 -ldl -lm -lpthread
+	gcc color.c ${glfwulkan} -I${SDK}/include -L${SDK}/lib -lvulkan -lglfw3 -lX11 -ldl -lm -lpthread
 linuxglfwvulkandepth:
-	gcc depth.c ${glfwulkan}} -I${SDK}/include -L${SDK}/lib -lvulkan -lglfw3 -lX11 -ldl -lm -lpthread
+	gcc depth.c ${glfwulkan} -I${SDK}/include -L${SDK}/lib -lvulkan -lglfw3 -lX11 -ldl -lm -lpthread
 linuxsdlvulkancolor:
-	gcc color.c ${sdlvulkan}} -I${SDK}/include -L${SDK}/lib -lvulkan -lglfw3 -lX11 -ldl -lm -lpthread
+	gcc color.c ${sdlvulkan} -I${SDK}/include -L${SDK}/lib -lvulkan -lglfw3 -lX11 -ldl -lm -lpthread
 linuxsdlvulkandepth:
-	gcc depth.c ${sdlvulkan}} -I${SDK}/include -L${SDK}/lib -lvulkan -lglfw3 -lX11 -ldl -lm -lpthread
+	gcc depth.c ${sdlvulkan} -I${SDK}/include -L${SDK}/lib -lvulkan -lglfw3 -lX11 -ldl -lm -lpthread
 
 stdoutcolor:
 	gcc color.c ${stdoutvulkan} -lvulkan

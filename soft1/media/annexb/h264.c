@@ -862,7 +862,6 @@ printf("pps{\n");
 		thepps->slice_group_map_type = h264_ue(buf, &bitpos);
 		printf("slice_group_map_type = %x\n", thepps->slice_group_map_type);
 
-		thepps->pic_size_in_map_units_minus1;
 		switch(thepps->slice_group_map_type){
 		case 0:
 			for(j=0;j<thepps->num_slice_groups_minus1;j++){
