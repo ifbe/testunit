@@ -6,10 +6,13 @@ using namespace std;
 
 //wnd thing
 HINSTANCE	g_hInstance(NULL);
-
 //d3d thing
 ID3D11Device*           g_dx11device(NULL);
 ID3D11DeviceContext*    g_dx11context(NULL);
+//ctx
+ID3D11ComputeShader* g_cs;
+ID3D11UnorderedAccessView* g_uav;
+ID3D11Buffer* g_d3d11buffer;
 
 //my own
 char cshader[] =
@@ -20,27 +23,8 @@ char cshader[] =
 "RWStructuredBuffer<BufferType> outbuf : register(u0);"
 "[numthreads(4,4,1)]"
 "void main(uint3 id:sv_dispatchthreadid){"
-"	outbuf[id.y*8 + id.x].val += 100;"
+"	outbuf[id.y*16 + id.x].val += 800;"
 "}";
-
-
-
-
-void compute()
-{
-}
-
-
-
-
-void Freemyctx()
-{
-}
-int Initmyctx()
-{
-	return 1;
-}
-
 
 
 
@@ -94,7 +78,7 @@ void printresult(ID3D11Buffer* outbuf)
 	desc.Usage = D3D11_USAGE_STAGING;
 	desc.BindFlags = 0;
 	desc.MiscFlags = 0;
-	desc.ByteWidth = 4*8*8;
+	desc.ByteWidth = 4*16*16;
 
 	ID3D11Buffer* dbgbuf;
 	HRESULT hr = g_dx11device->CreateBuffer(&desc, 0, &dbgbuf);
@@ -110,9 +94,9 @@ void printresult(ID3D11Buffer* outbuf)
 
 	int* ptr = (int*)mapres.pData;
 	int x,y;
-	for(y=0;y<8;y++){
-		for(x=0;x<7;x++)printf("%d ",ptr[y*8+x]);
-		printf("%d\n",ptr[y*8+7]);
+	for(y=0;y<16;y++){
+		for(x=0;x<15;x++)printf("%03d ",ptr[y*16+x]);
+		printf("%03d\n",ptr[y*16+16-1]);
 	}
 }
 
@@ -155,10 +139,19 @@ BOOL InitD3D11()
 
 	printd3d11device(g_dx11device);
 
+	return TRUE;
+}
 
+
+
+void Freemyctx()
+{
+}
+int Initmyctx()
+{
 	ID3DBlob* csBlob = NULL;
 	ID3DBlob* csError= NULL;
-	hr = D3DCompile(
+	HRESULT hr = D3DCompile(
 		cshader, sizeof(cshader), "cs",
 		0, 0,	//define, include
 		"main", "cs_5_0",	//entry, target
@@ -170,8 +163,7 @@ BOOL InitD3D11()
 		return 0;
 	}
 
-	ID3D11ComputeShader* cs;
-	hr = g_dx11device->CreateComputeShader(csBlob->GetBufferPointer(), csBlob->GetBufferSize(), NULL, &cs );
+	hr = g_dx11device->CreateComputeShader(csBlob->GetBufferPointer(), csBlob->GetBufferSize(), NULL, &g_cs );
 	if(FAILED(hr)){
 		csBlob->Release();
 		return hr;
@@ -181,25 +173,23 @@ BOOL InitD3D11()
 	D3D11_BUFFER_DESC desc;
 	ZeroMemory(&desc, sizeof(desc));
 	desc.BindFlags = D3D11_BIND_UNORDERED_ACCESS | D3D11_BIND_SHADER_RESOURCE;
-	desc.ByteWidth = 4*8*8;
+	desc.ByteWidth = 4*16*16;
 	desc.MiscFlags = D3D11_RESOURCE_MISC_BUFFER_STRUCTURED;
 	desc.StructureByteStride = 4;
 
 	int x,y;
-	int initdata[8*8];
-	for(y=0;y<8;y++){
-		for(x=0;x<8;x++)initdata[y*8+x] = y*8+x;
+	int initdata[16*16];
+	for(y=0;y<16;y++){
+		for(x=0;x<16;x++)initdata[y*16+x] = y*16+x;
 	}
-	for(y=0;y<8;y++){
-		for(x=0;x<7;x++)printf("%d ",initdata[y*8+x]);
-		printf("%d\n",initdata[y*8+7]);
+	for(y=0;y<16;y++){
+		for(x=0;x<15;x++)printf("%03d ",initdata[y*16+x]);
+		printf("%03d\n",initdata[y*16+16-1]);
 	}
 
 	D3D11_SUBRESOURCE_DATA subres;
 	subres.pSysMem = initdata;
-
-	ID3D11Buffer* d3d11buffer;
-	hr = g_dx11device->CreateBuffer(&desc, &subres, &d3d11buffer);
+	hr = g_dx11device->CreateBuffer(&desc, &subres, &g_d3d11buffer);
 	if(FAILED(hr)){
 		printf("CreateBuffer: uavbuf fail\n");
 		return 0;
@@ -220,24 +210,27 @@ BOOL InitD3D11()
 	uavdesc.ViewDimension = D3D11_UAV_DIMENSION_BUFFER;
 	uavdesc.Buffer.FirstElement = 0;
 	uavdesc.Format = DXGI_FORMAT_UNKNOWN;
-	uavdesc.Buffer.NumElements = 8*8;
+	uavdesc.Buffer.NumElements = 16*16;
+	g_dx11device->CreateUnorderedAccessView(g_d3d11buffer, &uavdesc, &g_uav);
 
-	ID3D11UnorderedAccessView* uav;
-	g_dx11device->CreateUnorderedAccessView(d3d11buffer, &uavdesc, &uav);
+	return 1;
+}
 
 
 
+
+void compute()
+{
 	printf("--------compute setup------------\n");
-	g_dx11context->CSSetShader(cs, 0, 0);
+	g_dx11context->CSSetShader(g_cs, 0, 0);
 	//g_dx11context->CSSetConstantBuffers(0, 1, &csv);
 	//g_dx11context->CSSetShaderResources(0, 1, &srv);
-	g_dx11context->CSSetUnorderedAccessViews(0, 1, &uav, NULL);
-	g_dx11context->Dispatch(1, 2, 1);
+	g_dx11context->CSSetUnorderedAccessViews(0, 1, &g_uav, NULL);
+	g_dx11context->Dispatch(3, 2, 1);
 	printf("--------compute finish------------\n");
 
 	Sleep(1);
-	printresult(d3d11buffer);
-	return TRUE;
+	printresult(g_d3d11buffer);
 }
 
 
