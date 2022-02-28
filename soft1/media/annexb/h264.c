@@ -562,10 +562,18 @@ static struct sps_parsed persps[16]={};
 static int sps_status[16]={};
 void* setsps(int id)
 {
+	if( (id<0)| (id>=16) ){
+		printf("setsps:id=%d\n",id);
+		return 0;
+	}
 	return &persps[id];
 }
 void* getsps(int id)
 {
+	if( (id<0)| (id>=16) ){
+		printf("getsps:id=%d\n",id);
+		return 0;
+	}
 	return &persps[id];
 }
 int parseh264_sps(unsigned char* buf, int len)
@@ -584,7 +592,7 @@ printf("sps{\n");
 	struct sps_parsed* thesps = setsps(seq_parameter_set_id);
 	if(0 == thesps){
 		printf("error:cannot setsps\n");
-		return 0;
+		goto done;
 	}
 
 	if(( 44 == profile_idc) |
@@ -700,6 +708,8 @@ printf("sps{\n");
 	if(vui_parameters_present_flag){
 		bitpos = parseh264_sps_vui(buf, bitpos);
 	}
+
+done:
 printf("}sps(%x,%x)\n\n",bitpos,len<<3);
 	return 0;
 }
@@ -819,10 +829,18 @@ static struct pps_parsed perpps[16]={};
 static int pps_status[16]={};
 void* setpps(int id)
 {
+	if( (id<0)| (id>=16) ){
+		printf("setpps:id=%d\n",id);
+		return 0;
+	}
 	return &perpps[id];
 }
 void* getpps(int id)
 {
+	if( (id<0)| (id>=16) ){
+		printf("getpps:id=%d\n",id);
+		return 0;
+	}
 	return &perpps[id];
 }
 int parseh264_pps(unsigned char* buf, int len)
@@ -840,7 +858,7 @@ printf("pps{\n");
 	struct pps_parsed* thepps = setpps(pic_parameter_set_id);
 	if(0 == thepps){
 		printf("error:cannot setpps\n");
-		return 0;
+		goto done;
 	}
 	thepps->seq_parameter_set_id = seq_parameter_set_id;
 	thepps->pic_parameter_set_id = pic_parameter_set_id;
@@ -848,7 +866,7 @@ printf("pps{\n");
 	struct sps_parsed* thesps = getsps(seq_parameter_set_id);
 	if(0 == thesps){
 		printf("error:sps not found\n");
-		return 0;
+		goto done;
 	}
 
 	thepps->entropy_coding_mode_flag = h264_u(buf, &bitpos, 1);
@@ -1560,12 +1578,12 @@ void parseh264_slice(u8* buf, int len)
 	struct pps_parsed* thepps = getpps(pic_parameter_set_id);
 	if(0 == thepps){
 		printf("error:pps not found\n");
-		return;
+		goto done;
 	}
 	struct sps_parsed* thesps = getsps(thepps->seq_parameter_set_id);
 	if(0 == thepps){
 		printf("error:sps not found\n");
-		return;
+		goto done;
 	}
 
 	if(thesps->separate_colour_plane_flag){
@@ -1686,6 +1704,7 @@ void parseh264_slice(u8* buf, int len)
 		thesps, thepps,
 		slicetype);
 
+done:
 	printf("}slice(%x,%x)\n\n",bitpos,len<<3);
 }
 
