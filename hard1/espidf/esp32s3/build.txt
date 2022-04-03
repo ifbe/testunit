@@ -1,0 +1,5 @@
+$git clone https://github.com/espressif/esp-idf.git
+$cd esp-idf && ./install.sh && . ./export.sh
+$cd examples/get-started/blink/
+$idf.py set-target esp32s3
+$idf.py -p /dev/ttyACM0 flash monito
