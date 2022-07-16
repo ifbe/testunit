@@ -72,34 +72,70 @@ int setvolt(void* gpio, int pin, int volt)
 	return 1;
 }
 
-int move(void* virtual, int x, int y)
+int xy2lr(float x, float y, float* l, float* r)
 {
-	int l = y;
-	int r = y;
-	if(x<0){
-		l = 0;
+	l[0] = r[0] = y;
+	l[0] += x*0.6;
+	r[0] -= x*0.6;
+	return 0;
+}
+
+int lr2ed(float l, float r, int* le, int* ld, int* re, int* rd)
+{
+	if((l > -0.2)&&(l < 0.2)){
+		le[0] = 0;
+		ld[0] = 0;
 	}
-	if(x>0){
-		r = 0;
+	else if(l < -0.5){
+		le[0] = 1;
+		ld[0] = 0;
+	}
+	else if(l > 0.5){
+		le[0] = 1;
+		ld[0] = 1;
+	}
+	else{
+		le[0] = 0;
+		ld[0] = 0;
 	}
 
+	if((r > -0.2)&&(r < 0.2)){
+		re[0] = 0;
+		rd[0] = 0;
+	}
+	else if(r < -0.5){
+		re[0] = 1;
+		rd[0] = 0;
+	}
+	else if(r > 0.5){
+		re[0] = 1;
+		rd[0] = 1;
+	}
+	else{
+		re[0] = 0;
+		rd[0] = 0;
+	}
+	return 0;
+}
+int move(void* virtual, int le, int ld, int re, int rd)
+{
 	//rf
-	setvolt(virtual,16,!r);
-	setvolt(virtual,20, r);
-	setvolt(virtual,21, 1);	//en
+	setvolt(virtual,16,!rd);
+	setvolt(virtual,20, rd);
+	setvolt(virtual,21, re);	//en
 	//rn
-	setvolt(virtual,24, 1);	//en
-	setvolt(virtual,25,!r);
-	setvolt(virtual,12, r);
+	setvolt(virtual,24, re);	//en
+	setvolt(virtual,25,!rd);
+	setvolt(virtual,12, rd);
 
 	//lf
-	setvolt(virtual,22, 1);	//en
-	setvolt(virtual, 5,!l);
-	setvolt(virtual, 6, l);
+	setvolt(virtual,22, le);	//en
+	setvolt(virtual, 5,!ld);
+	setvolt(virtual, 6, ld);
 	//ln
-	setvolt(virtual,13,!l);
-	setvolt(virtual,19, l);
-	setvolt(virtual,26, 1);	//en
+	setvolt(virtual,13,!ld);
+	setvolt(virtual,19, ld);
+	setvolt(virtual,26, le);	//en
 
 	return 0;
 }
@@ -119,20 +155,6 @@ int main()
 	);
 	printf("mmap:%llx\n",virtual);
 
-	int x,y;
-	unsigned int val;
-	for(y=0;y<5;y++){
-		val = virtual[y];
-		printf("GPFSEL%d=%x\n", y, val);
-		for(x=0;x<10;x++){
-			printf("%d: func=%d(%s)\n", y*10+x, val&7, val2str[val&7]);
-			val >>= 3;
-		}
-	}
-
-	while(1){
-		printf("%c\n",getchar());
-	}
 
 	//rf
 	setfunc(virtual,16, 1);
@@ -154,17 +176,110 @@ int main()
 	setfunc(virtual,19, 1);
 	setfunc(virtual,26, 1);		//en
 
+
 /*
 	move(virtual, 0,1);
 	usleep(1*1000*1000);
 
 	move(virtual, 0,0);
 	usleep(1*1000*1000);
-*/
+
 	move(virtual,-1,1);
 	usleep(1*1000*1000);
 
 	move(virtual, 1,1);
+	usleep(1*1000*1000);
+*/
+	float x,y;
+	float l,r;
+	int le,ld,re,rd;
+
+	printf("l\n");
+	x =-1;
+	y = 0;
+	printf("x=%f,y=%f\n", x, y);
+	xy2lr(x, y, &l, &r);
+	printf("l=%f,r=%f\n", l, r);
+	lr2ed(l, r, &le, &ld, &re, &rd);
+	printf("le=%d,ld=%d,re=%d,rd=%d\n", le, ld, re, rd);
+	move(virtual, le,ld, re,rd);
+	usleep(1*1000*1000);
+
+	printf("r\n");
+	x = 1;
+	y = 0;
+	printf("x=%f,y=%f\n", x, y);
+	xy2lr(x, y, &l, &r);
+	printf("l=%f,r=%f\n", l, r);
+	lr2ed(l, r, &le, &ld, &re, &rd);
+	printf("le=%d,ld=%d,re=%d,rd=%d\n", le, ld, re, rd);
+	move(virtual, le,ld, re,rd);
+	usleep(1*1000*1000);
+
+	printf("f\n");
+	x = 0;
+	y = 1;
+	printf("x=%f,y=%f\n", x, y);
+	xy2lr(x, y, &l, &r);
+	printf("l=%f,r=%f\n", l, r);
+	lr2ed(l, r, &le, &ld, &re, &rd);
+	printf("le=%d,ld=%d,re=%d,rd=%d\n", le, ld, re, rd);
+	move(virtual, le,ld, re,rd);
+	usleep(1*1000*1000);
+
+	printf("n\n");
+	x = 0;
+	y =-1;
+	printf("x=%f,y=%f\n", x, y);
+	xy2lr(x, y, &l, &r);
+	printf("l=%f,r=%f\n", l, r);
+	lr2ed(l, r, &le, &ld, &re, &rd);
+	printf("le=%d,ld=%d,re=%d,rd=%d\n", le, ld, re, rd);
+	move(virtual, le,ld, re,rd);
+	usleep(1*1000*1000);
+
+	printf("lf\n");
+	x =-0.7;
+	y = 0.7;
+	printf("x=%f,y=%f\n", x, y);
+	xy2lr(x, y, &l, &r);
+	printf("l=%f,r=%f\n", l, r);
+	lr2ed(l, r, &le, &ld, &re, &rd);
+	printf("le=%d,ld=%d,re=%d,rd=%d\n", le, ld, re, rd);
+	move(virtual, le,ld, re,rd);
+	usleep(1*1000*1000);
+
+	printf("rn\n");
+	x = 0.7;
+	y =-0.7;
+	printf("x=%f,y=%f\n", x, y);
+	xy2lr(x, y, &l, &r);
+	printf("l=%f,r=%f\n", l, r);
+	lr2ed(l, r, &le, &ld, &re, &rd);
+	printf("le=%d,ld=%d,re=%d,rd=%d\n", le, ld, re, rd);
+	move(virtual, le,ld, re,rd);
+	usleep(1*1000*1000);
+
+	printf("ln\n");
+	x =-0.7;
+	y =-0.7;
+	printf("x=%f,y=%f\n", x, y);
+	xy2lr(x, y, &l, &r);
+	printf("l=%f,r=%f\n", l, r);
+	lr2ed(l, r, &le, &ld, &re, &rd);
+	printf("le=%d,ld=%d,re=%d,rd=%d\n", le, ld, re, rd);
+	move(virtual, le,ld, re,rd);
+	usleep(1*1000*1000);
+
+	printf("rf\n");
+	x = 0.7;
+	y = 0.7;
+	printf("x=%f,y=%f\n", x, y);
+	xy2lr(x, y, &l, &r);
+	printf("l=%f,r=%f\n", l, r);
+	lr2ed(l, r, &le, &ld, &re, &rd);
+	printf("le=%d,ld=%d,re=%d,rd=%d\n", le, ld, re, rd);
+	move(virtual, le,ld, re,rd);
 	usleep(1*1000*1000);
 
 
