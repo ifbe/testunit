@@ -2154,43 +2154,7 @@ int getsamplebypts(FILE* fp, float pts, u8 (*tmp)[0x1000], int* sample_sz)
 	}
 	printf("sample=%d(decimal count from 1)\n",sample);
 
-	//3.(stsc)sample number -> chunk number
-	int this_chunk_first_sample = -1;
-	int chunknum = -1;
-	parse_stsc_get_chunk(stsc, sample, &chunknum, &this_chunk_first_sample);
-	if(chunknum < 0){
-		printf("err3: sample to chunknum wrong\n");
-		return 0;
-	}
-	printf("chunknum=%d, this_chunk_first_sample=%d(decimal count from 1)\n",
-		chunknum, this_chunk_first_sample);
-
-	//4.(stsz)sample_number -> sample_in_chunk
-	int sample_size = 0;
-	int sample_in_chunk = parse_stsz_get_sampleinchunkoff(
-		stsz, sample, this_chunk_first_sample, &sample_size);
-	if(sample_in_chunk < 0){
-		printf("err4: sample to sample_in_chunk wrong\n");
-		return 0;
-	}
-	printf("sample_in_chunk=%x, sample_size=%x(hexadecimal count from 0)\n",
-		sample_in_chunk, sample_size);
-
-	//5.(stco)chunk number -> chunk_in_file
-	int chunk_in_file = parse_stco_get_chunkinfileoff(stco, chunknum);
-	if(chunk_in_file < 0){
-		printf("err5: chunk to chunk_in_file wrong\n");
-		return 0;
-	}
-	printf("chunk_in_file=%x(hexadecimal count from 0)\n", chunk_in_file);
-
-	//6.sample_in_chunk + chunk_in_file = sample offset
-	int sample_in_file = sample_in_chunk + chunk_in_file;
-	printf("sample_in_file=%x(hexadecimal count from 0)\n", sample_in_file);
-
-	printf("-------------------\n");
-	*sample_sz = sample_size;
-	return sample_in_file;
+	return getsamplebypkt(fp, sample, tmp, sample_sz);
 }
 
 
@@ -2273,10 +2237,6 @@ int readpacket(FILE* fp, int off, u8* buf, int len)
 	ret = fseek(fp, off, SEEK_SET);
 	ret = fread(buf, 1, len<0x100000?len:0x100000, fp);
 	print8(buf, 16);
-	buf[0] = 0;
-	buf[1] = 0;
-	buf[2] = 0;
-	buf[3] = 1;
 
 	switch(fmt){
 	case hex32('m','p','4','v'):
@@ -2302,20 +2262,6 @@ int readpacket(FILE* fp, int off, u8* buf, int len)
 		printf("codec_unknown\n");
 	}
 	printf("-------------------\n");
-	return 0;
-}
-int writefile(void* buf, int len)
-{
-	FILE* fo = fopen("out.bin", "ab");
-	int ret = fwrite(buf, 1, len, fo);
-	printf("fwrite:len=%x,ret=%x\n",len,ret);
-	fclose(fo);
-/*
-	int fd = open("out.bin", O_RDWR|O_CREAT, S_IRWXU | S_IRWXG | S_IRWXO);
-	int ret = write(fd, buf, len);
-	printf("write:fd=%x,len=%x,ret=%x,errno=%d\n",fd,len,ret,errno);
-	close(fd);
-*/
 	return 0;
 }
 
@@ -2356,11 +2302,36 @@ int storespspps(FILE* fp, u8* buf)
 	sum += trackdef[0].pps_size;
 
 
-	FILE* fo = fopen("out.bin", "wb");
+	FILE* fo = fopen("out.h264", "wb");
 	ret = fwrite(buf, 1, sum, fo);
 	printf("fwrite:len=%x,ret=%x\n", sum, ret);
 	fclose(fo);
 
+	return 0;
+}
+int writenalu(u8* buf, int len)
+{
+	FILE* fo = fopen("out.h264", "ab");
+
+	int off = 0;
+	do{
+		int tmp = swap32(*(u32*)(buf+off));
+		buf[off+0] = 0;
+		buf[off+1] = 0;
+		buf[off+2] = 0;
+		buf[off+3] = 1;
+		int ret = fwrite(buf+off, 1, 4+tmp, fo);
+		printf("fwrite:len=%x,off=%x,4+tmp=%x,ret=%x\n",len,off, 4+tmp,ret);
+		off += 4+tmp;
+	}while(off < len);
+
+	fclose(fo);
+/*
+	int fd = open("out.bin", O_RDWR|O_CREAT, S_IRWXU | S_IRWXG | S_IRWXO);
+	int ret = write(fd, buf, len);
+	printf("write:fd=%x,len=%x,ret=%x,errno=%d\n",fd,len,ret,errno);
+	close(fd);
+*/
 	return 0;
 }
 
@@ -2394,33 +2365,33 @@ int main(int argc, char** argv)
 	}
 
 	if(argc < 3)goto byebye;
+	else if(0 == strncmp(argv[2], "pkt", 3)){
+		//sps, pps
+		storespspps(fp, (void*)tmp);
+		int pkt;
+		int sample_size;
+		int sample_offs;
+		for(;;){
+			if(scanf("%d", &pkt) < 0)break;
 
+			sample_offs = getsamplebypkt(fp, pkt+1, tmp, &sample_size);
+			printf("sample=%x: offs=%x,size=%x\n", pkt, sample_offs, sample_size);
 
-
-	int pkt = atoi(argv[2]);
-	printf("pkt=%d\n", pkt);
-
-/*	float pts = atof(argv[2]);
-	printf("pts=%f\n", pts);
-*/
-	//sps, pps
-	storespspps(fp, (void*)tmp);
-
-	int sample_size;
-	int sample_offs;
-	for(;;){
-		//sample_offs = getsamplebypts(fp, pts, tmp, &sample_size);
-
-		sample_offs = getsamplebypkt(fp, pkt+1, tmp, &sample_size);
-		printf("sample=%x: offs=%x,size=%x\n", pkt, sample_offs, sample_size);
-
-		if(sample_offs > 0){
-			readpacket(fp, sample_offs, (void*)tmp, sample_size);
-			if(argc >= 4)writefile(tmp, sample_size);
+			if(sample_offs > 0){
+				readpacket(fp, sample_offs, (void*)tmp, sample_size);
+				if(argc >= 3)writenalu((void*)tmp, sample_size);
+			}
 		}
-
-		//if(scanf("%f", &pts) < 0)break;
-		if(scanf("%d", &pkt) < 0)break;
+	}
+	else if(0 == strncmp(argv[2], "pts", 3)){
+		float pts;
+		int sample_size;
+		int sample_offs;
+		for(;;){
+			if(scanf("%f", &pts) < 0)break;
+			sample_offs = getsamplebypts(fp, pts, tmp, &sample_size);
+			printf("sample=%f: offs=%x,size=%x\n", pts, sample_offs, sample_size);
+		}
 	}
 
 byebye:
