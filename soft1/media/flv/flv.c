@@ -7,7 +7,16 @@ typedef unsigned int u32;
 typedef unsigned long long u64;
 #define hex32(a,b,c,d) (a|(b<<8)|(c<<16)|(d<<24))
 
-
+/*
+u8 g_sps_buf[] = {
+0x67,0x64,0x00,0x15,0xac,0xd9,0x41,0xb1,
+0xfe,0x4f,0x01,0x10,0x00,0x00,0x03,0x00,
+0x10,0x00,0x00,0x03,0x03,0x20,0xf1,0x62,
+0xd9,0x60,0x01};
+u8 g_pps_buf[] = {
+0x68,0xeb,0xec,0xb2,0x2c
+};
+*/
 
 
 u16 swap16(u16 in)
@@ -33,6 +42,52 @@ void print8(void* buf, int len)
 }
 
 
+void getdatafromh264(u8* bs,int xx,
+	int* spsoff,int* spsend,
+	int* ppsoff,int* ppsend,
+	int* idroff,int* idrend)
+{
+	int j;
+	int flag = 0;
+	for(j=3;j<0x10000;j++){
+		if( (1==bs[j]) && (0==bs[j-1]) && (0==bs[j-2]) ){
+			if(0x01 == (flag&3)){		//spsoff get, spsend not
+				*spsend = (0==bs[j-3]) ? j-3 : j-2;
+				flag |= 2;
+			}
+			if(0x00 == (flag&3)){		//spsoff not, spsend not
+			if(7 == (bs[j+1]&0x1f)){
+				*spsoff = j+1;
+				flag |= 1;
+			}
+			}
+
+			if(0x04 == (flag&0x0c)){	//ppsoff get, ppsend not
+				*ppsend = (0==bs[j-3]) ? j-3 : j-2;
+				flag |= 8;
+			}
+			if(0x00 == (flag&0x0c)){	//ppsoff not, ppsend not
+			if(8 == (bs[j+1]&0x1f)){
+				*ppsoff = j+1;
+				flag |= 4;
+			}
+			}
+
+			if(0x10 == (flag&0x30)){	//idroff get, idrend not
+				*idrend = (0==bs[j-3]) ? j-3 : j-2;
+				flag |= 0x20;
+			}
+			if(0x00 == (flag&0x30)){	//idroff not, idrend not
+			if(5 == (bs[j+1]&0x1f)){
+				*idroff = j+1;
+				flag |= 0x10;
+			}
+			}
+
+			if(0x3f==flag)return;	//all get
+		}
+	}
+}
 void parsenalu(u8* p, int l, int foff, int flen)
 {
 	int cnt = 0;
@@ -124,33 +179,37 @@ void parsedeccfg(u8* p, int l, int foff, int flen)
 	}
 
 }
-int makedeccfg(u8* p)
+int makedeccfg(u8* p, int xxx, u8* spsbuf,int spslen, u8* ppsbuf, int ppslen)
 {
 	int cnt = 0;
+
+	//head
 	struct flvtag_video_h264_config* cfg = (void*)p;
 	cfg->version = 1;
 	cfg->profile = 0x64;
 	cfg->compatible = 0;
-	cfg->level = 0x28;
+	cfg->level = 0x15;
 	cfg->lenminus1 = 0xf8 | (8-1);
 	cnt = 5;
 
+	//num of sps
 	p[cnt] = 1;
 	cnt += 1;
 
+	//one sps
 	struct flv_h264_sps* sps = (void*)p+cnt;
-	int spslen = 0x1e;
 	sps->len = swap16(spslen);
-	sps->buf[0] = 0x67;
+	memcpy(sps->buf, spsbuf, spslen);
 	cnt += 2+spslen;
 
+	//num of pps
 	p[cnt] = 1;
 	cnt += 1;
 
+	//one pps
 	struct flv_h264_pps* pps = (void*)p+cnt;
-	int ppslen = 0x6;
 	pps->len = swap16(ppslen);
-	pps->buf[0] = 0x68;
+	memcpy(pps->buf, ppsbuf, ppslen);
 	cnt += 2+ppslen;
 
 	return cnt;
@@ -214,7 +273,7 @@ void parsevideo(u8* p, int l, int foff, int flen)
 		break;
 	}
 }
-int makevideo(u8* buf, int len)
+int makeh264_deccfg(u8* buf, int len, u8* spsbuf, int spslen, u8* ppsbuf, int ppslen)
 {
 	int cnt = 0;
 
@@ -225,7 +284,30 @@ int makevideo(u8* buf, int len)
 	video->avc_cts[0] = video->avc_cts[1] = video->avc_cts[2] = 0;
 	cnt += 5;
 
-	cnt += makedeccfg(video->avc_data);
+	cnt += makedeccfg(video->avc_data,0, spsbuf,spslen, ppsbuf,ppslen);
+	return cnt;
+}
+int makeh264_bs(u8* buf, int len, u8* nalubuf, int nalulen)
+{
+	int cnt = 0;
+
+	struct flvtag_video_h264* video = (void*)buf;
+	video->frametype = 1;
+	video->codecid = 7;
+	video->avc_type = 1;
+	video->avc_cts[0] = video->avc_cts[1] = video->avc_cts[2] = 0;
+	cnt += 5;
+
+	u8* p = video->avc_data;
+	p[0] = (nalulen>>24)&0xff;
+	p[1] = (nalulen>>16)&0xff;
+	p[2] = (nalulen>>8)&0xff;
+	p[3] = nalulen&0xff;
+	cnt += 4;
+
+	memcpy(video->avc_data+4, nalubuf, nalulen);
+	cnt += nalulen;
+
 	return cnt;
 }
 
@@ -402,7 +484,7 @@ struct flvtag{
 	u8 data[0];
 	//u8 prevsize[4];
 }__attribute__((packed));
-int flv_maker_tag_script(struct flvtag* tag){
+int flv_maker_script(struct flvtag* tag){
 	int len = makescript((void*)tag->data, 0x1000);
 	tag->type = 0x12;
 	tag->thissize[0] = (len>>16)&0xff;
@@ -413,8 +495,19 @@ int flv_maker_tag_script(struct flvtag* tag){
 	tag->stream[0] = tag->stream[1] = tag->stream[2] = 0;
 	return len+11;
 }
-int flv_maker_tag_video(struct flvtag* tag){
-	int len = makevideo((void*)tag->data, 0x1000);
+int flv_maker_h264_deccfg(struct flvtag* tag,int xxx, u8* spsbuf,int spslen, u8* ppsbuf,int ppslen){
+	int len = makeh264_deccfg((void*)tag->data, 0x1000, spsbuf,spslen, ppsbuf,ppslen);
+	tag->type = 0x9;
+	tag->thissize[0] = (len>>16)&0xff;
+	tag->thissize[1] = (len>>8)&0xff;
+	tag->thissize[2] = len&0xff;
+	tag->time[0] = tag->time[1] = tag->time[2] = 0;
+	tag->time_ext = 0;
+	tag->stream[0] = tag->stream[1] = tag->stream[2] = 0;
+	return len+11;
+}
+int flv_maker_h264_bs(struct flvtag* tag, int xxx, u8* nalubuf, int nalulen){
+	int len = makeh264_bs((void*)tag->data, 0x1000, nalubuf, nalulen);
 	tag->type = 0x9;
 	tag->thissize[0] = (len>>16)&0xff;
 	tag->thissize[1] = (len>>8)&0xff;
@@ -428,11 +521,11 @@ int flv_maker_tag_video(struct flvtag* tag){
 
 
 
-int flv_parser(int argc, char** argv)
+int flv_parser(char* filename)
 {
 	unsigned char tmp[0x10000];
 
-	FILE* fp = fopen(argv[1],"rb");
+	FILE* fp = fopen(filename,"rb");
 	if(!fp)return 0;
 
 	int ret = fread(tmp, 1, 0x100, fp);
@@ -440,7 +533,8 @@ int flv_parser(int argc, char** argv)
 
 	struct flvhead* head = (void*)tmp;
 	int hlen = swap32(head->size);
-	printf("ver=%x,attr=%x,size=%x\n", head->ver, head->attr, hlen);
+	printf("[%x,%x): ver=%x,attr=%x,size=%x\n", 0,9, head->ver, head->attr, hlen);
+	printf("[%x,%x): prevsize=%x\n\n", 9,0xd, swap32( *(u32*)(tmp+hlen)) );
 
 	int j = hlen+4, k = 0;
 
@@ -483,11 +577,30 @@ int flv_parser(int argc, char** argv)
 	fclose(fp);
 	return 0;
 }
-int flv_maker(int argc, char** argv)
+int flv_maker(char* flvname, char* h264name)
 {
+	unsigned char bs[0x10000];
+	FILE* fp = fopen(h264name,"rb");
+	printf("fp=%p\n",fp);
+	u32 rlen = fread(bs, 1, 0x10000, fp);
+	printf("rlen=%x\n",rlen);
+	fclose(fp);
+
+	int spsoff=-1,spsend=-1;
+	int ppsoff=-1,ppsend=-1;
+	int idroff=-1,idrend=-1;
+	getdatafromh264(bs, 0x10000, &spsoff,&spsend, &ppsoff,&ppsend, &idroff,&idrend);
+	printf("[%x,%x)sps\n",spsoff,spsend);
+	printf("[%x,%x)pps\n",ppsoff,ppsend);
+	printf("[%x,%x)idr\n",idroff,idrend);
+	if((spsoff<0)|(spsend<0))return 0;
+	if((ppsoff<0)|(ppsend<0))return 0;
+	if((idroff<0)|(idrend<0))return 0;
+	printf("----h264 ok----\n\n");
+
 	int offs = 0;
 	unsigned char tmp[0x10000];
-	FILE* fo = fopen("test.flv", "wb");
+	FILE* fo = fopen(flvname, "wb");
 
 
 	//000000000
@@ -502,9 +615,10 @@ int flv_maker(int argc, char** argv)
 	printf("[9,d)ret=%x\n",ret);
 	offs = 9+4;
 
+
 	//111111111
 	struct flvtag* tagscript = (void*)tmp+0xd;
-	len = flv_maker_tag_script(tagscript);
+	len = flv_maker_script(tagscript);
 	ret = fwrite(tagscript, 1, len, fo);
 	printf("[%x,%x)ret=%x\n", offs, offs+len, ret);
 	offs += len;
@@ -517,13 +631,27 @@ int flv_maker(int argc, char** argv)
 
 
 	//222222222
-	struct flvtag* tag = (void*)tmp+offs;
-	len = flv_maker_tag_video(tag);
-	ret = fwrite(tag, 1, len, fo);
+	struct flvtag* tagavchead = (void*)tmp+offs;
+	len = flv_maker_h264_deccfg(tagavchead,0, bs+spsoff,spsend-spsoff, bs+ppsoff,ppsend-ppsoff );
+	ret = fwrite(tagavchead, 1, len, fo);
 	printf("[%x,%x)ret=%x\n", offs, offs+len, ret);
 	offs += len;
 
-	prevsize = (void*)tag+len;
+	prevsize = (void*)tagavchead+len;
+	*prevsize = swap32(len);
+	ret = fwrite(prevsize, 1, 4, fo);
+	printf("[%x,%x)ret=%x\n", offs, offs+4, ret);
+	offs += 4;
+
+
+	//3333333333
+	struct flvtag* tagavcbs = (void*)tmp+offs;
+	len = flv_maker_h264_bs(tagavcbs, 0, bs+idroff, idrend-idroff);
+	ret = fwrite(tagavcbs, 1, len, fo);
+	printf("[%x,%x)ret=%x\n", offs, offs+len, ret);
+	offs += len;
+
+	prevsize = (void*)tagavcbs+len;
 	*prevsize = swap32(len);
 	ret = fwrite(prevsize, 1, 4, fo);
 	printf("[%x,%x)ret=%x\n", offs, offs+4, ret);
@@ -535,14 +663,16 @@ int flv_maker(int argc, char** argv)
 }
 int main(int argc, char** argv)
 {
-	if(argc < 2){
-		printf("./a.out /path/test.flv\n");
-		return 0;
-	}
+	if(argc < 3)goto help;
 	if(0 == strncmp(argv[1], "make", 4)){
-		return flv_maker(argc,argv);
+		return flv_maker(argv[2], argv[3]);
 	}
-	else{
-		return flv_parser(argc,argv);
+	if(0 == strncmp(argv[1], "parse", 5)){
+		return flv_parser(argv[2]);
 	}
+	//fallthrough
+help:
+	printf("./a.out parse /path/test.flv\n");
+	printf("./a.out make /path/test.flv /path/bs.h264\n");
+	return 0;
 }
