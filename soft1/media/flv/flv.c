@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 typedef unsigned char u8;
 typedef unsigned short u16;
 typedef unsigned int u32;
@@ -318,6 +319,27 @@ void parseaudio(u8* p, int l, int foff, int flen)
 		foff,foff+flen,
 		p[0],p[1],p[2],p[3],p[4],p[5],p[6],p[7]);
 }
+int makepcm_s16le_44k1ch(u8* p)
+{
+#define AUDIO_TYPE_PCM 3
+#define AUDIO_FREQ_44100 3
+#define AUDIO_SIZE_16BIT 1
+#define AUDIO_CHAN_MONO 0
+#define stage 1.0594630943592953
+	p[0] = (AUDIO_TYPE_PCM<<4) | (AUDIO_FREQ_44100<<2) | (AUDIO_SIZE_16BIT<<1) | (AUDIO_CHAN_MONO);
+
+	int j,k;
+	float freq = 440;
+	short* pcm = (void*)(p+1);
+	for(k=0;k<12;k++){
+		printf("freq=%f\n",freq);
+		for(j=0;j<4410;j++){
+			pcm[k*44100/12 + j] = (short)(sin(j*3.141592653*2*freq/44100)*32767*(1.0-j/4410.0));
+		}
+		freq *= stage;
+	}
+	return 1+44100*2;
+}
 
 
 struct flvtag_script_onMetaData{
@@ -517,13 +539,24 @@ int flv_maker_h264_bs(struct flvtag* tag, int xxx, u8* nalubuf, int nalulen){
 	tag->stream[0] = tag->stream[1] = tag->stream[2] = 0;
 	return len+11;
 }
+int flv_maker_pcm_s16le_44k1ch(struct flvtag* tag){
+	int len = makepcm_s16le_44k1ch((void*)tag->data);
+	tag->type = 0x8;
+	tag->thissize[0] = (len>>16)&0xff;
+	tag->thissize[1] = (len>>8)&0xff;
+	tag->thissize[2] = len&0xff;
+	tag->time[0] = tag->time[1] = tag->time[2] = 0;
+	tag->time_ext = 0;
+	tag->stream[0] = tag->stream[1] = tag->stream[2] = 0;
+	return len+11;
+}
 
 
 
 
 int flv_parser(char* filename)
 {
-	unsigned char tmp[0x10000];
+	unsigned char tmp[0x100000];
 
 	FILE* fp = fopen(filename,"rb");
 	if(!fp)return 0;
@@ -545,7 +578,7 @@ int flv_parser(char* filename)
 	u8* ptr;
 	while(1){
 		ret = fseek(fp, j, SEEK_SET);
-		ret = fread(tmp, 1, 0x10000, fp);
+		ret = fread(tmp, 1, 0x100000, fp);
 		if(ret < 11)break;
 
 		type = tag->type;
@@ -652,6 +685,20 @@ int flv_maker(char* flvname, char* h264name)
 	offs += len;
 
 	prevsize = (void*)tagavcbs+len;
+	*prevsize = swap32(len);
+	ret = fwrite(prevsize, 1, 4, fo);
+	printf("[%x,%x)ret=%x\n", offs, offs+4, ret);
+	offs += 4;
+
+
+	//44444444
+	struct flvtag* tagpcm = (void*)tmp+offs;
+	len = flv_maker_pcm_s16le_44k1ch(tagpcm);
+	ret = fwrite(tagpcm, 1, len, fo);
+	printf("[%x,%x)ret=%x\n", offs, offs+len, ret);
+	offs += len;
+
+	prevsize = (void*)tagpcm+len;
 	*prevsize = swap32(len);
 	ret = fwrite(prevsize, 1, 4, fo);
 	printf("[%x,%x)ret=%x\n", offs, offs+4, ret);
