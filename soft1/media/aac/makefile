@@ -1,0 +1,2 @@
+annexb:
+	gcc aac.c

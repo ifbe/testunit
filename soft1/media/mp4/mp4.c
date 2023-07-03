@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <errno.h>
@@ -100,7 +101,11 @@ void printhex(u8* buf, int len)
 u64 parse_mdat(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 {
 	unsigned char* buf = p[depth];
-	printf("%.*s%x,%x,%x,%x\n",depth,tabs, buf[0],buf[1],buf[2],buf[3]);
+	u32 size = swap32(*(u32*)buf);
+
+	u8* d = buf+8;
+	printf("%.*s[%x,%x)rawdata: %x,%x,%x,%x,%x,%x,%x,%x\n",depth+1,tabs, off+8,off+size,
+		d[0],d[1],d[2],d[3],d[4],d[5],d[6],d[7]);
 	return 0;
 }
 
@@ -1579,7 +1584,7 @@ struct trun{
 	u32 samplecount;
 	u8 haha[0];
 }__attribute__((packed));
-int parse_trun(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
+int parse_trun(FILE* fp,int off, unsigned char (*p)[0x1000],int depth,int moofoffs)
 {
 	struct trun* m = (void*)(p[depth]);
 	u32 flag = (m->flag[0]<<16) | (m->flag[1]<<8) | (m->flag[2]);
@@ -1589,10 +1594,12 @@ int parse_trun(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 	printf("%.*ssamplecount=%x\n",depth,tabs, samplecount);
 
 	int j;
+	int dataoffs=0;
 	u8* tmp = m->haha;
 	if(flag&1){	//have_data_offset
-		printf("%.*sdataoffset=%x(from moof)\n",depth,tabs,
-			swap32(*(u32*)tmp) );
+		dataoffs = swap32(*(u32*)tmp);
+		printf("%.*sdataoffset=%x(from moof)=%x(from head)\n",depth,tabs,
+			dataoffs, moofoffs+dataoffs );
 		tmp += 4;
 	}
 	if(flag&4){	//have_first_sample_flag
@@ -1626,8 +1633,9 @@ int parse_trun(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 			tmp += 4;
 		}else sample_ct = 0;
 
-		printf("%.*s%x:[%x,%x),du=%x,fl=%x,ct=%x\n",depth+1,tabs,
-			j, at, nt, sample_duration, sample_flag, sample_ct);
+		printf("%.*s[%x,%x)[%x,%x)id=%x,du=%x,fl=%x,ct=%x\n",depth+1,tabs,
+			moofoffs+dataoffs+at, moofoffs+dataoffs+nt, at, nt, j,
+			sample_duration, sample_flag, sample_ct);
 		at = nt;
 	}
 	return 0;
@@ -1768,7 +1776,7 @@ int parse_trak(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 	trackcnt += 1;
 	return 0;
 }
-int parse_traf(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
+int parse_traf(FILE* fp,int off, unsigned char (*p)[0x1000],int depth, int moofoffs)
 {
 	//printf("%.*straf\n",depth,tabs);
 	unsigned char* traf = p[depth];
@@ -1794,7 +1802,7 @@ int parse_traf(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 			parse_tfdt(fp, j, p, depth+1);
 			break;
 		case hex32('t','r','u','n'):
-			parse_trun(fp, j, p, depth+1);
+			parse_trun(fp, j, p, depth+1, moofoffs);
 			break;
 		}
 
@@ -1902,7 +1910,7 @@ int parse_moof(FILE* fp,int off, unsigned char (*p)[0x1000],int depth)
 			parse_mfhd(fp, j, p, depth+1);
 			break;
 		case hex32('t','r','a','f'):
-			parse_traf(fp, j, p, depth+1);
+			parse_traf(fp, j, p, depth+1, off);
 			break;
 		}
 
