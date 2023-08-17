@@ -34,8 +34,7 @@ VkDeviceMemory hostMemory;
 VkBuffer deviceBuffer;
 VkDeviceMemory deviceMemory;
 //
-int bufferelement = 0x1000;
-int bufferSize = 4*0x1000;
+int bufferSize = 4*1024*1024*256;
 
 
 
@@ -332,12 +331,35 @@ void drawframe()
 
 
 	//copy from cpu to gpu
+	unsigned int* tmp;
+	vkMapMemory(logicaldevice, hostMemory, 0, VK_WHOLE_SIZE, 0, (void*)&tmp);
+
+	VkMappedMemoryRange mappedRange = {};
+	mappedRange.sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
+	mappedRange.memory = hostMemory;
+	mappedRange.offset = 0;
+	mappedRange.size = VK_WHOLE_SIZE;
+	vkInvalidateMappedMemoryRanges(logicaldevice, 1, &mappedRange);
+
+	int x,y,z;
+	for(z=0;z<256;z++){
+	for(y=0;y<1024;y++){
+	for(x=0;x<1024;x++)tmp[z*1024*1024 + y*1024 + x] = 2*1000*1000*1000;
+	}
+	}
+
+	vkUnmapMemory(logicaldevice, hostMemory);
 
 
 	//compute work
 	VkCommandBufferBeginInfo cmdBufbeginInfo = {};
 	cmdBufbeginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 	ret = vkBeginCommandBuffer(commandBuffer, &cmdBufbeginInfo);
+
+	//command copy from cpu to gpu
+	VkBufferCopy copyRegion = {};
+	copyRegion.size = bufferSize;
+	vkCmdCopyBuffer(commandBuffer, hostBuffer, deviceBuffer, 1, &copyRegion);
 
 	// Barrier to ensure that input buffer transfer is finished before compute shader reads from it
 	VkBufferMemoryBarrier bufferBarrier = {};
@@ -361,7 +383,7 @@ void drawframe()
 
 	vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, pipelineLayout, 0, 1, &descriptorSet, 0, 0);
 
-	vkCmdDispatch(commandBuffer, 3, 2, 1);
+	vkCmdDispatch(commandBuffer, 1024/8, 1024/8, 256/8);
 
 	// Barrier to ensure that shader writes are finished before buffer is read back from GPU
 	bufferBarrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
@@ -381,7 +403,6 @@ void drawframe()
 		0, 0);
 
 	// Read back to host visible buffer
-	VkBufferCopy copyRegion = {};
 	copyRegion.size = bufferSize;
 	vkCmdCopyBuffer(commandBuffer, deviceBuffer, hostBuffer, 1, &copyRegion);
 
@@ -418,20 +439,33 @@ void drawframe()
 
 
 	//copy from gpu to cpu
-	int* tmp;
 	vkMapMemory(logicaldevice, hostMemory, 0, VK_WHOLE_SIZE, 0, (void*)&tmp);
 
-	VkMappedMemoryRange mappedRange = {};
 	mappedRange.sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
 	mappedRange.memory = hostMemory;
 	mappedRange.offset = 0;
 	mappedRange.size = VK_WHOLE_SIZE;
 	vkInvalidateMappedMemoryRanges(logicaldevice, 1, &mappedRange);
 
-	int x,y;
+	printf("z=0,y=0\n");
 	for(y=0;y<16;y++){
-		for(x=0;x<15;x++)printf("%03d ", tmp[y*16+x]);
-		printf("%03d\n", tmp[y*16+x]);
+		for(x=0;x<8;x++)printf("%u ", tmp[y*1024+x]);
+		printf("... ... %u\n", tmp[y*1024+1023]);
+	}
+	printf("z=0,y=1008\n");
+	for(y=1024-16;y<1024;y++){
+		for(x=0;x<8;x++)printf("%u ", tmp[y*1024+x]);
+		printf("... ... %u\n", tmp[y*1024+1023]);
+	}
+	printf("z=7,y=1008\n");
+	for(y=1024-16;y<1024;y++){
+		for(x=0;x<8;x++)printf("%u ", tmp[7*1024*1024 + y*1024 + x]);
+		printf("... ... %u\n", tmp[7*1024*1024 + y*1024 + 1023]);
+	}
+	printf("z=255,y=1008\n");
+	for(y=1024-16;y<1024;y++){
+		for(x=0;x<8;x++)printf("%u ", tmp[255*1024*1024 + y*1024 + x]);
+		printf("... ... %u\n", tmp[255*1024*1024 + y*1024 + 1023]);
 	}
 
 	vkUnmapMemory(logicaldevice, hostMemory);
