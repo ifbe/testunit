@@ -372,13 +372,7 @@ void vulkan_myctx_delete()
 
 
 
-/*
-time spent on gpu(including copy_cpu_to_gpu and copy_gpu_to_cpu):
-hd530: 28s
-hd770: 12s
-gtx1060 0.7s
-*/
-void drawframe()
+void uploaddata()
 {
 	printf("prepare start\n");
 
@@ -435,9 +429,11 @@ void drawframe()
 	vkUnmapMemory(logicaldevice, hostMemory[1]);
 	vkUnmapMemory(logicaldevice, hostMemory[0]);
 	printf("prepare finish\n\n");
-
-
+}
+void gpu_compute()
+{
 	printf("gpu compute\n");
+	int x,y;
 	unsigned long long t0 = time_in_ns();
 
 	//compute work
@@ -540,25 +536,13 @@ void drawframe()
 	vkWaitForFences(logicaldevice, 1, &computefence, VK_TRUE, UINT64_MAX);
 
 	unsigned long long t2 = time_in_ns();
-
-	//cpumem read
-	vkMapMemory(logicaldevice, hostMemory[0], 0, VK_WHOLE_SIZE, 0, (void*)&tmp0);
-	vkMapMemory(logicaldevice, hostMemory[1], 0, VK_WHOLE_SIZE, 0, (void*)&tmp1);
-	vkMapMemory(logicaldevice, hostMemory[2], 0, VK_WHOLE_SIZE, 0, (void*)&tmp2);
-
-	mappedRange[0].sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
-	mappedRange[0].memory = hostMemory[0];
-	mappedRange[0].offset = 0;
-	mappedRange[0].size = VK_WHOLE_SIZE;
-	vkInvalidateMappedMemoryRanges(logicaldevice, 1, &mappedRange[0]);
-
-	unsigned long long t3 = time_in_ns();
 	printf("gpu finish\n\n");
+	printf("gpu cost=%f+%f\n", (t1-t0)*1e-9, (t2-t1)*1e-9);
 
-
-	//evaluate gpu
-	printf("gpu cost=%f+%f+%f\n", (t1-t0)*1e-9, (t2-t1)*1e-9, (t3-t2)*1e-9);
-
+}
+void gpu_evaluate(float* tmp0)
+{
+	int x,y;
 	printf("[0,32)\n");
 	for(y=0;y<4;y++){
 		for(x=0;x<4;x++)printf("%.3f ", tmp0[y*16+x]);
@@ -570,10 +554,12 @@ void drawframe()
 		printf("... ... %.3f\n", tmp0[y*16+15]);
 	}
 	printf("\n");
-
-
-	//compute cpu
+}
+void cpu_compute(float* tmp0, float* tmp1, float* tmp2)
+{
+	int x,y;
 	printf("cpu compute\n");
+
 	u64 ta = time_in_ns();
 	for(y=0;y<ydim;y++){
 		float tmp = 0.0;
@@ -584,10 +570,11 @@ void drawframe()
 	}
 	u64 tb = time_in_ns();
 	printf("cpu finish\n\n");
-
-
-	//evaluate cpu
 	printf("cpu cost=%f\n",(tb-ta)*1e-9);
+}
+void cpu_evaluate(float* tmp0)
+{
+	int x,y;
 
 	printf("[0,32)\n");
 	for(y=0;y<4;y++){
@@ -600,7 +587,49 @@ void drawframe()
 		printf("... ... %.3f\n", tmp0[y*16+15]);
 	}
 	printf("\n");
+}
+void drawframe()
+{
+	//0
+	uploaddata();
 
+	//1.0
+	gpu_compute();
+
+	//1.1
+	float* tmp0;
+	float* tmp1;
+	float* tmp2;
+	vkMapMemory(logicaldevice, hostMemory[0], 0, VK_WHOLE_SIZE, 0, (void*)&tmp0);
+
+	VkMappedMemoryRange mappedRange[2] = {};
+	mappedRange[0].sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
+	mappedRange[0].memory = hostMemory[0];
+	mappedRange[0].offset = 0;
+	mappedRange[0].size = VK_WHOLE_SIZE;
+	vkInvalidateMappedMemoryRanges(logicaldevice, 1, mappedRange);
+
+	gpu_evaluate(tmp0);
+
+	vkUnmapMemory(logicaldevice, hostMemory[0]);
+
+	//2
+	vkMapMemory(logicaldevice, hostMemory[0], 0, VK_WHOLE_SIZE, 0, (void*)&tmp0);
+	vkMapMemory(logicaldevice, hostMemory[1], 0, VK_WHOLE_SIZE, 0, (void*)&tmp1);
+	vkMapMemory(logicaldevice, hostMemory[2], 0, VK_WHOLE_SIZE, 0, (void*)&tmp2);
+
+	mappedRange[0].sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
+	mappedRange[0].memory = hostMemory[1];
+	mappedRange[0].offset = 0;
+	mappedRange[0].size = VK_WHOLE_SIZE;
+	mappedRange[1].sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
+	mappedRange[1].memory = hostMemory[2];
+	mappedRange[1].offset = 0;
+	mappedRange[1].size = VK_WHOLE_SIZE;
+	vkInvalidateMappedMemoryRanges(logicaldevice, 2, mappedRange);
+
+	cpu_compute(tmp0, tmp1, tmp2);
+	cpu_evaluate(tmp0);
 
 	vkUnmapMemory(logicaldevice, hostMemory[2]);
 	vkUnmapMemory(logicaldevice, hostMemory[1]);
