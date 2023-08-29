@@ -1,6 +1,9 @@
 #version 450
 layout (local_size_x = 32, local_size_y = 32, local_size_z = 1) in;
-
+layout(push_constant)uniform constants {
+	uint xx;
+	uint yy;
+};
 layout(binding = 0) buffer outdat {
 	float _o[ ];
 };
@@ -14,10 +17,10 @@ layout(binding = 2) buffer weight {
 void main(){
 	uint ix = gl_GlobalInvocationID.x;
 	uint iy = gl_GlobalInvocationID.y;
-	uint id = iy*4096 + ix;
-	uint id2= id*4096;
+	uint id = iy*64 + ix;
+	uint id2= id*xx;
 	float tmp = 0.0;
-	for(int j=0;j<4096;j++){
+	for(int j=0;j<xx;j++){
 		tmp += _w[id2 + j]*_x[j];
 	}
 	_o[id] = tmp;

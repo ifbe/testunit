@@ -65,8 +65,11 @@ VkDeviceMemory hostMemory[3];
 VkBuffer deviceBuffer[3];
 VkDeviceMemory deviceMemory[3];
 //
-int vectorbuffersize = 4*4096;
-int matrixbuffersize = 4*4096*4096;
+#define xdim 4096
+#define ydim 4096
+int vectorbuffersize = 4*xdim;
+int matrixbuffersize = 4*xdim*ydim;
+unsigned int pushconst[4] = {xdim, ydim, 0, 0};
 
 
 
@@ -216,12 +219,19 @@ void createcomputepipeline()
 	printf("DescriptorSets=%p\n", descriptorSet);
 
 
+	VkPushConstantRange pushconstant;
+	pushconstant.offset = 0;
+	pushconstant.size = 16;
+	pushconstant.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+
+
 	//pipelinelayoutpipelineLayout = descriptorsetlayout + xxx
 	VkPipelineLayoutCreateInfo pipelineLayoutInfo = {};
 	pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
 	pipelineLayoutInfo.setLayoutCount = 1;
 	pipelineLayoutInfo.pSetLayouts = &descriptorSetLayout;
-	pipelineLayoutInfo.pushConstantRangeCount = 0;
+	pipelineLayoutInfo.pushConstantRangeCount = 1;
+	pipelineLayoutInfo.pPushConstantRanges = &pushconstant;
 	ret = vkCreatePipelineLayout(logicaldevice, &pipelineLayoutInfo, 0, &pipelineLayout);
 	if(VK_SUCCESS != ret){
 		printf("error@vkCreatePipelineLayout\n");
@@ -370,6 +380,8 @@ gtx1060 0.7s
 */
 void drawframe()
 {
+	printf("prepare start\n");
+
 	//update data
 	VkDescriptorBufferInfo bufferDescriptor[3] = {};
 	VkWriteDescriptorSet descriptorWrites[3] = {};
@@ -409,29 +421,23 @@ void drawframe()
 	vkInvalidateMappedMemoryRanges(logicaldevice, 2, mappedRange);
 
 	int x,y;
-	for(y=0;y<4096;y++){
-	for(x=0;x<4096;x++){
-		tmp2[y*4096 + x] = 1.0;
+	for(y=0;y<ydim;y++){
+		for(x=0;x<xdim;x++){
+			tmp2[y*xdim + x] = (x==y) ? 1.0 : 0.0;
+		}
+		tmp2[y*xdim+17] += 100*1000.0;
 	}
-	}
-	for(x=0;x<4096;x++){
+	for(x=0;x<xdim;x++){
 		tmp1[x] = x*1.0;
 	}
-
-	u64 ta = time_in_ns();
-	for(y=0;y<4096;y++){
-		float tmp = 0.0;
-		for(x=0;x<4096;x++)tmp += tmp2[y*4096+x] * tmp1[x];
-		tmp0[y] = tmp;
-	}
-	u64 tb = time_in_ns();
-	printf("cpu cost=%f\n",(tb-ta)*1e-9);
 
 	vkUnmapMemory(logicaldevice, hostMemory[2]);
 	vkUnmapMemory(logicaldevice, hostMemory[1]);
 	vkUnmapMemory(logicaldevice, hostMemory[0]);
+	printf("prepare finish\n\n");
 
 
+	printf("gpu compute\n");
 	unsigned long long t0 = time_in_ns();
 
 	//compute work
@@ -476,8 +482,9 @@ void drawframe()
 	vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, computepipeline);
 
 	vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, pipelineLayout, 0, 1, &descriptorSet, 0, 0);
+	vkCmdPushConstants(commandBuffer, pipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, 16, pushconst);
 
-	vkCmdDispatch(commandBuffer, 4096/32, 4096/32, 1/1);
+	vkCmdDispatch(commandBuffer, 64/32, 64/32, 1/1);
 
 	// Barrier to ensure that shader writes are finished before buffer is read back from GPU
 	bufferBarrier[0].srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
@@ -536,6 +543,8 @@ void drawframe()
 
 	//cpumem read
 	vkMapMemory(logicaldevice, hostMemory[0], 0, VK_WHOLE_SIZE, 0, (void*)&tmp0);
+	vkMapMemory(logicaldevice, hostMemory[1], 0, VK_WHOLE_SIZE, 0, (void*)&tmp1);
+	vkMapMemory(logicaldevice, hostMemory[2], 0, VK_WHOLE_SIZE, 0, (void*)&tmp2);
 
 	mappedRange[0].sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
 	mappedRange[0].memory = hostMemory[0];
@@ -544,12 +553,56 @@ void drawframe()
 	vkInvalidateMappedMemoryRanges(logicaldevice, 1, &mappedRange[0]);
 
 	unsigned long long t3 = time_in_ns();
+	printf("gpu finish\n\n");
+
+
+	//evaluate gpu
 	printf("gpu cost=%f+%f+%f\n", (t1-t0)*1e-9, (t2-t1)*1e-9, (t3-t2)*1e-9);
 
-	for(y=0;y<16;y++){
+	printf("[0,32)\n");
+	for(y=0;y<4;y++){
 		for(x=0;x<4;x++)printf("%.3f ", tmp0[y*16+x]);
 		printf("... ... %.3f\n", tmp0[y*16+15]);
 	}
+	printf("[4032,4096)\n");
+	for(y=252;y<256;y++){
+		for(x=0;x<4;x++)printf("%.3f ", tmp0[y*16+x]);
+		printf("... ... %.3f\n", tmp0[y*16+15]);
+	}
+	printf("\n");
 
+
+	//compute cpu
+	printf("cpu compute\n");
+	u64 ta = time_in_ns();
+	for(y=0;y<ydim;y++){
+		float tmp = 0.0;
+		for(x=0;x<xdim;x++){
+		tmp += tmp2[y*xdim+x] * tmp1[x];
+		}
+		tmp0[y] = tmp;
+	}
+	u64 tb = time_in_ns();
+	printf("cpu finish\n\n");
+
+
+	//evaluate cpu
+	printf("cpu cost=%f\n",(tb-ta)*1e-9);
+
+	printf("[0,32)\n");
+	for(y=0;y<4;y++){
+		for(x=0;x<4;x++)printf("%.3f ", tmp0[y*16+x]);
+		printf("... ... %.3f\n", tmp0[y*16+15]);
+	}
+	printf("[4032,4096)\n");
+	for(y=252;y<256;y++){
+		for(x=0;x<4;x++)printf("%.3f ", tmp0[y*16+x]);
+		printf("... ... %.3f\n", tmp0[y*16+15]);
+	}
+	printf("\n");
+
+
+	vkUnmapMemory(logicaldevice, hostMemory[2]);
+	vkUnmapMemory(logicaldevice, hostMemory[1]);
 	vkUnmapMemory(logicaldevice, hostMemory[0]);
 }
