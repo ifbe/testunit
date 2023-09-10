@@ -27,6 +27,7 @@ u64 time_in_ns()
 	return mach_absolute_time();
 }
 #else
+#include <time.h>
 u64 time_in_ns()
 {
 	struct timespec t;
