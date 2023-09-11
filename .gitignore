@@ -2,10 +2,12 @@
 .vs
 .vscode
 *.o
+*.lib
+*.dll
 *.bin
 *.out
-*.dll
 *.exe
+*.exp
 *.hash
 *.jpg
 *.pcm
