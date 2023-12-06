@@ -155,11 +155,18 @@ void test()
 */
 }
 
-
-int32_t
-main (int32_t argc, char* argv[])
+char* errorstring(int err)
 {
-/* 
+	switch(err){
+	case EGL_BAD_DISPLAY:return "EGL_BAD_DISPLAY";
+	case EGL_NOT_INITIALIZED:return "EGL_NOT_INITIALIZED";
+	default:return "unknown";
+	}
+	return 0;
+}
+int32_t main (int32_t argc, char* argv[])
+{
+#if 0
 	int32_t fd = open ("/dev/dri/renderD128", O_RDWR);
 	assert (fd > 0);
  
@@ -168,8 +175,9 @@ main (int32_t argc, char* argv[])
  
 	EGLDisplay egl_dpy = eglGetPlatformDisplay (EGL_PLATFORM_GBM_MESA, gbm, NULL);
 	assert (egl_dpy != NULL);
-*/
-	EGLDisplay* egl_dpy = eglGetDisplay(EGL_DEFAULT_DISPLAY);
+#else
+	EGLDisplay egl_dpy = eglGetDisplay(EGL_DEFAULT_DISPLAY);
+#endif
 	int err = eglGetError();
 	if(EGL_NO_DISPLAY == egl_dpy || EGL_SUCCESS != err){
 		return -1;
@@ -178,6 +186,10 @@ main (int32_t argc, char* argv[])
 
 	int major,minor;
 	int res = eglInitialize (egl_dpy, &major, &minor);
+	if(GL_TRUE != res){
+		err = eglGetError();
+		printf("err=%d,%s\n", err, errorstring(err));
+	}
 	assert (res);
 
 	printf("EGL_VENDOR=%s\n",eglQueryString(egl_dpy, EGL_VENDOR));

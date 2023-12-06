@@ -5,10 +5,10 @@ glfwvulkan=../../main_glfw.c ../../vulkan.c
 filevulkan=../../main_file.c ../../vulkan.c
 stdoutvulkan=../../main_stdout.c ../../vulkan.c
 
+offscreen:
+	gcc test.c ${stdoutvulkan} -lvulkan
 offscreenlinux:
 	gcc test.c ${stdoutvulkan} -lvulkan -I${LINUXSDK}/include -L${LINUXSDK}/lib
-offscreenmac:
-	gcc test.c ${stdoutvulkan} -lvulkan
 offscreenwin:
 	gcc test.c ${stdoutvulkan} -lvulkan-1 -I${WINSDK}/Include -L${WINSDK}/Lib
 

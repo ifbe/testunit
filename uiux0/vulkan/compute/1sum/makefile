@@ -4,10 +4,10 @@ glfwvulkan=../../main_glfw.c ../../vulkan.c
 filevulkan=../../main_file.c ../../vulkan.c
 stdoutvulkan=../../main_stdout.c ../../vulkan.c
 
+offscreen:
+	gcc test.c ${stdoutvulkan} -lvulkan
 offscreenwin:
 	gcc test.c ${stdoutvulkan} -lvulkan-1 -I${WINSDK}/Include -L${WINSDK}/Lib
-offscreenmac:
-	gcc test.c ${stdoutvulkan} -lvulkan
 
 glslc:
 	${WINSDK}\Bin\glslc.exe shader.comp -o shader.comp.spv

@@ -1,0 +1,7 @@
+pi5-boomworm:
+	sudo  apt install libvulkan-dev
+	sudo  apt install libvulkan1
+	sudo  apt install mesa-vulkan-drivers
+	sudo apt install vulkan-tools
+	sudo apt install vulkan-validationlayers-dev
+	sudo apt install glslang-tools

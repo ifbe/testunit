@@ -1,0 +1,3 @@
+rpi:
+	sudo apt install libegl-dev
+	sudo apt install libgles-dev
