@@ -11,8 +11,8 @@ struct attachment{
 void* vulkan_device_create(int, void*);
 void vulkan_device_delete(void*);
 void vulkan_physicaldevice_logicdevice(VkPhysicalDevice* pdev, VkDevice* ldev);
-void vulkan_graphicqueue_graphicpool(VkQueue* queue, VkCommandPool* pool);
 void vulkan_presentqueue_swapchain(VkQueue* queue, VkSwapchainKHR* chain);
+void vulkan_graphicqueue_graphicpool(VkQueue* queue, VkCommandPool* pool);
 void vulkan_widthheight_imagecount_attachcolor(VkExtent2D* wh, uint32_t* cnt, struct attachment* attach);
 
 

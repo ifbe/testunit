@@ -8,10 +8,12 @@ struct attachment{
 	VkImage image;
 	VkImageView view;
 };
+void* vulkan_device_create(int, void*);
+void vulkan_device_delete(void*);
 void vulkan_physicaldevice_logicdevice(VkPhysicalDevice* pdev, VkDevice* ldev);
 void vulkan_graphicqueue_graphicpool(VkQueue* queue, VkCommandPool* pool);
-void vulkan_presentqueue_presentpool(VkQueue* queue, VkCommandPool* pool);
-void vulkan_swapchain_widthheight_imagecount_attachcolor(VkSwapchainKHR* chain, VkExtent2D* wh, uint32_t* cnt, struct attachment* attach);
+void vulkan_presentqueue_swapchain(VkQueue* queue, VkSwapchainKHR* chain);
+void vulkan_widthheight_imagecount_attachcolor(VkExtent2D* wh, uint32_t* cnt, struct attachment* attach);
 
 
 
@@ -590,13 +592,20 @@ void vulkan_myctx_delete()
 	freerenderpass();
 
 	freedepthstencil();
+
+	vulkan_device_delete(physicaldevice);
 }
-void vulkan_myctx_create()
+void vulkan_myctx_create(void* face, void* cb)
 {
+	void* device = vulkan_device_create(1, face);
+	if(0 == device)return;
+
 	vulkan_physicaldevice_logicdevice(&physicaldevice, &logicaldevice);
-	vulkan_graphicqueue_graphicpool(&graphicQueue, &graphicPool);
-	vulkan_presentqueue_presentpool(&presentQueue, 0);
-	vulkan_swapchain_widthheight_imagecount_attachcolor(&swapChain, &widthheight, &imagecount, attachcolor);
+	vulkan_presentqueue_swapchain(&presentQueue, &swapChain);
+	if(1){
+		vulkan_graphicqueue_graphicpool(&graphicQueue, &graphicPool);
+		vulkan_widthheight_imagecount_attachcolor(&widthheight, &imagecount, attachcolor);
+	}
 
 	initdepthstencil();
 

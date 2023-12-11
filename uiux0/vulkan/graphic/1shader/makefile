@@ -1,5 +1,7 @@
-WINSDK=C:\VulkanSDK\1.3.204.0
-LINUXSDK=/opt/vulkansdk/1.3.204.0/x86_64
+LINUXSDK=/opt/vulkansdk/1.3.268.0/x86_64
+MACSDK=~/VulkanSDK/1.3.268.1/macOS
+WINSDK=C:\VulkanSDK\1.3.268.0
+
 sdlvulkan=../../main_sdl.c ../../vulkan.c
 glfwvulkan=../../main_glfw.c ../../vulkan.c
 filevulkan=../../main_file.c ../../vulkan.c
@@ -7,12 +9,16 @@ stdoutvulkan=../../main_stdout.c ../../vulkan.c
 
 macglfwvulkancolor:
 	clang color.c ${glfwvulkan} -lvulkan -lglfw
+	install_name_tool -add_rpath ${MACSDK}/lib a.out
 macglfwvulkandepth:
 	clang depth.c ${glfwvulkan} -lvulkan -lglfw
+	install_name_tool -add_rpath ${MACSDK}/lib a.out
 macsdlvulkancolor:
 	clang color.c ${sdlvulkan} -lvulkan -lglfw
+	install_name_tool -add_rpath ${MACSDK}/lib a.out
 macsdlvulkandepth:
 	clang depth.c ${sdlvulkan} -lvulkan -lglfw
+	install_name_tool -add_rpath ${MACSDK}/lib a.out
 
 winglfwvulkancolor:
 	gcc color.c ${glfwvulkan} -I${WINSDK}/Include -L${WINSDK}/Lib -lvulkan-1 -lglfw3 -lgdi32
