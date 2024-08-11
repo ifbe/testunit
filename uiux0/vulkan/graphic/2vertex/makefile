@@ -13,9 +13,9 @@ macindice:shader
 	clang indice.c ${glfwvulkan} -lvulkan -lglfw
 	install_name_tool -add_rpath ${MACSDK}/lib a.out
 winvertex:shader
-	gcc vertex.c ${glfwvulkan} -lvulkan-1 -lglfw3 -lgdi32
+	gcc vertex.c ${glfwvulkan} -I${WINSDK}/Include -L${WINSDK}/Lib -lvulkan-1 -lglfw3 -lgdi32
 winindice:shader
-	gcc indice.c ${glfwvulkan} -lvulkan-1 -lglfw3 -lgdi32
+	gcc indice.c ${glfwvulkan} -I${WINSDK}/Include -L${WINSDK}/Lib -lvulkan-1 -lglfw3 -lgdi32
 linuxvertex:shader
 	gcc vertex.c ${glfwvulkan} -I${LINUXSDK}/include -L${LINUXSDK}/lib -lvulkan -lglfw3 -lX11 -ldl -lm -lpthread
 linuxindice:shader

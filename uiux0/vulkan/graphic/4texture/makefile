@@ -11,7 +11,7 @@ mac:shader
 	clang test.c ${glfwvulkan} -lvulkan -lglfw -lm
 	install_name_tool -add_rpath ${MACSDK}/lib a.out
 win:shader
-	gcc test.c ${glfwvulkan} -lvulkan-1 -lglfw3 -lgdi32 -lm
+	gcc test.c ${glfwvulkan} -I${WINSDK}/Include -L${WINSDK}/Lib -lvulkan-1 -lglfw3 -lgdi32 -lm
 linux:shader
 	gcc test.c ${glfwvulkan} -I${LINUXSDK}/include -L${LINUXSDK}/lib -lvulkan -lglfw3 -lX11 -ldl -lm -lpthread
 shader:

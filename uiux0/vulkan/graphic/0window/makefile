@@ -10,7 +10,7 @@ macglfwvulkan:
 	install_name_tool -add_rpath ${MACSDK}/lib a.out
 
 winglfwvulkan:
-	gcc window.c ${glfwvulkan} -lvulkan-1 -lglfw3 -lgdi32
+	gcc window.c ${glfwvulkan} -I${WINSDK}/Include -L${WINSDK}/Lib -lvulkan-1 -lglfw3 -lgdi32
 
 rpiglfwvulkan:
 	gcc window.c ${glfwvulkan} -lvulkan -lglfw
