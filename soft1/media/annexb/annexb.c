@@ -2,6 +2,7 @@
 #include <stdlib.h>
 int parseh264(unsigned char* buf, int len);
 int parseh265(unsigned char* buf, int len);
+int parseh266(unsigned char* buf, int len);
 
 
 #define BUFSZ 0x200000
@@ -95,11 +96,16 @@ int main(int argc, char** argv)
 			buf[0],buf[1],buf[2],buf[3],
 			buf[4],buf[5],buf[6],buf[7]);
 
-		if('4' == codec){
+		switch(codec){
+		case '4':
 			parseh264(buf, tmp);
-		}
-		else{
+			break;
+		case '5':
 			parseh265(buf, tmp);
+			break;
+		case '6':
+			parseh266(buf, tmp);
+			break;
 		}
 
 		now += ret;
